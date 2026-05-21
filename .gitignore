@@ -1,0 +1,25 @@
+# Brainstorm visual-companion working dir
+.superpowers/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.uv/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+.coverage
+htmlcov/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
