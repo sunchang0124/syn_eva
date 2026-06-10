@@ -54,10 +54,11 @@ class Wasserstein1:
                 notes=[*notes, "no numeric columns"],
             )
 
-        score = float(min(1.0, max(0.0, 1.0 - sum(normalized) / len(normalized))))
+        mean_normalized = sum(normalized) / len(normalized)
+        score = float(min(1.0, max(0.0, 1.0 - mean_normalized)))
         return MetricResult(
             spec=self.spec,
-            scalars={"score": score},
+            scalars={"score": score, "mean_wasserstein": mean_normalized},
             per_column=per_column,
             notes=notes,
         )
