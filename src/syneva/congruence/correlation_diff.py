@@ -43,7 +43,7 @@ def _eta_squared(num: pd.Series, cat: pd.Series) -> float | None:
 def _pair_assoc(df: pd.DataFrame, a: str, b: str, ta: ColumnType, tb: ColumnType) -> float | None:
     """Return association measure for a column pair in one dataframe."""
     if ta is ColumnType.NUMERIC and tb is ColumnType.NUMERIC:
-        corr = df[[a, b]].corr().iloc[0, 1]
+        corr = df[[a, b]].corr(method="pearson").iloc[0, 1]
         return None if np.isnan(corr) else float(corr)
     if ta is ColumnType.CATEGORICAL and tb is ColumnType.CATEGORICAL:
         return _cramers_v(df[a], df[b])
@@ -85,8 +85,14 @@ class CorrelationDifference:
             c_real = _pair_assoc(real, a, b, ta, tb)
             c_syn = _pair_assoc(synthetic, a, b, ta, tb)
             if c_real is None or c_syn is None:
+                if c_real is None and c_syn is None:
+                    _which = "real and synthetic"
+                elif c_real is None:
+                    _which = "real"
+                else:
+                    _which = "synthetic"
                 notes.append(
-                    f"pair '{a}|{b}' skipped (undefined association — "
+                    f"pair '{a}|{b}' skipped (undefined association in {_which} — "
                     "constant column or single category)"
                 )
                 continue
