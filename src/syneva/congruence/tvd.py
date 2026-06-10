@@ -38,8 +38,8 @@ class TotalVariationDistance:
             p_real = r.value_counts(normalize=True)
             p_syn = s.value_counts(normalize=True)
             cats = p_real.index.union(p_syn.index)
-            tvd = float(0.5 * sum(abs(p_real.get(c, 0.0) - p_syn.get(c, 0.0)) for c in cats))
-            per_column[name] = {"tvd": tvd}
+            col_tvd = float(0.5 * sum(abs(p_real.get(c, 0.0) - p_syn.get(c, 0.0)) for c in cats))
+            per_column[name] = {"tvd": col_tvd}
 
         if not per_column:
             return MetricResult(
@@ -50,7 +50,7 @@ class TotalVariationDistance:
             )
 
         mean_tvd = sum(v["tvd"] for v in per_column.values()) / len(per_column)
-        score = float(1.0 - mean_tvd)
+        score = float(min(1.0, max(0.0, 1.0 - mean_tvd)))
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "mean_tvd": mean_tvd},
