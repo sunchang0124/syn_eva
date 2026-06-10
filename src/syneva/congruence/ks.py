@@ -37,10 +37,10 @@ class KSStatistic:
             r = pd.to_numeric(real[name], errors="coerce").dropna()
             s = pd.to_numeric(synthetic[name], errors="coerce").dropna()
             if len(s) == 0 or len(r) == 0:
-                notes.append(f"column '{name}' all NaN, skipped")
+                notes.append(f"column '{name}' skipped (empty after NaN-drop)")
                 continue
-            ks, p = stats.ks_2samp(r.values, s.values)
-            per_column[name] = {"ks_statistic": float(ks), "p_value": float(p)}
+            stat, p = stats.ks_2samp(r.values, s.values)
+            per_column[name] = {"ks_statistic": float(stat), "p_value": float(p)}
 
         if not per_column:
             return MetricResult(

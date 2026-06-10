@@ -42,4 +42,4 @@ def test_handles_all_nan_column(real_df, syn_good_df):
     syn = syn_good_df.copy()
     syn["age"] = float("nan")
     r = KSStatistic().compute(real_df, syn, Metadata.infer(real_df))
-    assert any("all NaN" in n for n in r.notes)
+    assert any("skipped (empty after NaN-drop)" in n for n in r.notes)
