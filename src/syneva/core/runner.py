@@ -50,9 +50,8 @@ def evaluate_with(
     cs: Sequence[str] | None = None,
     random_state: int = 42,
     nan_policy: str = "drop",
+    # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
 ) -> Report:
-    info = RunInfo.capture(random_state=random_state)
-
     if real is not None:
         _check_schema(real, synthetic)
 
@@ -62,6 +61,7 @@ def evaluate_with(
     if real is not None:
         metadata.validate_against(real)
 
+    info = RunInfo.capture(random_state=random_state)
     selected = reg.select(tiers=list(tiers), data_type=data_type, cs=cs)
     if real is None:
         selected = [c for c in selected if not c.spec.requires_real]
@@ -69,7 +69,7 @@ def evaluate_with(
         raise SynevaError(
             "no runnable metrics for this selection "
             f"(real={'None' if real is None else 'df'}, tiers={list(tiers)}, "
-            f"data_type={data_type}, cs={list(cs) if cs else 'all'})"
+            f"data_type={data_type}, cs={list(cs) if cs is not None else 'all'})"
         )
 
     results: list[MetricResult] = []
