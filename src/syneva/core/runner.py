@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Literal
+
+import pandas as pd
+
+from syneva.core.errors import MetricError, SchemaError, SynevaError
+from syneva.core.metadata import Metadata
+from syneva.core.metric import MetricResult
+from syneva.core.registry import MetricRegistry
+from syneva.core.registry import registry as _default_registry
+from syneva.core.report import Report
+from syneva.core.run_info import RunInfo
+
+
+def evaluate(
+    real: pd.DataFrame | None,
+    synthetic: pd.DataFrame,
+    metadata: Metadata | None = None,
+    *,
+    tiers: Sequence[str] = ("core",),
+    data_type: str = "static",
+    cs: Sequence[str] | None = None,
+    random_state: int = 42,
+    nan_policy: Literal["drop", "explicit_na", "raise"] = "drop",
+) -> Report:
+    """Evaluate synthetic tabular data against real data, return a Report."""
+    return evaluate_with(
+        _default_registry,
+        real=real,
+        synthetic=synthetic,
+        metadata=metadata,
+        tiers=tiers,
+        data_type=data_type,
+        cs=cs,
+        random_state=random_state,
+        nan_policy=nan_policy,
+    )
+
+
+def evaluate_with(
+    reg: MetricRegistry,
+    *,
+    real: pd.DataFrame | None,
+    synthetic: pd.DataFrame,
+    metadata: Metadata | None = None,
+    tiers: Sequence[str] = ("core",),
+    data_type: str = "static",
+    cs: Sequence[str] | None = None,
+    random_state: int = 42,
+    nan_policy: str = "drop",
+) -> Report:
+    info = RunInfo.capture(random_state=random_state)
+
+    if real is not None:
+        _check_schema(real, synthetic)
+
+    if metadata is None:
+        metadata = Metadata.infer(real if real is not None else synthetic)
+    metadata.validate_against(synthetic)
+    if real is not None:
+        metadata.validate_against(real)
+
+    selected = reg.select(tiers=list(tiers), data_type=data_type, cs=cs)
+    if real is None:
+        selected = [c for c in selected if not c.spec.requires_real]
+    if not selected:
+        raise SynevaError(
+            "no runnable metrics for this selection "
+            f"(real={'None' if real is None else 'df'}, tiers={list(tiers)}, "
+            f"data_type={data_type}, cs={list(cs) if cs else 'all'})"
+        )
+
+    results: list[MetricResult] = []
+    for cls in selected:
+        try:
+            results.append(cls().compute(real, synthetic, metadata))
+        except Exception as e:
+            results.append(
+                MetricResult(
+                    spec=cls.spec,
+                    error=MetricError(
+                        f"{cls.spec.name} failed: {e}",
+                        original=e,
+                    ),
+                )
+            )
+
+    info.finish()
+    return Report(metadata=metadata, results=results, run_info=info)
+
+
+def _check_schema(real: pd.DataFrame, synthetic: pd.DataFrame) -> None:
+    real_cols, syn_cols = list(real.columns), list(synthetic.columns)
+    extra = [c for c in syn_cols if c not in real_cols]
+    missing = [c for c in real_cols if c not in syn_cols]
+    if extra or missing:
+        raise SchemaError(
+            f"column mismatch: extra={extra}, missing={missing}",
+            extra=extra,
+            missing=missing,
+        )
