@@ -1,0 +1,25 @@
+{
+  "columns": {
+    "age": {
+      "dtype": "numeric"
+    },
+    "sex": {
+      "dtype": "categorical",
+      "sensitive": true
+    },
+    "education": {
+      "dtype": "categorical"
+    },
+    "hours_per_week": {
+      "dtype": "numeric"
+    },
+    "income": {
+      "dtype": "numeric",
+      "sensitive": true
+    },
+    "high_income": {
+      "dtype": "categorical"
+    }
+  },
+  "primary_key": null
+}
