@@ -35,6 +35,10 @@ class MetricRegistry:
             )
         if data_type not in _VALID_DATA_TYPES:
             raise RegistryError(f"unknown data_type '{data_type}'; valid: {_VALID_DATA_TYPES}")
+        if data_type == "longitudinal":
+            raise RegistryError("longitudinal not yet implemented; coming in v0.2")
+        if data_type == "relational":
+            raise RegistryError("relational not yet implemented; coming in v0.3")
         cs_set = set(cs) if cs is not None else None
         out: list[type[Metric]] = []
         for cls in self._metrics.values():

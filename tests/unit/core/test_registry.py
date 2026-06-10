@@ -41,8 +41,14 @@ def test_unknown_tier_raises():
 
 def test_unknown_data_type_raises():
     r = MetricRegistry()
-    with pytest.raises(RegistryError):
+    with pytest.raises(RegistryError, match="unknown data_type"):
         r.select(tiers=["core"], data_type="bogus")
+
+
+def test_longitudinal_raises_v02_message():
+    r = MetricRegistry()
+    with pytest.raises(RegistryError, match=r"v0\.2"):
+        r.select(tiers=["core"], data_type="longitudinal")
 
 
 def test_double_register_is_idempotent():
