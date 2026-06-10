@@ -28,7 +28,7 @@ class Report:
     def aggregated(self) -> dict[str, float]:
         scores: dict[str, float] = {}
         for c, rs in self.by_c.items():
-            usable = [r for r in rs if r.scalars and r.error is None]
+            usable = [r for r in rs if r.scalars is not None and r.error is None]
             if not usable:
                 continue
             per = [_normalize_scalars(r) for r in usable]
@@ -95,6 +95,8 @@ def _metadata_from_dict(d: dict) -> Metadata:
 
 
 def _result_to_dict(r: MetricResult) -> dict:
+    # plot_payload is intentionally not serialized: it is a non-JSON render
+    # artefact (e.g. a matplotlib Figure) and has no place in the JSON report.
     return {
         "spec": {
             "name": r.spec.name,
@@ -107,6 +109,8 @@ def _result_to_dict(r: MetricResult) -> dict:
         "scalars": r.scalars,
         "per_column": r.per_column,
         "notes": r.notes,
+        # MetricError.original (the causing exception) is not JSON-serializable
+        # and is intentionally dropped; only the message string is persisted.
         "error": str(r.error) if r.error else None,
     }
 
@@ -132,8 +136,14 @@ def _result_from_dict(d: dict) -> MetricResult:
 
 
 def _normalize_scalars(r: MetricResult) -> float:
-    """v0.1: uniform-weight aggregation. Each metric returns scalars whose
-    'primary' value is normalized to [0,1] where 1=ideal."""
+    """Return a [0,1] score (1=ideal) for one MetricResult.
+
+    v0.1 convention: metrics MUST satisfy exactly one of:
+      - expose ``scalars["score"]`` in [0,1] where 1 = ideal (higher is better), OR
+      - expose a single scalar that is a distance in [0,1] where 0 = ideal;
+        this path inverts via ``1 - value``.
+    Any other layout will aggregate incorrectly.
+    """
     assert r.scalars is not None
     # Convention: metrics expose a "score" key in [0,1]. If not, fall back to
     # 1.0 - min(1.0, max(0.0, first_value)) for distance-like metrics.
