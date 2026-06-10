@@ -1,4 +1,5 @@
 import pytest
+
 from syneva.core.errors import RegistryError
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import MetricRegistry

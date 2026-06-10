@@ -1,6 +1,7 @@
 # tests/unit/core/test_metadata.py
 import pandas as pd
 import pytest
+
 from syneva.core.errors import MetadataError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 
