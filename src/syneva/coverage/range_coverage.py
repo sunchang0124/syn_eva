@@ -57,7 +57,7 @@ class RangeCoverage:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
+                scalars={"score": 1.0, "mean_coverage": 1.0},
                 per_column={},
                 notes=[*notes, "no numeric columns"],
             )
@@ -67,7 +67,7 @@ class RangeCoverage:
         )
         return MetricResult(
             spec=self.spec,
-            scalars={"score": score},
+            scalars={"score": score, "mean_coverage": score},
             per_column=per_column,
             notes=notes,
         )
