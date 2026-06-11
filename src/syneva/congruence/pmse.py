@@ -37,14 +37,12 @@ class PMSE:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        X_real = _encode(real, meta)
-        X_syn = _encode(synthetic, meta)
-        # align column counts (categorical-induced widening)
-        cols = max(X_real.shape[1], X_syn.shape[1])
-        X_real = np.pad(X_real, ((0, 0), (0, cols - X_real.shape[1])))
-        X_syn = np.pad(X_syn, ((0, 0), (0, cols - X_syn.shape[1])))
+        n_real = len(real)
+        combined = pd.concat([real, synthetic], ignore_index=True)
+        X = _encode(combined, meta)
+        X_real, X_syn = X[:n_real], X[n_real:]
         X = np.vstack([X_real, X_syn])
-        y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
+        y = np.concatenate([np.zeros(n_real), np.ones(len(synthetic))])
         X = StandardScaler().fit_transform(X)
         try:
             clf = LogisticRegression(max_iter=1000, random_state=42).fit(X, y)
