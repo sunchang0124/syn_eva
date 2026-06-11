@@ -8,6 +8,17 @@ from syneva.core.metadata import Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
+_NAN_SENTINEL = "§NA§"
+
+
+def _row_tuples(df: pd.DataFrame) -> list[tuple]:
+    """Convert DataFrame rows to tuples with NaN replaced by a fixed sentinel.
+
+    Using a sentinel ensures that NaN-containing rows compare equal when they
+    are verbatim copies, which is required for correct duplicate detection.
+    """
+    return [tuple(_NAN_SENTINEL if pd.isna(v) else v for v in row) for row in df.values.tolist()]
+
 
 @registry.register
 class NoveltyRate:
@@ -35,8 +46,15 @@ class NoveltyRate:
                 notes=["synthetic dataset is empty; novelty_rate defaulted to 1.0"],
             )
 
-        real_set: set[tuple] = set(map(tuple, real.values.tolist()))
-        novel = sum(1 for row in synthetic.values.tolist() if tuple(row) not in real_set)
+        # Fix: align column order so positionally-built tuples always line up.
+        # The runner's schema check guarantees the same column set; reorder here
+        # to match real's column order defensively.
+        synthetic = synthetic[real.columns]
+
+        # Fix: use NaN-normalized tuples so verbatim copies of NaN-containing
+        # rows are correctly counted as duplicates (NaN != NaN breaks plain ==).
+        real_set: set[tuple] = set(_row_tuples(real))
+        novel = sum(1 for t in _row_tuples(synthetic) if t not in real_set)
         n_syn = len(synthetic)
         duplicates = float(n_syn - novel)
         rate = float(novel / n_syn)
