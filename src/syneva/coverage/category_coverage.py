@@ -34,8 +34,8 @@ class CategoryCoverage:
             if cm.dtype is not ColumnType.CATEGORICAL:
                 notes.append(f"column '{name}' skipped (not categorical)")
                 continue
-            real_cats = set(real[name].dropna().astype("string"))
-            syn_cats = set(synthetic[name].dropna().astype("string"))
+            real_cats = set(real[name].astype("string").fillna("__NA__"))
+            syn_cats = set(synthetic[name].astype("string").fillna("__NA__"))
             if not real_cats:
                 notes.append(f"column '{name}' skipped (zero real categories)")
                 continue
