@@ -45,3 +45,24 @@ def test_pdf_without_weasyprint_raises(monkeypatch):
 
     with pytest.raises(SynevaError, match="weasyprint"):
         _report().to_pdf("/tmp/x.pdf")
+
+
+def test_render_pdf_wraps_oserror_as_synevaerror(monkeypatch, tmp_path):
+    import sys
+    import types
+
+    from syneva.core.errors import SynevaError
+
+    fake = types.ModuleType("weasyprint")
+
+    class _HTML:
+        def __init__(self, **kw):
+            pass
+
+        def write_pdf(self, path):
+            raise OSError("cannot load library 'libpango-1.0-0'")
+
+    fake.HTML = _HTML
+    monkeypatch.setitem(sys.modules, "weasyprint", fake)
+    with pytest.raises(SynevaError, match="PDF"):
+        _report().to_pdf(tmp_path / "x.pdf")
