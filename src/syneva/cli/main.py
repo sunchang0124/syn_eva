@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -73,6 +75,19 @@ def evaluate(
     except SynevaError as e:
         typer.echo(f"syneva error: {e}", err=True)
         raise typer.Exit(code=2) from e
+
+
+@app.command()
+def ui() -> None:
+    """Launch the Streamlit UI."""
+    try:
+        import streamlit  # noqa: F401
+    except ImportError:
+        typer.echo("The UI needs Streamlit: pip install 'syneva[ui]'", err=True)
+        sys.exit(2)
+    app_path = Path(__file__).parent.parent / "ui" / "app.py"
+    proc = subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path)])
+    sys.exit(proc.returncode)
 
 
 if __name__ == "__main__":
