@@ -48,9 +48,88 @@ METRIC_INFO: dict[str, str] = {
 }
 
 
+# Full, human-readable names (the code stays available as a small secondary tag).
+METRIC_NAMES: dict[str, str] = {
+    "ks_statistic": "Kolmogorov-Smirnov statistic",
+    "tvd": "Total variation distance",
+    "wasserstein": "Wasserstein-1 distance",
+    "correlation_difference": "Correlation difference",
+    "pmse": "Propensity mean squared error",
+    "sliced_wasserstein": "Sliced Wasserstein distance",
+    "jsd": "Jensen-Shannon divergence",
+    "c2st": "Classifier two-sample test",
+    "category_coverage": "Category coverage",
+    "range_coverage": "Range coverage",
+    "novelty_rate": "Novelty rate",
+    "entropy_ratio": "Entropy ratio",
+    "alpha_precision_beta_recall": "Alpha-precision and beta-recall",
+    "authenticity": "Authenticity",
+    "pca_scatter": "PCA scatter plot",
+    "dcr": "Distance to closest record",
+    "nndr": "Nearest-neighbor distance ratio",
+    "k_anonymity": "k-anonymity",
+    "identical_match_rate": "Identical match rate",
+    "mia_auc": "Membership inference attack",
+    "dp_ledger": "Differential-privacy ledger",
+    "tstr_suite": "Train on synthetic, test on real",
+    "multi_target_utility": "Multi-target utility",
+    "feature_importance_spearman": "Feature-importance correlation",
+    "discriminative_score": "Discriminative score",
+}
+
+# Readable labels for the per-metric detail rows. Anything not listed falls back
+# to a generic prettifier (underscores to spaces, known acronyms upper-cased).
+_SCALAR_LABELS: dict[str, str] = {
+    "score": "Score (0-1, higher is better)",
+    "p_value": "p-value",
+    "p05_dcr": "5th-percentile distance",
+    "median_dcr": "Median distance",
+    "min_k": "Smallest group size (k)",
+    "unique_groups": "Distinct groups",
+    "identical_match_rate": "Exact-copy rate",
+    "identical_matches": "Exact copies",
+    "nndr_median": "Median distance ratio",
+    "c2st_auc": "Classifier AUC",
+    "alpha_precision": "Alpha-precision",
+    "beta_recall": "Beta-recall",
+    "spearman_rho": "Spearman correlation",
+    "epsilon": "Epsilon",
+    "delta": "Delta",
+}
+_SCALAR_ACRONYMS: dict[str, str] = {
+    "ks": "KS",
+    "tvd": "TVD",
+    "pmse": "pMSE",
+    "dcr": "DCR",
+    "nndr": "NNDR",
+    "jsd": "JSD",
+    "mia": "MIA",
+    "auc": "AUC",
+    "c2st": "C2ST",
+    "tstr": "TSTR",
+    "trtr": "TRTR",
+    "pca": "PCA",
+    "dp": "DP",
+}
+
+
 def describe_metric(name: str) -> str:
     """Return a plain-language description for a metric, or '' if unknown."""
     return METRIC_INFO.get(name, "")
+
+
+def display_name(name: str) -> str:
+    """Return the full human-readable name for a metric, or the code itself."""
+    return METRIC_NAMES.get(name, name)
+
+
+def humanize_scalar(key: str) -> str:
+    """Turn a scalar key like 'mean_ks_statistic' into 'Mean KS statistic'."""
+    if key in _SCALAR_LABELS:
+        return _SCALAR_LABELS[key]
+    words = [_SCALAR_ACRONYMS.get(p, p) for p in key.split("_")]
+    text = " ".join(words)
+    return text[:1].upper() + text[1:] if text else text
 
 
 def describe_c(c: str) -> str:

@@ -10,7 +10,7 @@ import pandas as pd
 
 import syneva  # noqa: F401  ensure all built-in metrics are registered
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
-from syneva.core.metric_info import describe_metric
+from syneva.core.metric_info import describe_metric, display_name
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _global_registry
 from syneva.core.report import Report
@@ -62,6 +62,7 @@ def metric_catalog() -> list[dict]:
     out = [
         {
             "name": cls.spec.name,
+            "display_name": display_name(cls.spec.name),
             "c": cls.spec.c,
             "tier": cls.spec.tier,
             "requires_real": cls.spec.requires_real,

@@ -72,7 +72,9 @@ def _sidebar() -> dict | None:
                 continue
             st.subheader(c.capitalize(), help=describe_c(c) or None)
             for m in group:
-                label = f"{m['name']}  ·  {m['tier']}"
+                label = m["display_name"]
+                if m["tier"] != "core":
+                    label = f"{label}  ·  {m['tier']}"
                 if st.checkbox(
                     label,
                     value=(m["tier"] == "core"),

@@ -38,8 +38,8 @@ def test_renders_each_c_section():
     assert "score" in html.lower()
 
 
-def test_metric_info_tooltip_rendered():
-    from syneva.core.metric_info import describe_metric
+def test_metric_full_name_and_visible_description_rendered():
+    from syneva.core.metric_info import describe_metric, display_name
 
     spec = MetricSpec(
         name="dcr",
@@ -56,9 +56,13 @@ def test_metric_info_tooltip_rendered():
         run_info=RunInfo.capture(random_state=0),
     )
     html = render_html(rep, interactive=False)
-    # the dcr description text is embedded as a hover tooltip (title attribute)
+    # full human-readable name is shown, the code appears as a secondary tag,
+    # and the description is visible body text (not a hover-only tooltip).
+    assert display_name("dcr") == "Distance to closest record"
+    assert "Distance to closest record" in html
+    assert "dcr" in html
     assert describe_metric("dcr") in html
-    assert 'class="info"' in html
+    assert 'class="metric-desc"' in html
 
 
 def test_failed_metric_shown_with_error():

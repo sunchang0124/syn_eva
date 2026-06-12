@@ -1,11 +1,24 @@
 import syneva  # noqa: F401  populate the global registry
-from syneva.core.metric_info import describe_c, describe_metric
+from syneva.core.metric_info import describe_c, describe_metric, display_name, humanize_scalar
 from syneva.core.registry import registry
 
 
 def test_every_registered_metric_has_a_description():
     missing = [c.spec.name for c in registry.metrics() if not describe_metric(c.spec.name)]
     assert not missing, f"metrics missing a plain-language description: {missing}"
+
+
+def test_every_registered_metric_has_a_full_name():
+    # display_name must differ from the bare code for every registered metric.
+    missing = [c.spec.name for c in registry.metrics() if display_name(c.spec.name) == c.spec.name]
+    assert not missing, f"metrics missing a full display name: {missing}"
+
+
+def test_humanize_scalar_examples():
+    assert humanize_scalar("mean_ks_statistic") == "Mean KS statistic"
+    assert humanize_scalar("p05_dcr") == "5th-percentile distance"
+    assert humanize_scalar("score") == "Score (0-1, higher is better)"
+    assert humanize_scalar("c2st_auc") == "Classifier AUC"
 
 
 def test_every_active_c_has_a_description():

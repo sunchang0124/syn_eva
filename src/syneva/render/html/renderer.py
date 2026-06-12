@@ -5,7 +5,7 @@ from pathlib import Path
 
 import jinja2
 
-from syneva.core.metric_info import describe_c, describe_metric
+from syneva.core.metric_info import describe_c, describe_metric, display_name, humanize_scalar
 from syneva.core.report import Report
 
 _TEMPLATES = Path(__file__).parent / "templates"
@@ -20,9 +20,13 @@ def render_html(report: Report, *, interactive: bool = False) -> str:
     for c, results in report.by_c.items():
         view = []
         for r in results:
+            scalar_rows = (
+                [(humanize_scalar(k), v) for k, v in r.scalars.items()] if r.scalars else []
+            )
             entry = {
                 "spec": r.spec,
-                "scalars": r.scalars,
+                "display_name": display_name(r.spec.name),
+                "scalar_rows": scalar_rows,
                 "notes": r.notes,
                 "error": str(r.error) if r.error else None,
                 "info": describe_metric(r.spec.name),
