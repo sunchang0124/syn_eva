@@ -4,6 +4,7 @@ from syneva.coverage import (
 from syneva.coverage import (
     entropy_ratio as entropy_ratio,  # side-effect: registers EntropyRatio
 )
+from syneva.coverage import extended as extended  # side-effect: registers extended metrics
 from syneva.coverage import (
     novelty as novelty,  # side-effect: registers NoveltyRate
 )
