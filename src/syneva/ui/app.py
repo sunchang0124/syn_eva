@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -11,10 +13,8 @@ from syneva.ui import core
 from syneva.utility.task import UtilityTask
 
 
-def main() -> None:
-    st.set_page_config(page_title="syneva", layout="wide")
-    st.title("syneva — 7 Cs scorecard")
-
+def _sidebar() -> dict | None:
+    """Render sidebar controls and return configuration dict, or None to abort."""
     with st.sidebar:
         st.header("1 · Upload data")
         real_file = st.file_uploader("Real data (CSV/Parquet)", type=["csv", "parquet"])
@@ -22,14 +22,14 @@ def main() -> None:
 
         if not (real_file and syn_file):
             st.info("Upload both files to continue.")
-            return
+            return None
 
         try:
             real = core.load_table(real_file)
             synthetic = core.load_table(syn_file)
         except ValueError as e:
             st.error(str(e))
-            return
+            return None
 
         st.header("2 · Column metadata")
         inferred_rows = core.metadata_rows(Metadata.infer(real))
@@ -47,6 +47,22 @@ def main() -> None:
 
         st.header("3 · Evaluators")
         catalog = core.metric_catalog()
+
+        # Convenience selection buttons
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("Select all"):
+                for m in catalog:
+                    st.session_state[f"chk_{m['name']}"] = True
+        with col2:
+            if st.button("Core only"):
+                for m in catalog:
+                    st.session_state[f"chk_{m['name']}"] = m["tier"] == "core"
+        with col3:
+            if st.button("Clear"):
+                for m in catalog:
+                    st.session_state[f"chk_{m['name']}"] = False
+
         selected: list[str] = []
         utility_selected = False
         for c in ["congruence", "coverage", "compliance", "utility"]:
@@ -78,37 +94,60 @@ def main() -> None:
 
         run = st.button("Run evaluation", type="primary")
 
-    if run:
-        if not selected:
-            st.warning("Select at least one evaluator in the sidebar.")
-            return
-        if utility_selected and not utility_tasks:
-            st.warning("A utility metric is selected but no target column was chosen.")
-            return
-        try:
-            meta = core.metadata_from_editor(edited)
-            report = core.run_report(real, synthetic, meta, selected, utility_tasks)
-            st.session_state["report"] = report
-        except SynevaError as e:
-            st.error(f"Evaluation failed: {e}")
-            return
+    return {
+        "real": real,
+        "synthetic": synthetic,
+        "edited": edited,
+        "selected": selected,
+        "utility_selected": utility_selected,
+        "utility_tasks": utility_tasks,
+        "run": run,
+    }
 
-    report = st.session_state.get("report")
-    if report is None:
-        st.write("Configure inputs in the sidebar, then click **Run evaluation**.")
-        return
 
+def _render_results(report) -> None:
+    """Render the scorecard and download buttons."""
     st.subheader("Scorecard")
     html_str = core.report_html_str(report)
     components.html(html_str, height=900, scrolling=True)
 
     st.download_button("Download JSON", core.report_json_str(report), "scorecard.json")
     st.download_button("Download HTML", html_str, "scorecard.html")
-    try:
-        pdf = core.report_pdf_bytes(report)
-        st.download_button("Download PDF", pdf, "scorecard.pdf")
-    except SynevaError:
+
+    pdf_ok = importlib.util.find_spec("weasyprint") is not None
+    if pdf_ok:
+        try:
+            st.download_button("Download PDF", core.report_pdf_bytes(report), "scorecard.pdf")
+        except SynevaError:
+            st.caption("PDF export unavailable (weasyprint native libraries missing).")
+    else:
         st.caption("PDF export needs `pip install 'syneva[pdf]'`.")
+
+
+def main() -> None:
+    st.set_page_config(page_title="syneva", layout="wide")
+    st.title("syneva — 7 Cs scorecard")
+
+    cfg = _sidebar()
+    if cfg and cfg["run"]:
+        if not cfg["selected"]:
+            st.warning("Select at least one evaluator in the sidebar.")
+        elif cfg["utility_selected"] and not cfg["utility_tasks"]:
+            st.warning("A utility metric is selected but no target column was chosen.")
+        else:
+            try:
+                meta = core.metadata_from_editor(cfg["edited"])
+                st.session_state["report"] = core.run_report(
+                    cfg["real"], cfg["synthetic"], meta, cfg["selected"], cfg["utility_tasks"]
+                )
+            except (SynevaError, ValueError) as e:
+                st.error(f"Evaluation failed: {e}")
+
+    report = st.session_state.get("report")
+    if report is None:
+        st.write("Configure inputs in the sidebar, then click **Run evaluation**.")
+        return
+    _render_results(report)
 
 
 if __name__ == "__main__":

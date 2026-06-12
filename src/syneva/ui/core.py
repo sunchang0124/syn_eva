@@ -103,7 +103,7 @@ def run_report(
         real=real,
         synthetic=synthetic,
         metadata=metadata,
-        tiers=("core", "extended"),
+        tiers=("core", "extended", "custom"),
         utility_tasks=utility_tasks,
         run_utility=run_utility,
         random_state=random_state,
