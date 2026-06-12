@@ -36,6 +36,19 @@ report.to_json("scorecard.json")
 syn-eva evaluate --real real.parquet --synthetic synthetic.parquet --out ./report --pdf
 ```
 
+## Web UI
+
+A local Streamlit app for upload → pick evaluators → scorecard:
+
+```bash
+pip install 'syneva[ui]'
+syn-eva ui            # or: streamlit run src/syneva/ui/app.py
+```
+
+Upload your real and synthetic tables, review the inferred column metadata
+(mark sensitive columns for k-anonymity/DCR), tick the evaluators to run, and
+view or download the scorecard as HTML/JSON/PDF.
+
 ## What's in the box
 
 - **Congruence** (distribution alignment): KS, TVD, Wasserstein-1, correlation

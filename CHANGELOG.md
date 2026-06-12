@@ -4,6 +4,10 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 
 ## [Unreleased]
 
+### Added
+- Streamlit web UI (`syn-eva ui`, optional `[ui]` extra): upload real/synthetic
+  data, edit column metadata, select evaluators, and view/download the scorecard.
+
 ## [0.1.0rc1] - 2026-06-12
 
 ### Added
