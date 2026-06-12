@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +13,7 @@ from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _global_registry
 from syneva.core.report import Report
 from syneva.core.runner import evaluate_with
+from syneva.render.html.renderer import render_html
 from syneva.utility.task import UtilityTask
 
 
@@ -102,3 +105,21 @@ def run_report(
         run_utility=run_utility,
         random_state=random_state,
     )
+
+
+def report_html_str(report: Report, *, interactive: bool = False) -> str:
+    """Render the scorecard to an HTML string (same output as Report.to_html)."""
+    return render_html(report, interactive=interactive)
+
+
+def report_json_str(report: Report) -> str:
+    """Serialize the report to a JSON string."""
+    return json.dumps(report.to_dict(), indent=2, default=str)
+
+
+def report_pdf_bytes(report: Report) -> bytes:
+    """Render the scorecard to PDF bytes (requires the [pdf] extra)."""
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        report.to_pdf(tmp.name)  # raises SynevaError if weasyprint missing
+        tmp.seek(0)
+        return Path(tmp.name).read_bytes()

@@ -1,3 +1,5 @@
+import json as _json
+
 import pandas as pd
 import pytest
 
@@ -94,3 +96,29 @@ def test_run_report_runs_utility_when_selected():
     by = {r.spec.name: r for r in rep.results}
     assert "tstr_suite" in by
     assert by["tstr_suite"].scalars["score"] > 0.0
+
+
+def _small_report():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    syn = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    return core.run_report(real, syn, Metadata.infer(real), ["ks_statistic"])
+
+
+def test_report_html_str_returns_html():
+    html = core.report_html_str(_small_report())
+    assert "<html" in html.lower()
+    assert "syneva" in html.lower()
+
+
+def test_report_json_str_is_valid_json():
+    data = _json.loads(core.report_json_str(_small_report()))
+    assert data["results"]
+
+
+def test_report_pdf_bytes_guarded():
+    try:
+        import weasyprint  # noqa: F401
+    except (ImportError, OSError):
+        pytest.skip("weasyprint unavailable")
+    pdf = core.report_pdf_bytes(_small_report())
+    assert pdf[:4] == b"%PDF"
