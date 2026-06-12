@@ -123,6 +123,20 @@ def display_name(name: str) -> str:
     return METRIC_NAMES.get(name, name)
 
 
+def verdict(score: float) -> tuple[str, str]:
+    """Map a 0-1 score to a plain verdict word and a CSS class.
+
+    Excellent >= 0.9, Good >= 0.75, Fair >= 0.5, otherwise Poor.
+    """
+    if score >= 0.9:
+        return ("Excellent", "v-excellent")
+    if score >= 0.75:
+        return ("Good", "v-good")
+    if score >= 0.5:
+        return ("Fair", "v-fair")
+    return ("Poor", "v-poor")
+
+
 def humanize_scalar(key: str) -> str:
     """Turn a scalar key like 'mean_ks_statistic' into 'Mean KS statistic'."""
     if key in _SCALAR_LABELS:

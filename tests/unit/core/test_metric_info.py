@@ -1,5 +1,11 @@
 import syneva  # noqa: F401  populate the global registry
-from syneva.core.metric_info import describe_c, describe_metric, display_name, humanize_scalar
+from syneva.core.metric_info import (
+    describe_c,
+    describe_metric,
+    display_name,
+    humanize_scalar,
+    verdict,
+)
 from syneva.core.registry import registry
 
 
@@ -12,6 +18,15 @@ def test_every_registered_metric_has_a_full_name():
     # display_name must differ from the bare code for every registered metric.
     missing = [c.spec.name for c in registry.metrics() if display_name(c.spec.name) == c.spec.name]
     assert not missing, f"metrics missing a full display name: {missing}"
+
+
+def test_verdict_thresholds():
+    assert verdict(0.98)[0] == "Excellent"
+    assert verdict(0.80)[0] == "Good"
+    assert verdict(0.60)[0] == "Fair"
+    assert verdict(0.30)[0] == "Poor"
+    # the second element is a CSS class used by the scorecard template
+    assert verdict(0.98)[1] == "v-excellent"
 
 
 def test_humanize_scalar_examples():
