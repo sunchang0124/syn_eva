@@ -20,7 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 pdf = ["weasyprint>=62"]
 plotly = ["plotly>=5.20"]
-all = ["syneva[pdf,plotly]"]
+ui = ["streamlit>=1.36"]
+all = ["syneva[pdf,plotly,ui]"]
 
 [project.scripts]
 syn-eva = "syneva.cli.main:app"
