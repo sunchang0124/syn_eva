@@ -10,6 +10,7 @@ import pandas as pd
 
 import syneva  # noqa: F401  ensure all built-in metrics are registered
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+from syneva.core.metric_info import describe_metric
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _global_registry
 from syneva.core.report import Report
@@ -56,13 +57,15 @@ def metadata_from_editor(rows: list[dict]) -> Metadata:
 
 
 def metric_catalog() -> list[dict]:
-    """List every registered metric with its C, tier, and real-data need."""
+    """List every registered metric with its C, tier, real-data need, and a
+    plain-language description used for the sidebar tooltips."""
     out = [
         {
             "name": cls.spec.name,
             "c": cls.spec.c,
             "tier": cls.spec.tier,
             "requires_real": cls.spec.requires_real,
+            "info": describe_metric(cls.spec.name),
         }
         for cls in _global_registry.metrics()
     ]

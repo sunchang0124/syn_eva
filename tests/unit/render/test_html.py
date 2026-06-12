@@ -38,6 +38,29 @@ def test_renders_each_c_section():
     assert "score" in html.lower()
 
 
+def test_metric_info_tooltip_rendered():
+    from syneva.core.metric_info import describe_metric
+
+    spec = MetricSpec(
+        name="dcr",
+        c="compliance",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+    meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+    rep = Report(
+        metadata=meta,
+        results=[MetricResult(spec=spec, scalars={"score": 0.5})],
+        run_info=RunInfo.capture(random_state=0),
+    )
+    html = render_html(rep, interactive=False)
+    # the dcr description text is embedded as a hover tooltip (title attribute)
+    assert describe_metric("dcr") in html
+    assert 'class="info"' in html
+
+
 def test_failed_metric_shown_with_error():
     spec = MetricSpec(
         name="bad",

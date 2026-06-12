@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import Metadata
+from syneva.core.metric_info import describe_c
 from syneva.ui import core
 from syneva.utility.task import UtilityTask
 
@@ -69,10 +70,15 @@ def _sidebar() -> dict | None:
             group = [m for m in catalog if m["c"] == c]
             if not group:
                 continue
-            st.subheader(c.capitalize())
+            st.subheader(c.capitalize(), help=describe_c(c) or None)
             for m in group:
                 label = f"{m['name']}  ·  {m['tier']}"
-                if st.checkbox(label, value=(m["tier"] == "core"), key=f"chk_{m['name']}"):
+                if st.checkbox(
+                    label,
+                    value=(m["tier"] == "core"),
+                    key=f"chk_{m['name']}",
+                    help=m["info"] or None,
+                ):
                     selected.append(m["name"])
                     if m["c"] == "utility":
                         utility_selected = True

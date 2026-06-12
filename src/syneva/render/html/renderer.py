@@ -5,6 +5,7 @@ from pathlib import Path
 
 import jinja2
 
+from syneva.core.metric_info import describe_c, describe_metric
 from syneva.core.report import Report
 
 _TEMPLATES = Path(__file__).parent / "templates"
@@ -24,6 +25,7 @@ def render_html(report: Report, *, interactive: bool = False) -> str:
                 "scalars": r.scalars,
                 "notes": r.notes,
                 "error": str(r.error) if r.error else None,
+                "info": describe_metric(r.spec.name),
                 "plot_b64": None,
                 "plot_html": None,
             }
@@ -41,5 +43,6 @@ def render_html(report: Report, *, interactive: bool = False) -> str:
     return tpl.render(
         by_c=by_c_view,
         aggregated=report.aggregated,
+        c_info={c: describe_c(c) for c in report.by_c},
         run_info=report.run_info,
     )
