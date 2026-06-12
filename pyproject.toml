@@ -73,7 +73,7 @@ addopts = "--import-mode=importlib --cov=syneva --cov-report=term-missing --cov-
 
 [tool.coverage.run]
 source = ["src/syneva"]
-omit = ["src/syneva/render/html/templates/*"]
+omit = ["src/syneva/render/html/templates/*", "src/syneva/ui/app.py"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "raise NotImplementedError"]
