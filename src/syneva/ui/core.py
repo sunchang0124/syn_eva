@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -92,6 +93,8 @@ def run_report(
 
     Utility metrics only run when at least one is selected; `run_utility` is
     inferred from the selection so the caller need not pass it separately.
+
+    Note: data_type is fixed to "static" (the only supported kind in v0.1).
     """
     reg = build_selection_registry(selected_names)
     run_utility = any(cls.spec.c == _UTILITY_C for cls in reg.metrics())
@@ -108,7 +111,7 @@ def run_report(
 
 
 def report_html_str(report: Report, *, interactive: bool = False) -> str:
-    """Render the scorecard to an HTML string (same output as Report.to_html)."""
+    """Return the scorecard as an HTML string (in-memory alternative to Report.to_html)."""
     return render_html(report, interactive=interactive)
 
 
@@ -119,7 +122,10 @@ def report_json_str(report: Report) -> str:
 
 def report_pdf_bytes(report: Report) -> bytes:
     """Render the scorecard to PDF bytes (requires the [pdf] extra)."""
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)  # noqa: SIM115
+    try:
+        tmp.close()
         report.to_pdf(tmp.name)  # raises SynevaError if weasyprint missing
-        tmp.seek(0)
         return Path(tmp.name).read_bytes()
+    finally:
+        os.unlink(tmp.name)

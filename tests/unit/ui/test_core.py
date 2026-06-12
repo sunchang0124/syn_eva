@@ -1,3 +1,4 @@
+import io
 import json as _json
 
 import pandas as pd
@@ -23,6 +24,19 @@ def test_load_table_csv(tmp_path):
     pd.DataFrame({"a": [1, 2], "b": ["x", "y"]}).to_csv(p, index=False)
     df = core.load_table(str(p))
     assert list(df.columns) == ["a", "b"]
+
+
+def test_load_table_file_like_with_name(tmp_path):
+    p = tmp_path / "data.csv"
+    pd.DataFrame({"x": [1, 2]}).to_csv(p, index=False)
+
+    class FakeUploadedFile(io.BytesIO):
+        name = "data.csv"
+
+    obj = FakeUploadedFile(p.read_bytes())
+    df = core.load_table(obj)
+    assert list(df.columns) == ["x"]
+    assert len(df) == 2
 
 
 def test_load_table_rejects_unknown_suffix(tmp_path):
