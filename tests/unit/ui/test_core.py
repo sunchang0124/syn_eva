@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+import syneva  # noqa: F401  populates the global registry on import
 from syneva.core.metadata import ColumnType, Metadata
 from syneva.ui import core
 
@@ -45,3 +46,24 @@ def test_metadata_from_editor_roundtrip():
     assert meta.columns["age"].dtype is ColumnType.NUMERIC
     assert meta.columns["sex"].dtype is ColumnType.CATEGORICAL
     assert meta.columns["sex"].sensitive is True
+
+
+def test_metric_catalog_groups_and_tiers():
+    cat = core.metric_catalog()
+    names = {m["name"] for m in cat}
+    assert "ks_statistic" in names
+    assert "sliced_wasserstein" in names
+    ks = next(m for m in cat if m["name"] == "ks_statistic")
+    assert ks["c"] == "congruence"
+    assert ks["tier"] == "core"
+
+
+def test_build_selection_registry_contains_only_selected():
+    reg = core.build_selection_registry(["ks_statistic", "dcr"])
+    selected = {c.spec.name for c in reg.metrics()}
+    assert selected == {"ks_statistic", "dcr"}
+
+
+def test_build_selection_registry_unknown_name_raises():
+    with pytest.raises(KeyError):
+        core.build_selection_registry(["does_not_exist"])
