@@ -20,13 +20,15 @@ def render_html(report: Report, *, interactive: bool = False) -> str:
     for c, results in report.by_c.items():
         view = []
         for r in results:
-            scalar_rows = (
-                [(humanize_scalar(k), v) for k, v in r.scalars.items()] if r.scalars else []
-            )
+            scalars = r.scalars or {}
+            # The headline score (normalized 0-1, 1=ideal) is shown prominently;
+            # every other scalar is a raw supporting measurement under "Details".
+            detail_rows = [(humanize_scalar(k), v) for k, v in scalars.items() if k != "score"]
             entry = {
                 "spec": r.spec,
                 "display_name": display_name(r.spec.name),
-                "scalar_rows": scalar_rows,
+                "score": scalars.get("score"),
+                "detail_rows": detail_rows,
                 "notes": r.notes,
                 "error": str(r.error) if r.error else None,
                 "info": describe_metric(r.spec.name),
