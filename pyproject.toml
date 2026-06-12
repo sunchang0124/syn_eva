@@ -1,6 +1,6 @@
 [project]
 name = "syneva"
-version = "0.1.0a2"
+version = "0.1.0rc1"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{name = "Chang Sun", email = "chang.sun@maastrichtuniversity.nl"}]
@@ -66,3 +66,13 @@ strict = ["src/syneva"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: tests that take >1s"]
+# importlib mode keeps the tests/unit/coverage package from clashing with the
+# `coverage` library once pytest-cov activates it.
+addopts = "--import-mode=importlib --cov=syneva --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.run]
+source = ["src/syneva"]
+omit = ["src/syneva/render/html/templates/*"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "raise NotImplementedError"]

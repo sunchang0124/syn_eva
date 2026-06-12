@@ -46,3 +46,16 @@ def syn_leaky_df() -> pd.DataFrame:
 @pytest.fixture
 def metadata() -> Metadata:
     return _load_metadata()
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--update-golden",
+        action="store_true",
+        help="overwrite golden JSON snapshots with current output",
+    )
+
+
+@pytest.fixture
+def update_golden(request) -> bool:
+    return request.config.getoption("--update-golden")
