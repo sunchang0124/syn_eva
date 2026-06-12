@@ -52,5 +52,9 @@ class MetricRegistry:
             out.append(cls)
         return out
 
+    def metrics(self) -> list[type[Metric]]:
+        """Return all registered metric classes (read-only view)."""
+        return list(self._metrics.values())
+
 
 registry = MetricRegistry()

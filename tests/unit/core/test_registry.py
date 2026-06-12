@@ -56,3 +56,11 @@ def test_double_register_is_idempotent():
     r.register(_FakeMetric)
     r.register(_FakeMetric)
     assert len(r.select(tiers=["core"], data_type="static")) == 1
+
+
+def test_metrics_returns_registered_classes():
+    r = MetricRegistry()
+    r.register(_FakeMetric)
+    metrics = r.metrics()
+    assert _FakeMetric in metrics
+    assert len(metrics) == 1
