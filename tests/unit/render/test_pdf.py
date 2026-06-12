@@ -24,7 +24,13 @@ def _report():
 
 
 def test_pdf_renders(tmp_path):
-    pytest.importorskip("weasyprint")
+    # weasyprint may be importable yet unusable when its native libraries
+    # (e.g. libpango) are absent; importing it then raises OSError, not
+    # ImportError, so importorskip alone is not enough.
+    try:
+        import weasyprint  # noqa: F401
+    except (ImportError, OSError) as exc:
+        pytest.skip(f"weasyprint unavailable: {exc}")
     out = tmp_path / "scorecard.pdf"
     _report().to_pdf(out)
     assert out.stat().st_size > 1000
