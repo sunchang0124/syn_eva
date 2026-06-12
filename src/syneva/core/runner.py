@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from syneva.utility.task import UtilityTask
 
 from syneva.core.errors import MetricError, SchemaError, SynevaError
 from syneva.core.metadata import Metadata
@@ -22,6 +25,8 @@ def evaluate(
     tiers: Sequence[str] = ("core",),
     data_type: str = "static",
     cs: Sequence[str] | None = None,
+    utility_tasks: list[UtilityTask] | None = None,
+    run_utility: bool = False,
     random_state: int = 42,
     nan_policy: Literal["drop", "explicit_na", "raise"] = "drop",
 ) -> Report:
@@ -34,6 +39,8 @@ def evaluate(
         tiers=tiers,
         data_type=data_type,
         cs=cs,
+        utility_tasks=utility_tasks,
+        run_utility=run_utility,
         random_state=random_state,
         nan_policy=nan_policy,
     )
@@ -48,10 +55,14 @@ def evaluate_with(
     tiers: Sequence[str] = ("core",),
     data_type: str = "static",
     cs: Sequence[str] | None = None,
+    utility_tasks: list[UtilityTask] | None = None,
+    run_utility: bool = False,
     random_state: int = 42,
     nan_policy: str = "drop",
     # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
 ) -> Report:
+    from syneva.utility.task import suggest_tasks
+
     if real is not None:
         _check_schema(real, synthetic)
 
@@ -65,6 +76,16 @@ def evaluate_with(
     selected = reg.select(tiers=list(tiers), data_type=data_type, cs=cs)
     if real is None:
         selected = [c for c in selected if not c.spec.requires_real]
+
+    if not run_utility:
+        selected = [c for c in selected if c.spec.c != "utility"]
+    elif utility_tasks is None:
+        utility_tasks = suggest_tasks(metadata)
+        info.warnings.append(
+            "no utility_tasks declared; auto-suggested "
+            + ", ".join(f"{t.target}({t.task_type})" for t in utility_tasks)
+        )
+
     if not selected:
         raise SynevaError(
             "no runnable metrics for this selection "
@@ -75,7 +96,12 @@ def evaluate_with(
     results: list[MetricResult] = []
     for cls in selected:
         try:
-            results.append(cls().compute(real, synthetic, metadata))
+            inst = (
+                cls(tasks=utility_tasks, random_state=random_state)
+                if cls.spec.c == "utility"
+                else cls()
+            )
+            results.append(inst.compute(real, synthetic, metadata))
         except Exception as e:
             results.append(
                 MetricResult(
