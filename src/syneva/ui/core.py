@@ -9,6 +9,9 @@ import syneva  # noqa: F401  ensure all built-in metrics are registered
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _global_registry
+from syneva.core.report import Report
+from syneva.core.runner import evaluate_with
+from syneva.utility.task import UtilityTask
 
 
 def load_table(file: Any) -> pd.DataFrame:
@@ -69,3 +72,33 @@ def build_selection_registry(names: list[str]) -> MetricRegistry:
     for name in names:
         reg.register(by_name[name])  # KeyError if unknown
     return reg
+
+
+_UTILITY_C = "utility"
+
+
+def run_report(
+    real: pd.DataFrame,
+    synthetic: pd.DataFrame,
+    metadata: Metadata,
+    selected_names: list[str],
+    utility_tasks: list[UtilityTask] | None = None,
+    random_state: int = 42,
+) -> Report:
+    """Run exactly the selected metrics and return a Report.
+
+    Utility metrics only run when at least one is selected; `run_utility` is
+    inferred from the selection so the caller need not pass it separately.
+    """
+    reg = build_selection_registry(selected_names)
+    run_utility = any(cls.spec.c == _UTILITY_C for cls in reg.metrics())
+    return evaluate_with(
+        reg,
+        real=real,
+        synthetic=synthetic,
+        metadata=metadata,
+        tiers=("core", "extended"),
+        utility_tasks=utility_tasks,
+        run_utility=run_utility,
+        random_state=random_state,
+    )

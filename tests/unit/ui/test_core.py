@@ -3,7 +3,9 @@ import pytest
 
 import syneva  # noqa: F401  populates the global registry on import
 from syneva.core.metadata import ColumnType, Metadata
+from syneva.core.report import Report
 from syneva.ui import core
+from syneva.utility.task import UtilityTask
 
 FIX = "tests/fixtures"
 
@@ -67,3 +69,28 @@ def test_build_selection_registry_contains_only_selected():
 def test_build_selection_registry_unknown_name_raises():
     with pytest.raises(KeyError):
         core.build_selection_registry(["does_not_exist"])
+
+
+def test_run_report_runs_only_selected_metrics():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    syn = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    meta = Metadata.infer(real)
+    rep = core.run_report(real, syn, meta, ["ks_statistic", "tvd"], utility_tasks=None)
+    assert isinstance(rep, Report)
+    assert {r.spec.name for r in rep.results} == {"ks_statistic", "tvd"}
+
+
+def test_run_report_runs_utility_when_selected():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    syn = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    meta = Metadata.infer(real)
+    rep = core.run_report(
+        real,
+        syn,
+        meta,
+        ["tstr_suite"],
+        utility_tasks=[UtilityTask(target="high_income", task_type="classification")],
+    )
+    by = {r.spec.name: r for r in rep.results}
+    assert "tstr_suite" in by
+    assert by["tstr_suite"].scalars["score"] > 0.0
