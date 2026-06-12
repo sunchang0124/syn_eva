@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
@@ -15,6 +16,17 @@ from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _default_registry
 from syneva.core.report import Report
 from syneva.core.run_info import RunInfo
+
+
+def _instantiate(cls, utility_tasks, random_state):
+    """Instantiate a metric, passing only the kwargs its constructor accepts."""
+    params = inspect.signature(cls).parameters
+    kwargs = {}
+    if "tasks" in params:
+        kwargs["tasks"] = utility_tasks
+    if "random_state" in params:
+        kwargs["random_state"] = random_state
+    return cls(**kwargs)
 
 
 def evaluate(
@@ -96,11 +108,7 @@ def evaluate_with(
     results: list[MetricResult] = []
     for cls in selected:
         try:
-            inst = (
-                cls(tasks=utility_tasks, random_state=random_state)
-                if cls.spec.c == "utility"
-                else cls()
-            )
+            inst = _instantiate(cls, utility_tasks, random_state)
             results.append(inst.compute(real, synthetic, metadata))
         except Exception as e:
             results.append(
