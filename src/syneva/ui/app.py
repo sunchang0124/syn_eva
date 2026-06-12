@@ -82,6 +82,9 @@ def main() -> None:
         if not selected:
             st.warning("Select at least one evaluator in the sidebar.")
             return
+        if utility_selected and not utility_tasks:
+            st.warning("A utility metric is selected but no target column was chosen.")
+            return
         try:
             meta = core.metadata_from_editor(edited)
             report = core.run_report(real, synthetic, meta, selected, utility_tasks)
@@ -96,10 +99,11 @@ def main() -> None:
         return
 
     st.subheader("Scorecard")
-    components.html(core.report_html_str(report), height=900, scrolling=True)
+    html_str = core.report_html_str(report)
+    components.html(html_str, height=900, scrolling=True)
 
     st.download_button("Download JSON", core.report_json_str(report), "scorecard.json")
-    st.download_button("Download HTML", core.report_html_str(report), "scorecard.html")
+    st.download_button("Download HTML", html_str, "scorecard.html")
     try:
         pdf = core.report_pdf_bytes(report)
         st.download_button("Download PDF", pdf, "scorecard.pdf")
