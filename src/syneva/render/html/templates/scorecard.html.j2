@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>syneva scorecard</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; max-width: 980px; margin: 2rem auto; color: #222; }
+  h1 { border-bottom: 2px solid #444; padding-bottom: .3em; }
+  h2 { margin-top: 2rem; color: #2b5; }
+  .summary { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .summary .card { background: #f4f6f8; padding: .8rem 1rem; border-radius: 6px; min-width: 9rem; }
+  .summary .card .label { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: .05em; }
+  .summary .card .score { font-size: 1.6rem; font-weight: 600; }
+  .metric { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+  .metric-header { display: flex; justify-content: space-between; align-items: center; }
+  .metric-header .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #eef5ff; }
+  .metric-failed { background: #fff5f5; border-color: #f99; }
+  .metric-failed .badge { background: #fee; color: #a00; }
+  table { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: 13px; }
+  th, td { border-bottom: 1px solid #eee; padding: 4px 8px; text-align: left; }
+  img.plot { display: block; max-width: 100%; margin-top: .8rem; }
+  .meta { font-size: 12px; color: #666; margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; }
+</style>
+</head>
+<body>
+  <h1>syneva scorecard</h1>
+  <p class="subtitle">7 Cs framework — synthetic tabular data evaluation</p>
+
+  <div class="summary">
+    {% for c, score in aggregated.items() %}
+      <div class="card">
+        <div class="label">{{ c }}</div>
+        <div class="score">{{ "%.2f"|format(score) }}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% for c, results in by_c.items() %}
+    <h2>{{ c|capitalize }}</h2>
+    {% for r in results %}
+      <div class="metric {% if r.error %}metric-failed{% endif %}">
+        <div class="metric-header">
+          <strong>{{ r.spec.name }}</strong>
+          <span class="badge">{{ r.spec.tier }}</span>
+        </div>
+        {% if r.error %}
+          <p>error: {{ r.error }}</p>
+        {% else %}
+          {% if r.scalars %}
+            <table>
+              {% for k, v in r.scalars.items() %}
+                <tr><th>{{ k }}</th><td>{{ "%.4f"|format(v) }}</td></tr>
+              {% endfor %}
+            </table>
+          {% endif %}
+          {% if r.plot_b64 %}
+            <img class="plot" src="data:image/png;base64,{{ r.plot_b64 }}" alt="{{ r.spec.name }} plot">
+          {% elif r.plot_html %}
+            {{ r.plot_html|safe }}
+          {% endif %}
+          {% if r.notes %}
+            <p style="font-size:12px;color:#666">notes: {{ r.notes|join("; ") }}</p>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endfor %}
+
+  <div class="meta">
+    <p>syneva {{ run_info.library_versions.get('syneva', '?') }} ·
+       random_state={{ run_info.random_state }} ·
+       duration={{ "%.2f"|format((run_info.finished_at or 0) - run_info.started_at) }}s</p>
+    {% if run_info.warnings %}<p>warnings: {{ run_info.warnings|join("; ") }}</p>{% endif %}
+  </div>
+</body>
+</html>

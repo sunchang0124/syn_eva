@@ -52,9 +52,19 @@ class KSStatistic:
 
         mean_ks = sum(v["ks_statistic"] for v in per_column.values()) / len(per_column)
         score = float(1.0 - min(1.0, max(0.0, mean_ks)))
+
+        from syneva.render.figures import HistogramOverlay
+
+        worst = max(per_column.items(), key=lambda kv: kv[1]["ks_statistic"])[0]
+        payload = HistogramOverlay(
+            real=pd.to_numeric(real[worst], errors="coerce").dropna().tolist(),
+            synthetic=pd.to_numeric(synthetic[worst], errors="coerce").dropna().tolist(),
+            title=f"KS overlay: {worst}",
+        )
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "mean_ks_statistic": mean_ks},
             per_column=per_column,
+            plot_payload=payload,
             notes=notes,
         )

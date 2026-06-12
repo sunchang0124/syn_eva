@@ -51,9 +51,25 @@ class TotalVariationDistance:
 
         mean_tvd = sum(v["tvd"] for v in per_column.values()) / len(per_column)
         score = float(min(1.0, max(0.0, 1.0 - mean_tvd)))
+
+        from syneva.render.figures import BarComparison
+
+        worst = max(per_column.items(), key=lambda kv: kv[1]["tvd"])[0]
+        r_freq = (
+            real[worst].astype("string").fillna("__NA__").value_counts(normalize=True).to_dict()
+        )
+        s_freq = (
+            synthetic[worst]
+            .astype("string")
+            .fillna("__NA__")
+            .value_counts(normalize=True)
+            .to_dict()
+        )
+        payload = BarComparison(real=r_freq, synthetic=s_freq, title=f"TVD: {worst}")
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "mean_tvd": mean_tvd},
             per_column=per_column,
+            plot_payload=payload,
             notes=notes,
         )
