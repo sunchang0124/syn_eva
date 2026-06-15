@@ -10,6 +10,7 @@ from syneva.core.metric_info import (
     describe_metric,
     display_name,
     humanize_scalar,
+    raw_hint,
     verdict,
 )
 from syneva.core.report import Report
@@ -49,6 +50,7 @@ def render_html(
                 "notes": r.notes,
                 "error": str(r.error) if r.error else None,
                 "info": describe_metric(r.spec.name),
+                "raw_hint": raw_hint(r.spec.name),
                 "plot_b64": None,
                 "plot_html": None,
             }

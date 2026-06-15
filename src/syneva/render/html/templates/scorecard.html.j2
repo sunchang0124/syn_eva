@@ -27,6 +27,7 @@
   .metric-score .score-max { font-size: 12px; color: #999; margin-left: 3px; }
   .metric-score .score-note { font-size: 12px; color: #777; margin-left: 8px; }
   .modeline { font-size: 12px; color: #667; background: #f4f6f8; padding: .5rem .8rem; border-radius: 6px; }
+  .raw-hint { font-size: 12px; color: #777; font-style: italic; margin: .3rem 0 0; }
   .verdict { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
              margin-left: 8px; vertical-align: middle; text-transform: uppercase; letter-spacing: .03em; }
   .v-excellent { background: #d6f5e0; color: #1a7f43; }
@@ -88,6 +89,7 @@
           {% else %}
             <p class="metric-desc">No separate raw statistic; normalized score = {{ "%.4f"|format(r.score) }}.</p>
           {% endif %}
+          {% if r.raw_hint %}<p class="raw-hint">How to read it: {{ r.raw_hint }}</p>{% endif %}
         {% else %}
           {% if r.score is not none %}
             <div class="metric-score">

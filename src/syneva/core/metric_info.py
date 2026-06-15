@@ -1,9 +1,16 @@
 """Plain-language descriptions for every metric and C dimension.
 
-Single source of truth for the hover tooltips shown in the UI sidebar, the
-HTML scorecard, and the downloadable reports. All scores are normalized so
-that 1.0 is the ideal, so every description ends by noting that higher is
-better (except visualization-only and informational metrics).
+Single source of truth for the labels shown in the UI sidebar, the HTML
+scorecard, and the downloadable reports.
+
+- METRIC_INFO: a neutral "what it measures" sentence with no direction claim,
+  because the direction of "good" differs between the normalized score and the
+  raw statistic.
+- RAW_HINT: how to read the *raw* statistic, including its scale and which
+  direction is better (e.g. a distance is better when lower; an AUC is best
+  near 0.5). Shown only in the "actual measured values" view.
+- The normalized score is always 0-1 with 1 = ideal (higher is better); that
+  direction is conveyed by the score view's banner and verdict badges.
 """
 
 from __future__ import annotations
@@ -17,34 +24,65 @@ C_INFO: dict[str, str] = {
 
 METRIC_INFO: dict[str, str] = {
     # Congruence — distribution and relationship match
-    "ks_statistic": "How closely each numeric column's distribution matches the real data. Higher is better.",
-    "tvd": "How closely the category frequencies match the real data. Higher is better.",
-    "wasserstein": "How far numeric values would have to shift to match the real distribution. Higher means less shift is needed.",
-    "correlation_difference": "Whether the relationships between columns are preserved. Higher means the correlations match the real data.",
-    "pmse": "Whether a model can tell real and synthetic rows apart. Higher means they look alike.",
-    "sliced_wasserstein": "The overall distance between the real and synthetic data clouds across many directions. Higher means closer.",
-    "jsd": "How similar the category distributions are on an information scale. Higher means more similar.",
-    "c2st": "Whether a trained classifier can separate real from synthetic rows. Higher means it cannot tell them apart.",
+    "ks_statistic": "How closely each numeric column's distribution matches the real data.",
+    "tvd": "How closely the category frequencies match the real data.",
+    "wasserstein": "How far numeric values would have to shift to match the real distribution.",
+    "correlation_difference": "Whether the relationships (correlations) between columns are preserved.",
+    "pmse": "Whether a model can tell real and synthetic rows apart from their distributions.",
+    "sliced_wasserstein": "The overall distance between the real and synthetic data clouds across many directions.",
+    "jsd": "How different the category distributions are, on an information scale.",
+    "c2st": "Whether a trained classifier can separate real from synthetic rows.",
     # Coverage — variety and novelty
-    "category_coverage": "Whether the synthetic data includes every category present in the real data. Higher means fewer categories are missing.",
-    "range_coverage": "Whether numeric values span the same range as the real data. Higher means the full range is covered.",
-    "novelty_rate": "The share of synthetic rows that are not exact duplicates of each other. Higher means more genuinely distinct rows.",
-    "entropy_ratio": "Whether categories are as varied as in the real data. Higher means similar variety; low means the synthetic data collapsed onto a few values.",
-    "alpha_precision_beta_recall": "Whether synthetic points land where real ones do and also cover the real spread. Higher is better on both counts.",
-    "authenticity": "The share of synthetic rows that are not near-copies of a real row. Higher means less memorization.",
-    "pca_scatter": "A two-dimensional overlay of the real and synthetic data for visual inspection. No score.",
+    "category_coverage": "Whether the synthetic data includes every category present in the real data.",
+    "range_coverage": "Whether numeric values span the same range as the real data.",
+    "novelty_rate": "The share of synthetic rows that are not exact duplicates of each other.",
+    "entropy_ratio": "Whether categories are as varied as in the real data.",
+    "alpha_precision_beta_recall": "Whether synthetic points land where real ones do and also cover the real spread.",
+    "authenticity": "The share of synthetic rows that are not near-copies of a real row.",
+    "pca_scatter": "A two-dimensional overlay of the real and synthetic data for visual inspection.",
     # Compliance — privacy and disclosure
-    "dcr": "How far synthetic rows sit from the nearest real person. Higher means more privacy distance.",
-    "nndr": "Whether synthetic rows are suspiciously closer to real people than real people are to one another. Higher is safer.",
-    "k_anonymity": "The size of the smallest group sharing the same sensitive values. Higher means individuals are harder to single out.",
-    "identical_match_rate": "Whether synthetic rows are exact copies of real rows. Higher means fewer exact copies.",
-    "mia_auc": "How easily an attacker could guess whether a record was in the real data. Higher means harder to guess.",
-    "dp_ledger": "Reports the differential-privacy budget if the generator declared one. Informational.",
+    "dcr": "How far synthetic rows sit from the nearest real record.",
+    "nndr": "Whether synthetic rows are closer to real records than real records are to one another.",
+    "k_anonymity": "The size of the smallest group sharing the same sensitive values.",
+    "identical_match_rate": "The share of synthetic rows that are exact copies of a real row.",
+    "mia_auc": "How easily an attacker could guess whether a record was in the real data.",
+    "dp_ledger": "The differential-privacy budget the generator declared, if any.",
     # Utility — usefulness for modeling
-    "tstr_suite": "How well a model trained on synthetic data performs on real data, compared with training on real data. Higher means the synthetic data is just as useful.",
-    "multi_target_utility": "The same train-on-synthetic, test-on-real check applied to every column as a prediction target. Higher means broadly useful.",
-    "feature_importance_spearman": "Whether a model finds the same features important in synthetic and real data. Higher means the signal is preserved.",
-    "discriminative_score": "Whether a model can distinguish real from synthetic rows. Higher means they are indistinguishable.",
+    "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
+    "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
+    "feature_importance_spearman": "Whether a model finds the same features important in synthetic and real data.",
+    "discriminative_score": "Whether a model can distinguish real from synthetic rows.",
+}
+
+# How to read the RAW statistic (scale + which direction is better). Shown only
+# in the "actual measured values" view, where the raw value's direction often
+# differs from the normalized score's "higher is better".
+RAW_HINT: dict[str, str] = {
+    "ks_statistic": "Ranges 0 to 1: 0 = identical distributions, larger = more different. Lower is better.",
+    "tvd": "Ranges 0 to 1: 0 = identical frequencies, larger = more different. Lower is better.",
+    "wasserstein": "A distance in standardized units: 0 = identical, larger = further apart. Lower is better.",
+    "correlation_difference": "Average absolute difference in correlations: 0 = identical structure, larger = more distortion. Lower is better.",
+    "pmse": "0 means the model cannot distinguish real from synthetic; larger = easier to tell apart. Lower is better.",
+    "sliced_wasserstein": "A distance: 0 = identical data clouds, larger = further apart. Lower is better.",
+    "jsd": "Ranges 0 to 1: 0 = identical distributions, larger = more different. Lower is better.",
+    "c2st": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = perfectly separable. Closer to 0.5 is better.",
+    "category_coverage": "Fraction of real categories present in the synthetic data, 0 to 1. Higher is better.",
+    "range_coverage": "Fraction of the real numeric range that is covered, 0 to 1. Higher is better.",
+    "novelty_rate": "Fraction of non-duplicate rows, 0 to 1. Higher is better.",
+    "entropy_ratio": "Synthetic-to-real variety ratio, 0 to 1. Higher (closer to 1) is better.",
+    "alpha_precision_beta_recall": "Two fractions from 0 to 1 (precision and recall). Higher is better on both.",
+    "authenticity": "Fraction of rows that are not near-copies, 0 to 1. Higher is better.",
+    "pca_scatter": "Visualization only; there is no numeric value to compare.",
+    "dcr": "Distance to the nearest real record, in standardized units. Larger = more privacy. Higher is better.",
+    "nndr": "Distance ratio near 1 means synthetic rows are no closer to real records than reals are to each other. Higher is safer.",
+    "k_anonymity": "The smallest matching-group size; larger groups hide individuals better. Higher is better.",
+    "identical_match_rate": "Fraction of exact copies of real rows, 0 to 1. Fewer copies is safer. Lower is better.",
+    "mia_auc": "Attack AUC: 0.5 = no privacy leakage (ideal), 1.0 = full leakage. Lower is better.",
+    "dp_ledger": "Privacy budget epsilon: smaller epsilon = stronger privacy guarantee. Informational.",
+    "tstr_suite": "Synthetic-trained performance as a fraction of real-trained, around 1 when just as useful. Higher is better.",
+    "multi_target_utility": "Average utility ratio across targets, around 1 when just as useful. Higher is better.",
+    "feature_importance_spearman": "Rank correlation from -1 to 1; 1 = identical importance ordering. Higher is better.",
+    "discriminative_score": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = separable. Closer to 0.5 is better.",
 }
 
 
@@ -121,6 +159,11 @@ def describe_metric(name: str) -> str:
 def display_name(name: str) -> str:
     """Return the full human-readable name for a metric, or the code itself."""
     return METRIC_NAMES.get(name, name)
+
+
+def raw_hint(name: str) -> str:
+    """Return how to read the raw statistic (scale + direction), or '' if unknown."""
+    return RAW_HINT.get(name, "")
 
 
 def verdict(score: float) -> tuple[str, str]:

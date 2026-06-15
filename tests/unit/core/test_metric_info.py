@@ -4,6 +4,7 @@ from syneva.core.metric_info import (
     describe_metric,
     display_name,
     humanize_scalar,
+    raw_hint,
     verdict,
 )
 from syneva.core.registry import registry
@@ -12,6 +13,20 @@ from syneva.core.registry import registry
 def test_every_registered_metric_has_a_description():
     missing = [c.spec.name for c in registry.metrics() if not describe_metric(c.spec.name)]
     assert not missing, f"metrics missing a plain-language description: {missing}"
+
+
+def test_every_registered_metric_has_a_raw_hint():
+    missing = [c.spec.name for c in registry.metrics() if not raw_hint(c.spec.name)]
+    assert not missing, f"metrics missing a raw-statistic hint: {missing}"
+
+
+def test_base_description_makes_no_direction_claim():
+    # The neutral description must not bake in "higher/lower is better"; that
+    # belongs to the score banner (normalized) or the raw hint (actual).
+    for c in registry.metrics():
+        text = describe_metric(c.spec.name).lower()
+        assert "higher is better" not in text
+        assert "lower is better" not in text
 
 
 def test_every_registered_metric_has_a_full_name():

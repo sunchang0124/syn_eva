@@ -92,6 +92,9 @@ def test_actual_mode_shows_raw_value_not_verdict():
     assert "actual measured statistics" in actual.lower()
     assert "/ 1.00" not in actual
     assert "Technical details" not in actual
+    # the raw-direction hint is correct for a KS distance: lower is better
+    assert "How to read it" in actual
+    assert "Lower is better" in actual
 
 
 def test_failed_metric_shown_with_error():
