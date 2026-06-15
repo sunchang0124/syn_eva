@@ -16,6 +16,7 @@ from syneva.core.registry import registry as _global_registry
 from syneva.core.report import Report
 from syneva.core.runner import evaluate_with
 from syneva.render.html.renderer import render_html
+from syneva.render.pdf import render_pdf
 from syneva.utility.task import UtilityTask
 
 
@@ -114,22 +115,27 @@ def run_report(
     )
 
 
-def report_html_str(report: Report, *, interactive: bool = False) -> str:
-    """Return the scorecard as an HTML string (in-memory alternative to Report.to_html)."""
-    return render_html(report, interactive=interactive)
+def report_html_str(
+    report: Report, *, interactive: bool = False, score_mode: str = "normalized"
+) -> str:
+    """Return the scorecard as an HTML string (in-memory alternative to Report.to_html).
+
+    score_mode: "normalized" (0-1 score + verdict) or "actual" (raw statistics).
+    """
+    return render_html(report, interactive=interactive, score_mode=score_mode)
 
 
 def report_json_str(report: Report) -> str:
-    """Serialize the report to a JSON string."""
+    """Serialize the report to a JSON string (always carries every raw scalar)."""
     return json.dumps(report.to_dict(), indent=2, default=str)
 
 
-def report_pdf_bytes(report: Report) -> bytes:
+def report_pdf_bytes(report: Report, *, score_mode: str = "normalized") -> bytes:
     """Render the scorecard to PDF bytes (requires the [pdf] extra)."""
     tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)  # noqa: SIM115
     try:
         tmp.close()
-        report.to_pdf(tmp.name)  # raises SynevaError if weasyprint missing
+        render_pdf(report, tmp.name, score_mode=score_mode)  # raises SynevaError if unavailable
         return Path(tmp.name).read_bytes()
     finally:
         os.unlink(tmp.name)

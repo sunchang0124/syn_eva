@@ -21,7 +21,14 @@ _ENV = jinja2.Environment(
 )
 
 
-def render_html(report: Report, *, interactive: bool = False) -> str:
+def render_html(
+    report: Report, *, interactive: bool = False, score_mode: str = "normalized"
+) -> str:
+    """Render the scorecard.
+
+    score_mode: "normalized" shows the 0-1 score + verdict (raw values collapsed);
+    "actual" shows the raw measured statistics as the headline (for reporting).
+    """
     by_c_view: dict[str, list] = {}
     for c, results in report.by_c.items():
         view = []
@@ -72,5 +79,6 @@ def render_html(report: Report, *, interactive: bool = False) -> str:
     return tpl.render(
         by_c=by_c_view,
         summary_cards=summary_cards,
+        score_mode=score_mode,
         run_info=report.run_info,
     )

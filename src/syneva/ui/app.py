@@ -116,7 +116,18 @@ def _sidebar() -> dict | None:
 def _render_results(report) -> None:
     """Render the scorecard and download buttons."""
     st.subheader("Scorecard")
-    html_str = core.report_html_str(report)
+    mode_label = st.radio(
+        "Results display",
+        ["Normalized score (0-1)", "Actual measured values"],
+        horizontal=True,
+        help=(
+            "Normalized is easy to compare at a glance. Actual shows the raw "
+            "measured statistics (KS, AUC, distances, ...) for objective reporting."
+        ),
+    )
+    score_mode = "actual" if mode_label.startswith("Actual") else "normalized"
+
+    html_str = core.report_html_str(report, score_mode=score_mode)
     components.html(html_str, height=900, scrolling=True)
 
     st.download_button("Download JSON", core.report_json_str(report), "scorecard.json")
@@ -125,7 +136,11 @@ def _render_results(report) -> None:
     pdf_ok = importlib.util.find_spec("weasyprint") is not None
     if pdf_ok:
         try:
-            st.download_button("Download PDF", core.report_pdf_bytes(report), "scorecard.pdf")
+            st.download_button(
+                "Download PDF",
+                core.report_pdf_bytes(report, score_mode=score_mode),
+                "scorecard.pdf",
+            )
         except SynevaError:
             st.caption("PDF export unavailable (weasyprint native libraries missing).")
     else:

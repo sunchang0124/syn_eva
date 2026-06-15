@@ -65,6 +65,35 @@ def test_metric_full_name_and_visible_description_rendered():
     assert 'class="metric-desc"' in html
 
 
+def test_actual_mode_shows_raw_value_not_verdict():
+    spec = MetricSpec(
+        name="ks_statistic",
+        c="congruence",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="per-column",
+    )
+    meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+    rep = Report(
+        metadata=meta,
+        results=[MetricResult(spec=spec, scalars={"score": 0.98, "mean_ks_statistic": 0.0170})],
+        run_info=RunInfo.capture(random_state=0),
+    )
+    normalized = render_html(rep, score_mode="normalized")
+    actual = render_html(rep, score_mode="actual")
+
+    # normalized: 0-1 score headline (/ 1.00) with raw values under a collapsible toggle
+    assert "/ 1.00" in normalized
+    assert "Technical details" in normalized
+    assert "normalized scores" in normalized.lower()
+    # actual: the raw statistic is the visible headline; no /1.00 units, no collapse
+    assert "0.0170" in actual
+    assert "actual measured statistics" in actual.lower()
+    assert "/ 1.00" not in actual
+    assert "Technical details" not in actual
+
+
 def test_failed_metric_shown_with_error():
     spec = MetricSpec(
         name="bad",

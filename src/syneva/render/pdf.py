@@ -7,7 +7,7 @@ from syneva.core.report import Report
 from syneva.render.html.renderer import render_html
 
 
-def render_pdf(report: Report, path: str | Path) -> None:
+def render_pdf(report: Report, path: str | Path, *, score_mode: str = "normalized") -> None:
     try:
         import weasyprint
     except (ImportError, OSError) as exc:
@@ -15,7 +15,7 @@ def render_pdf(report: Report, path: str | Path) -> None:
             "PDF rendering requires `pip install 'syneva[pdf]'` (weasyprint) "
             "and its native libraries (e.g. libpango)."
         ) from exc
-    html = render_html(report, interactive=False)
+    html = render_html(report, interactive=False, score_mode=score_mode)
     try:
         weasyprint.HTML(string=html).write_pdf(str(path))
     except OSError as exc:
