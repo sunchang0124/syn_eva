@@ -26,7 +26,7 @@ class NNDR:
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         nb = Neighbors(real, synthetic, meta, distance=self.distance)
-        if nb.n_features == 0 or len(synthetic) < 2:
+        if nb.n_features == 0 or len(real) == 0 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "nndr_median": 1.0},

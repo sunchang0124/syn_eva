@@ -26,11 +26,11 @@ class AlphaPrecisionBetaRecall:
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         nb = Neighbors(real, synthetic, meta, distance=self.distance)
-        if nb.n_features == 0:
+        if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "alpha_precision": 1.0, "beta_recall": 1.0},
-                notes=["no encodable columns"],
+                notes=["no encodable columns or insufficient rows"],
             )
         k = max(1, min(5, len(real) - 1))
         radii_real = nb.real_self(k)
