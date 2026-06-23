@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import ClassVar
 
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 
-from syneva.compliance._encode import encode_pair
 from syneva.core.metric import MetricResult, MetricSpec
+from syneva.core.neighbors import Neighbors
 from syneva.core.registry import registry
 
 
@@ -21,24 +20,25 @@ class NNDR:
         scope="table-level",
     )
 
+    def __init__(self, distance: str = "euclidean") -> None:
+        self.distance = distance
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        X_real, X_syn = encode_pair(real, synthetic, meta)
-        if X_real.shape[1] == 0 or X_real.shape[0] == 0:
+        nb = Neighbors(real, synthetic, meta, distance=self.distance)
+        if nb.n_features == 0 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "nndr_median": 1.0},
-                notes=["no encodable columns"],
+                notes=["insufficient data"],
             )
-        nn_real = NearestNeighbors(n_neighbors=1).fit(X_real)
-        d_real, _ = nn_real.kneighbors(X_syn)
-        nn_syn = NearestNeighbors(n_neighbors=2).fit(X_syn)  # 2: nearest is self
-        d_syn, _ = nn_syn.kneighbors(X_syn)
-        d_syn = d_syn[:, 1]
-        ratio = d_real.ravel() / np.where(d_syn > 0, d_syn, 1e-9)
+        d_real = nb.syn_to_real(1)
+        d_syn = nb.syn_self(1)
+        ratio = d_real / np.where(d_syn > 0, d_syn, 1e-9)
         med = float(np.median(ratio))
         score = float(min(1.0, med))
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "nndr_median": med},
+            notes=["capped for gower"] if nb.capped else [],
         )
