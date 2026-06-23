@@ -66,7 +66,7 @@ def _sidebar() -> dict | None:
 
         selected: list[str] = []
         utility_selected = False
-        for c in ["congruence", "coverage", "compliance", "utility"]:
+        for c in ["congruence", "coverage", "compliance", "utility", "fairness"]:
             group = [m for m in catalog if m["c"] == c]
             if not group:
                 continue
