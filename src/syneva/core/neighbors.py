@@ -63,6 +63,11 @@ class Neighbors:
     def _self_dist(self, which: str, k: int) -> np.ndarray:
         if self.distance == "gower":
             d = (self._d_rr if which == "real" else self._d_ss).copy()
+            n = d.shape[0]
+            if k >= n:
+                raise ValueError(
+                    f"k={k} too large: only {n - 1} other rows available for self-distance"
+                )
             np.fill_diagonal(d, np.inf)
             return np.partition(d, k - 1, axis=1)[:, k - 1]
         x = self._x_real if which == "real" else self._x_syn
@@ -77,6 +82,8 @@ class Neighbors:
     def _cross_dist(self, src: str, k: int) -> np.ndarray:
         if self.distance == "gower":
             d = self._d_rs if src == "real" else self._d_rs.T
+            if k > d.shape[1]:
+                raise ValueError(f"k={k} too large: only {d.shape[1]} target rows available")
             return np.partition(d, k - 1, axis=1)[:, k - 1]
         if src == "real":
             return (

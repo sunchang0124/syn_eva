@@ -35,3 +35,22 @@ def test_no_usable_columns_zero():
     d = gower_matrix(df, df, meta)
     assert d.shape == (2, 2)
     assert np.allclose(d, 0.0)
+
+
+def test_gower_nan_numeric_contributes_zero():
+    import numpy as np
+
+    a = pd.DataFrame({"num": [float("nan")], "cat": ["x"]})
+    b = pd.DataFrame({"num": [5.0], "cat": ["x"]})
+    d = gower_matrix(a, b, _meta())
+    # numeric pair has NaN -> 0 contribution; cat equal -> 0; mean 0
+    assert np.isclose(d[0, 0], 0.0)
+
+
+def test_gower_constant_numeric_column_zero_contribution():
+    import numpy as np
+
+    meta = Metadata(columns={"num": ColumnMetadata(name="num", dtype=ColumnType.NUMERIC)})
+    df = pd.DataFrame({"num": [7.0, 7.0, 7.0]})
+    d = gower_matrix(df, df, meta)
+    assert np.allclose(d, 0.0)

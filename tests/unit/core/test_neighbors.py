@@ -47,3 +47,28 @@ def test_invalid_distance_raises():
     real, syn, meta = _data()
     with pytest.raises(ValueError, match="distance"):
         Neighbors(real, syn, meta, distance="manhattan")
+
+
+def test_euclidean_k2_matches_direct():
+    real, syn, meta = _data()
+    nb = Neighbors(real, syn, meta, distance="euclidean")
+    x_real, _ = encode_pair(real, syn, meta)
+    exp = NearestNeighbors(n_neighbors=3).fit(x_real).kneighbors(x_real)[0][:, 2]
+    assert np.allclose(nb.real_self(2), exp)
+
+
+def test_gower_capping_truncates_and_flags():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame({"x": rng.normal(size=50), "c": ["a", "b"] * 25})
+    syn = pd.DataFrame({"x": rng.normal(size=50), "c": ["a", "b"] * 25})
+    nb = Neighbors(real, syn, Metadata.infer(real), distance="gower", cap=10)
+    assert nb.capped is True
+    assert nb._nr == 10 and nb._ns == 10
+
+
+def test_gower_k_too_large_raises():
+    real = pd.DataFrame({"n": [0.0, 1.0, 2.0], "c": ["a", "b", "a"]})
+    syn = pd.DataFrame({"n": [0.0], "c": ["a"]})
+    nb = Neighbors(real, syn, Metadata.infer(real), distance="gower")
+    with pytest.raises(ValueError, match="too large"):
+        nb.real_self(3)  # only 2 other rows available
