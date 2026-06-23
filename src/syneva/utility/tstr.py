@@ -26,6 +26,7 @@ class TSTRSuite:
     )
     tasks: list[UtilityTask] = field(default_factory=list)
     random_state: int = 42
+    holdout: object | None = None  # pandas DataFrame test set, or None
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
@@ -38,34 +39,36 @@ class TSTRSuite:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
             features = select_features(meta, t.target, t.features)
-            X_real = real[features]
-            y_real = real[t.target]
             X_syn = synthetic[features]
             y_syn = synthetic[t.target]
-            X_real_tr, X_real_te, y_real_tr, y_real_te = train_test_split(
-                X_real,
-                y_real,
-                test_size=0.3,
-                random_state=self.random_state,
-                stratify=y_real if t.task_type == "classification" else None,
-            )
-
             tt = t.task_type or "regression"
+            if self.holdout is not None:
+                X_test = self.holdout[features]
+                y_test = self.holdout[t.target]
+                X_real_tr, y_real_tr = real[features], real[t.target]
+            else:
+                X_real_tr, X_test, y_real_tr, y_test = train_test_split(
+                    real[features],
+                    real[t.target],
+                    test_size=0.3,
+                    random_state=self.random_state,
+                    stratify=real[t.target] if t.task_type == "classification" else None,
+                )
             trtr_score = _score(
                 tt,
                 build_pipeline(tt, meta, features, self.random_state),
                 X_real_tr,
                 y_real_tr,
-                X_real_te,
-                y_real_te,
+                X_test,
+                y_test,
             )
             tstr_score = _score(
                 tt,
                 build_pipeline(tt, meta, features, self.random_state),
                 X_syn,
                 y_syn,
-                X_real_te,
-                y_real_te,
+                X_test,
+                y_test,
             )
             ratio = float(tstr_score / trtr_score) if trtr_score not in (0, 0.0) else 0.0
             scalars[f"trtr_{t.target}"] = float(trtr_score)
