@@ -20,12 +20,13 @@ class DCR:
         scope="table-level",
     )
 
-    def __init__(self, distance: str = "euclidean") -> None:
+    def __init__(self, distance: str = "euclidean", holdout: object | None = None) -> None:
         self.distance = distance
+        self.holdout = holdout
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        nb = Neighbors(real, synthetic, meta, distance=self.distance)
+        nb = Neighbors(real, synthetic, meta, distance=self.distance, holdout=self.holdout)
         if nb.n_features == 0 or len(real) == 0 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
@@ -35,9 +36,26 @@ class DCR:
         dists = nb.syn_to_real(1)
         median = float(np.median(dists))
         p05 = float(np.quantile(dists, 0.05))
+        notes = ["capped for gower"] if nb.capped else []
+        if self.holdout is not None and len(self.holdout) > 0:
+            d_hold = nb.holdout_to_real(1)
+            p05_hold = float(np.quantile(d_hold, 0.05))
+            median_hold = float(np.median(d_hold))
+            score = float(min(1.0, max(0.0, p05 / (p05_hold + 1e-12))))
+            return MetricResult(
+                spec=self.spec,
+                scalars={
+                    "score": score,
+                    "median_dcr": median,
+                    "p05_dcr": p05,
+                    "median_dcr_holdout": median_hold,
+                    "p05_dcr_holdout": p05_hold,
+                },
+                notes=notes,
+            )
         score = float(min(1.0, p05))
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "median_dcr": median, "p05_dcr": p05},
-            notes=["capped for gower"] if nb.capped else [],
+            notes=notes,
         )
