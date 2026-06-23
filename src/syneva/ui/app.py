@@ -100,6 +100,19 @@ def _sidebar() -> dict | None:
         else:
             st.caption("Select a utility metric to configure tasks.")
 
+        st.header("5 · Fairness")
+        fairness_selected = any(m["c"] == "fairness" for m in catalog if m["name"] in selected)
+        fairness_specs = None
+        if fairness_selected:
+            from syneva import FairnessSpec
+
+            protected = st.selectbox("Protected attribute", options=list(real.columns))
+            outcome = st.selectbox("Outcome column", options=list(real.columns))
+            if protected and outcome:
+                fairness_specs = [FairnessSpec(protected_attribute=protected, outcome=outcome)]
+        else:
+            st.caption("Select the statistical-parity metric to configure fairness.")
+
         run = st.button("Run evaluation", type="primary")
 
     return {
@@ -109,6 +122,8 @@ def _sidebar() -> dict | None:
         "selected": selected,
         "utility_selected": utility_selected,
         "utility_tasks": utility_tasks,
+        "fairness_selected": fairness_selected,
+        "fairness_specs": fairness_specs,
         "run": run,
     }
 
@@ -157,11 +172,20 @@ def main() -> None:
             st.warning("Select at least one evaluator in the sidebar.")
         elif cfg["utility_selected"] and not cfg["utility_tasks"]:
             st.warning("A utility metric is selected but no target column was chosen.")
+        elif cfg["fairness_selected"] and not cfg["fairness_specs"]:
+            st.warning(
+                "A fairness metric is selected but no protected attribute/outcome was chosen."
+            )
         else:
             try:
                 meta = core.metadata_from_editor(cfg["edited"])
                 st.session_state["report"] = core.run_report(
-                    cfg["real"], cfg["synthetic"], meta, cfg["selected"], cfg["utility_tasks"]
+                    cfg["real"],
+                    cfg["synthetic"],
+                    meta,
+                    cfg["selected"],
+                    cfg["utility_tasks"],
+                    fairness_specs=cfg["fairness_specs"],
                 )
             except (SynevaError, ValueError) as e:
                 st.error(f"Evaluation failed: {e}")

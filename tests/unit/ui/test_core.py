@@ -136,3 +136,25 @@ def test_report_pdf_bytes_guarded():
         pytest.skip("weasyprint unavailable")
     pdf = core.report_pdf_bytes(_small_report())
     assert pdf[:4] == b"%PDF"
+
+
+def test_run_report_runs_fairness_when_selected():
+    import pandas as pd
+
+    from syneva import FairnessSpec
+    from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+
+    y = [1] * 40 + [0] * 10 + [1] * 10 + [0] * 40
+    df = pd.DataFrame({"g": ["A"] * 50 + ["B"] * 50, "y": y})
+    meta = Metadata(
+        columns={
+            "g": ColumnMetadata(name="g", dtype=ColumnType.CATEGORICAL),
+            "y": ColumnMetadata(name="y", dtype=ColumnType.CATEGORICAL),
+        }
+    )
+    rep = core.run_report(
+        df, df, meta, ["statistical_parity"], fairness_specs=[FairnessSpec("g", "y")]
+    )
+    by = {r.spec.name: r for r in rep.results}
+    assert "statistical_parity" in by
+    assert by["statistical_parity"].error is None

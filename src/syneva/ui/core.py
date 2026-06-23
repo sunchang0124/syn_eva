@@ -84,6 +84,7 @@ def build_selection_registry(names: list[str]) -> MetricRegistry:
 
 
 _UTILITY_C = "utility"
+_FAIRNESS_C = "fairness"
 
 
 def run_report(
@@ -92,17 +93,21 @@ def run_report(
     metadata: Metadata,
     selected_names: list[str],
     utility_tasks: list[UtilityTask] | None = None,
+    fairness_specs: list | None = None,
     random_state: int = 42,
 ) -> Report:
     """Run exactly the selected metrics and return a Report.
 
     Utility metrics only run when at least one is selected; `run_utility` is
     inferred from the selection so the caller need not pass it separately.
+    Fairness metrics only run when at least one is selected; `run_fairness` is
+    inferred from the selection so the caller need not pass it separately.
 
     Note: data_type is fixed to "static" (the only supported kind in v0.1).
     """
     reg = build_selection_registry(selected_names)
     run_utility = any(cls.spec.c == _UTILITY_C for cls in reg.metrics())
+    run_fairness = any(cls.spec.c == _FAIRNESS_C for cls in reg.metrics())
     return evaluate_with(
         reg,
         real=real,
@@ -111,6 +116,8 @@ def run_report(
         tiers=("core", "extended", "custom"),
         utility_tasks=utility_tasks,
         run_utility=run_utility,
+        fairness_specs=fairness_specs,
+        run_fairness=run_fairness,
         random_state=random_state,
     )
 
