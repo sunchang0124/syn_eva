@@ -42,4 +42,5 @@ __all__ = [
 from syneva import compliance as _compliance  # noqa: F401
 from syneva import congruence as _congruence  # noqa: F401
 from syneva import coverage as _coverage  # noqa: F401
+from syneva import fairness as _fairness  # noqa: F401
 from syneva import utility as _utility  # noqa: F401

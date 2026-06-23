@@ -58,6 +58,8 @@ METRIC_INFO: dict[str, str] = {
     "attribute_disclosure": "Whether a sensitive attribute can be inferred from the quasi-identifiers via the nearest synthetic record.",
     "mia_auc": "How easily an attacker could guess whether a record was in the real data.",
     "dp_ledger": "The differential-privacy budget the generator declared, if any.",
+    # Fairness — outcome-rate preservation across protected groups
+    "statistical_parity": "Whether the synthetic data preserves the real data's outcome-rate gap between protected groups.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -104,6 +106,7 @@ RAW_HINT: dict[str, str] = {
     "multi_target_utility": "Average utility ratio across targets, around 1 when just as useful. Higher is better.",
     "feature_importance_spearman": "Rank correlation from -1 to 1; 1 = identical importance ordering. Higher is better.",
     "discriminative_score": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = separable. Closer to 0.5 is better.",
+    "statistical_parity": "Drift = |synthetic parity gap - real parity gap|, 0 to 1. 0 means the real fairness structure is preserved. Lower is better.",
 }
 
 
@@ -144,6 +147,7 @@ METRIC_NAMES: dict[str, str] = {
     "multi_target_utility": "Multi-target utility",
     "feature_importance_spearman": "Feature-importance correlation",
     "discriminative_score": "Discriminative score",
+    "statistical_parity": "Statistical parity difference",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -174,6 +178,9 @@ _SCALAR_LABELS: dict[str, str] = {
     "hit_rate": "Hit rate",
     "identifiability_risk": "Identifiability risk",
     "disclosure_rate": "Disclosure rate",
+    "spd_synthetic": "Parity gap (synthetic)",
+    "spd_real": "Parity gap (real)",
+    "parity_drift": "Parity drift",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
