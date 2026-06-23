@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import ClassVar
 
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 
-from syneva.compliance._encode import encode_pair
 from syneva.core.metric import MetricResult, MetricSpec
+from syneva.core.neighbors import Neighbors
 from syneva.core.registry import registry
 
 
@@ -21,24 +20,24 @@ class DCR:
         scope="table-level",
     )
 
+    def __init__(self, distance: str = "euclidean") -> None:
+        self.distance = distance
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        X_real, X_syn = encode_pair(real, synthetic, meta)
-        if X_real.shape[1] == 0 or X_real.shape[0] == 0:
+        nb = Neighbors(real, synthetic, meta, distance=self.distance)
+        if nb.n_features == 0 or len(real) == 0:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "median_dcr": 0.0, "p05_dcr": 0.0},
                 notes=["no encodable columns"],
             )
-        nn = NearestNeighbors(n_neighbors=1).fit(X_real)
-        dists, _ = nn.kneighbors(X_syn, return_distance=True)
-        dists = dists.ravel()
+        dists = nb.syn_to_real(1)
         median = float(np.median(dists))
         p05 = float(np.quantile(dists, 0.05))
-        # Higher distance to the nearest real record = safer. The 5th-percentile
-        # distance (worst-case proximity) drives the score, soft-capped at 1.0.
         score = float(min(1.0, p05))
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "median_dcr": median, "p05_dcr": p05},
+            notes=["capped for gower"] if nb.capped else [],
         )
