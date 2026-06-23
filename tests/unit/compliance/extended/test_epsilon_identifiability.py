@@ -31,3 +31,15 @@ def test_duplicate_real_rows_still_flagged_when_copied():
     real = pd.concat([base, base], ignore_index=True)
     r = EpsilonIdentifiability().compute(real, real, Metadata.infer(real))
     assert r.scalars["identifiability_risk"] > 0.9  # exact copies must be flagged
+
+
+def test_epsilon_gower_backend_runs():
+    import numpy as np
+    import pandas as pd
+
+    from syneva.core.metadata import Metadata
+
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame({"x": rng.normal(size=100), "c": ["a", "b"] * 50})
+    r = EpsilonIdentifiability(distance="gower").compute(df, df, Metadata.infer(df))
+    assert r.scalars["identifiability_risk"] > 0.5
