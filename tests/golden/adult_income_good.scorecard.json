@@ -72,6 +72,25 @@
       "notes": [],
       "per_column": null,
       "scalars": {
+        "hit_rate": 0.74,
+        "score": 0.26
+      },
+      "spec": {
+        "c": "compliance",
+        "data_types": [
+          "static"
+        ],
+        "name": "hitting_rate",
+        "requires_real": true,
+        "scope": "table-level",
+        "tier": "core"
+      }
+    },
+    {
+      "error": null,
+      "notes": [],
+      "per_column": null,
+      "scalars": {
         "identical_match_rate": 0.0,
         "identical_matches": 0.0,
         "score": 1.0
