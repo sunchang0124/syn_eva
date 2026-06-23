@@ -4,11 +4,10 @@ from typing import ClassVar
 
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
 
-from syneva.compliance._encode import encode_pair
 from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
+from syneva.core.neighbors import Neighbors
 from syneva.core.registry import registry
 
 # encode_pair only encodes NUMERIC and CATEGORICAL; booleans are not usable QIs here.
@@ -26,6 +25,9 @@ class AttributeDisclosure:
         scope="table-level",
     )
 
+    def __init__(self, distance: str = "euclidean") -> None:
+        self.distance = distance
+
     def compute(
         self,
         real: pd.DataFrame | None,
@@ -42,18 +44,14 @@ class AttributeDisclosure:
                 notes=["no sensitive columns or no quasi-identifiers; skipped"],
             )
         qi_meta = Metadata(columns={n: meta.columns[n] for n in qi})
-        x_real, x_syn = encode_pair(real, synthetic, qi_meta)
-        if x_real.shape[1] == 0 or len(x_syn) < 1:
+        nb = Neighbors(real, synthetic, qi_meta, distance=self.distance, cap=10**9)
+        if nb.n_features == 0:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "disclosure_rate": 0.0},
                 notes=["no encodable quasi-identifiers; skipped"],
             )
-        idx = (
-            NearestNeighbors(n_neighbors=1)
-            .fit(x_syn)
-            .kneighbors(x_real, return_distance=False)[:, 0]
-        )
+        idx = nb.real_to_syn_index()
         real_r = real.reset_index(drop=True)
         syn_r = synthetic.reset_index(drop=True)
         matches = np.ones(len(real_r), dtype=bool)

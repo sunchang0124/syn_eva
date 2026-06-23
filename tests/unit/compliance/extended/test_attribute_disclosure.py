@@ -27,3 +27,21 @@ def test_no_sensitive_columns_skips():
     r = AttributeDisclosure().compute(df, df, Metadata.infer(df))
     assert r.scalars["score"] == 1.0
     assert any("sensitive" in n for n in r.notes)
+
+
+def test_attribute_disclosure_gower_backend_runs():
+    import pandas as pd
+
+    from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+
+    qi = list(range(60))
+    secret = ["A" if v < 30 else "B" for v in qi]
+    df = pd.DataFrame({"qi": qi, "secret": secret})
+    meta = Metadata(
+        columns={
+            "qi": ColumnMetadata(name="qi", dtype=ColumnType.NUMERIC),
+            "secret": ColumnMetadata(name="secret", dtype=ColumnType.CATEGORICAL, sensitive=True),
+        }
+    )
+    r = AttributeDisclosure(distance="gower").compute(df, df, meta)
+    assert r.scalars["disclosure_rate"] > 0.9
