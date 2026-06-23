@@ -26,7 +26,7 @@ class DCR:
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         nb = Neighbors(real, synthetic, meta, distance=self.distance)
-        if nb.n_features == 0 or len(real) == 0:
+        if nb.n_features == 0 or len(real) == 0 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "median_dcr": 0.0, "p05_dcr": 0.0},

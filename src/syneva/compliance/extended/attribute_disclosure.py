@@ -45,11 +45,11 @@ class AttributeDisclosure:
             )
         qi_meta = Metadata(columns={n: meta.columns[n] for n in qi})
         nb = Neighbors(real, synthetic, qi_meta, distance=self.distance, cap=10**9)
-        if nb.n_features == 0:
+        if nb.n_features == 0 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0, "disclosure_rate": 0.0},
-                notes=["no encodable quasi-identifiers; skipped"],
+                notes=["no encodable quasi-identifiers or empty synthetic; skipped"],
             )
         idx = nb.real_to_syn_index()
         real_r = real.reset_index(drop=True)

@@ -32,7 +32,7 @@ class AlphaPrecisionBetaRecall:
                 scalars={"score": 1.0, "alpha_precision": 1.0, "beta_recall": 1.0},
                 notes=["no encodable columns or insufficient rows"],
             )
-        k = max(1, min(5, len(real) - 1))
+        k = max(1, min(5, min(len(real), len(synthetic)) - 1))
         radii_real = nb.real_self(k)
         radii_syn = nb.syn_self(k)
         d_to_real = nb.syn_to_real(1)
