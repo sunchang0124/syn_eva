@@ -46,3 +46,13 @@ def test_new_fidelity_metrics_present(real_df, syn_good_df, metadata):
         assert m in names, f"{m} not in evaluate() results"
         result = next(r for r in rep.results if r.spec.name == m)
         assert result.error is None, f"{m} errored: {result.error}"
+
+
+def test_privacy_parity_metrics_present(real_df, syn_good_df, metadata):
+    import syneva
+
+    rep = syneva.evaluate(real_df, syn_good_df, metadata, tiers=("core", "extended"))
+    names = {r.spec.name for r in rep.results}
+    for m in ["hitting_rate", "epsilon_identifiability", "attribute_disclosure"]:
+        assert m in names, f"{m} missing"
+        assert next(r for r in rep.results if r.spec.name == m).error is None

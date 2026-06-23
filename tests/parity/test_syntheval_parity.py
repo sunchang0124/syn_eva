@@ -27,10 +27,10 @@ SYNTHEVAL_PARITY: dict[str, tuple[str, str]] = {
     "nndr": ("implemented", "nndr"),
     "dcr": ("implemented", "dcr"),
     "mia": ("implemented", "mia_auc"),
-    "hit_rate": ("planned", "0b"),
-    "eps_risk": ("planned", "0b"),
-    "att_discl": ("planned", "0b"),
-    "statistical_parity": ("planned", "0b"),
+    "hit_rate": ("implemented", "hitting_rate"),
+    "eps_risk": ("implemented", "epsilon_identifiability"),
+    "att_discl": ("implemented", "attribute_disclosure"),
+    "statistical_parity": ("implemented", "statistical_parity"),
 }
 
 
