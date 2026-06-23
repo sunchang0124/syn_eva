@@ -104,3 +104,21 @@ def test_holdout_gower_runs():
     nb = Neighbors(real, syn, Metadata.infer(real), distance="gower", holdout=hold)
     assert nb.holdout_to_real(1).shape == (2,)
     assert nb.holdout_self(1).shape == (2,)
+
+
+def test_holdout_to_real_euclidean_k_too_large_raises():
+    real = pd.DataFrame({"x": [0.0, 1.0]})  # only 2 real rows
+    syn = pd.DataFrame({"x": [0.5, 1.5, 2.5]})
+    hold = pd.DataFrame({"x": [0.2, 0.8]})
+    nb = Neighbors(real, syn, Metadata.infer(real), distance="euclidean", holdout=hold)
+    with pytest.raises(ValueError, match="too large"):
+        nb.holdout_to_real(3)  # k=3 > 2 real rows
+
+
+def test_holdout_self_euclidean_k_too_large_raises():
+    real = pd.DataFrame({"x": [0.0, 1.0, 2.0]})
+    syn = pd.DataFrame({"x": [0.5, 1.5]})
+    hold = pd.DataFrame({"x": [0.2, 0.8]})  # only 2 holdout rows
+    nb = Neighbors(real, syn, Metadata.infer(real), distance="euclidean", holdout=hold)
+    with pytest.raises(ValueError, match="too large"):
+        nb.holdout_self(2)  # k=2 >= 2 holdout rows (needs a DIFFERENT other row)

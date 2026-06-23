@@ -132,6 +132,9 @@ class Neighbors:
             if k > d.shape[1]:
                 raise ValueError(f"k={k} too large: only {d.shape[1]} real rows")
             return np.partition(d, k - 1, axis=1)[:, k - 1]
+        n_real = len(self._x_real)
+        if k > n_real:
+            raise ValueError(f"k={k} too large: only {n_real} real rows")
         return (
             NearestNeighbors(n_neighbors=k)
             .fit(self._x_real)
@@ -148,5 +151,8 @@ class Neighbors:
                 raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")
             np.fill_diagonal(d, np.inf)
             return np.partition(d, k - 1, axis=1)[:, k - 1]
+        n = len(self._x_holdout)
+        if k >= n:
+            raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")
         x = self._x_holdout
         return NearestNeighbors(n_neighbors=k + 1).fit(x).kneighbors(x)[0][:, k]
