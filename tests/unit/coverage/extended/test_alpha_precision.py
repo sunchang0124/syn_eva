@@ -20,3 +20,16 @@ def test_far_distribution_low_values():
     r = AlphaPrecisionBetaRecall().compute(real, syn, Metadata.infer(real))
     assert r.scalars["alpha_precision"] < 0.2
     assert r.scalars["beta_recall"] < 0.2
+
+
+def test_alpha_precision_gower_backend_runs():
+    import numpy as np
+    import pandas as pd
+
+    from syneva.core.metadata import Metadata
+
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame({"x": rng.normal(size=120), "c": ["a", "b", "c"] * 40})
+    r = AlphaPrecisionBetaRecall(distance="gower").compute(df, df, Metadata.infer(df))
+    assert r.scalars["alpha_precision"] > 0.5
+    assert r.scalars["beta_recall"] > 0.5
