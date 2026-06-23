@@ -19,7 +19,7 @@ from syneva.core.report import Report
 from syneva.core.run_info import RunInfo
 
 
-def _instantiate(cls, utility_tasks, fairness_specs, random_state):
+def _instantiate(cls, utility_tasks, fairness_specs, distance, random_state):
     """Instantiate a metric, passing only the kwargs its constructor accepts."""
     params = inspect.signature(cls).parameters
     kwargs = {}
@@ -27,6 +27,8 @@ def _instantiate(cls, utility_tasks, fairness_specs, random_state):
         kwargs["tasks"] = utility_tasks
     if "specs" in params:
         kwargs["specs"] = fairness_specs if fairness_specs is not None else []
+    if "distance" in params:
+        kwargs["distance"] = distance
     if "random_state" in params:
         kwargs["random_state"] = random_state
     return cls(**kwargs)
@@ -44,6 +46,7 @@ def evaluate(
     run_utility: bool = False,
     fairness_specs: list[FairnessSpec] | None = None,
     run_fairness: bool = False,
+    distance: str = "euclidean",
     random_state: int = 42,
     nan_policy: Literal["drop", "explicit_na", "raise"] = "drop",
 ) -> Report:
@@ -60,6 +63,7 @@ def evaluate(
         run_utility=run_utility,
         fairness_specs=fairness_specs,
         run_fairness=run_fairness,
+        distance=distance,
         random_state=random_state,
         nan_policy=nan_policy,
     )
@@ -78,11 +82,15 @@ def evaluate_with(
     run_utility: bool = False,
     fairness_specs: list[FairnessSpec] | None = None,
     run_fairness: bool = False,
+    distance: str = "euclidean",
     random_state: int = 42,
     nan_policy: str = "drop",
     # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
 ) -> Report:
     from syneva.utility.task import suggest_tasks
+
+    if distance not in ("euclidean", "gower"):
+        raise SynevaError(f"unknown distance '{distance}'; use 'euclidean' or 'gower'")
 
     if real is not None:
         _check_schema(real, synthetic)
@@ -120,7 +128,7 @@ def evaluate_with(
     results: list[MetricResult] = []
     for cls in selected:
         try:
-            inst = _instantiate(cls, utility_tasks, fairness_specs, random_state)
+            inst = _instantiate(cls, utility_tasks, fairness_specs, distance, random_state)
             results.append(inst.compute(real, synthetic, metadata))
         except Exception as e:
             results.append(
