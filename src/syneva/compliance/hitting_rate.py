@@ -47,14 +47,10 @@ class HittingRate:
         if len(s) > _CAP:
             s = s.iloc[rng.choice(len(s), _CAP, replace=False)]
             notes.append("synthetic capped at 2000 rows")
-        thresh = {
-            n: float(
-                pd.to_numeric(real[n], errors="coerce").max()
-                - pd.to_numeric(real[n], errors="coerce").min()
-            )
-            / 30.0
-            for n in num
-        }
+        thresh: dict[str, float] = {}
+        for n in num:
+            col = pd.to_numeric(real[n], errors="coerce")
+            thresh[n] = float(col.max() - col.min()) / 30.0
         r_num = {n: pd.to_numeric(r[n], errors="coerce").to_numpy() for n in num}
         s_num = {n: pd.to_numeric(s[n], errors="coerce").to_numpy() for n in num}
         r_cat = {n: r[n].astype("string").fillna("__NA__").to_numpy() for n in cat}

@@ -11,7 +11,8 @@ from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
-_USABLE = (ColumnType.NUMERIC, ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
+# encode_pair only encodes NUMERIC and CATEGORICAL; booleans are not usable QIs here.
+_USABLE = (ColumnType.NUMERIC, ColumnType.CATEGORICAL)
 
 
 @registry.register

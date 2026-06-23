@@ -39,7 +39,7 @@ class EpsilonIdentifiability:
             )
         d_self = NearestNeighbors(n_neighbors=2).fit(x_real).kneighbors(x_real)[0][:, 1]
         d_syn = NearestNeighbors(n_neighbors=1).fit(x_syn).kneighbors(x_real)[0][:, 0]
-        risk = float(np.mean(d_syn < d_self))
+        risk = float(np.mean(d_syn <= d_self))
         score = float(min(1.0, max(0.0, 1.0 - risk)))
         return MetricResult(
             spec=self.spec,
