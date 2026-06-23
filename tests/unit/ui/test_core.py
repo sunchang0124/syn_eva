@@ -158,3 +158,12 @@ def test_run_report_runs_fairness_when_selected():
     by = {r.spec.name: r for r in rep.results}
     assert "statistical_parity" in by
     assert by["statistical_parity"].error is None
+
+
+def test_run_report_accepts_holdout():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    syn = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    hold = real.sample(frac=0.3, random_state=1)
+    rep = core.run_report(real, syn, Metadata.infer(real), ["dcr"], holdout=hold)
+    by = {r.spec.name: r for r in rep.results}
+    assert "p05_dcr_holdout" in by["dcr"].scalars

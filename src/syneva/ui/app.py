@@ -20,6 +20,9 @@ def _sidebar() -> dict | None:
         st.header("1 · Upload data")
         real_file = st.file_uploader("Real data (CSV/Parquet)", type=["csv", "parquet"])
         syn_file = st.file_uploader("Synthetic data (CSV/Parquet)", type=["csv", "parquet"])
+        holdout_file = st.file_uploader(
+            "Holdout / test data (optional, CSV/Parquet)", type=["csv", "parquet"]
+        )
 
         if not (real_file and syn_file):
             st.info("Upload both files to continue.")
@@ -31,6 +34,14 @@ def _sidebar() -> dict | None:
         except ValueError as e:
             st.error(str(e))
             return None
+
+        holdout = None
+        if holdout_file is not None:
+            try:
+                holdout = core.load_table(holdout_file)
+            except ValueError as e:
+                st.error(str(e))
+                return None
 
         st.header("2 · Column metadata")
         inferred_rows = core.metadata_rows(Metadata.infer(real))
@@ -127,6 +138,7 @@ def _sidebar() -> dict | None:
         "utility_tasks": utility_tasks,
         "fairness_selected": fairness_selected,
         "fairness_specs": fairness_specs,
+        "holdout": holdout,
         "run": run,
     }
 
@@ -189,6 +201,7 @@ def main() -> None:
                     cfg["selected"],
                     cfg["utility_tasks"],
                     fairness_specs=cfg["fairness_specs"],
+                    holdout=cfg["holdout"],
                 )
             except (SynevaError, ValueError) as e:
                 st.error(f"Evaluation failed: {e}")
