@@ -20,6 +20,7 @@ C_INFO: dict[str, str] = {
     "coverage": "Does the synthetic data span the same categories, ranges, and variety as the real data?",
     "compliance": "Does the synthetic data protect privacy, without copying or exposing real individuals?",
     "utility": "Is the synthetic data as useful as the real data for training models?",
+    "fairness": "Does the synthetic data preserve the real data's fairness across protected groups?",
 }
 
 METRIC_INFO: dict[str, str] = {

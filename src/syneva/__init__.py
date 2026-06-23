@@ -12,11 +12,13 @@ from syneva.core.registry import MetricRegistry, registry
 from syneva.core.report import Report
 from syneva.core.run_info import RunInfo
 from syneva.core.runner import evaluate
+from syneva.fairness.spec import FairnessSpec
 from syneva.utility.task import UtilityTask
 
 __all__ = [
     "ColumnMetadata",
     "ColumnType",
+    "FairnessSpec",
     "Metadata",
     "MetadataError",
     "Metric",

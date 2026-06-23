@@ -14,6 +14,7 @@ C = Literal[
     "coverage",
     "compliance",
     "utility",
+    "fairness",
     "constraint",
     "completeness",
     "comprehension",
