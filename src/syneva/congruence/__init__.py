@@ -1,3 +1,4 @@
+from syneva.congruence import ci_overlap as ci_overlap  # side-effect: registers CIOverlap
 from syneva.congruence import (
     correlation_diff as correlation_diff,  # side-effect: registers CorrelationDifference
 )
