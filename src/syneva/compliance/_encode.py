@@ -34,3 +34,27 @@ def encode_pair(
         return empty[:n_real], empty[n_real:]
     X = np.concatenate(pieces, axis=1)
     return X[:n_real], X[n_real:]
+
+
+def encode_frames(frames: list[pd.DataFrame], meta: Metadata) -> list[np.ndarray]:
+    """Encode several frames into ONE shared numeric space (the N-frame
+    generalization of encode_pair): numeric columns standardized with a single
+    scaler fit on the concatenation, categoricals one-hot over the union of
+    categories. Returns one matrix per input frame, in order."""
+    sizes = [len(f) for f in frames]
+    combined = pd.concat(frames, ignore_index=True)
+    pieces: list[np.ndarray] = []
+    for name, cmeta in meta.columns.items():
+        if cmeta.dtype is ColumnType.NUMERIC:
+            v = pd.to_numeric(combined[name], errors="coerce").fillna(0).to_numpy().reshape(-1, 1)
+            pieces.append(StandardScaler().fit_transform(v))
+        elif cmeta.dtype is ColumnType.CATEGORICAL:
+            dummies = pd.get_dummies(combined[name].astype("string").fillna("__NA__"), dtype=float)
+            pieces.append(dummies.to_numpy())
+    x = np.concatenate(pieces, axis=1) if pieces else np.zeros((len(combined), 0))
+    out: list[np.ndarray] = []
+    start = 0
+    for n in sizes:
+        out.append(x[start : start + n])
+        start += n
+    return out
