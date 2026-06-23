@@ -106,10 +106,13 @@ def _sidebar() -> dict | None:
         if fairness_selected:
             from syneva import FairnessSpec
 
-            protected = st.selectbox("Protected attribute", options=list(real.columns))
-            outcome = st.selectbox("Outcome column", options=list(real.columns))
-            if protected and outcome:
+            cols = list(real.columns)
+            protected = st.selectbox("Protected attribute", options=cols)
+            outcome = st.selectbox("Outcome column", options=cols, index=min(1, len(cols) - 1))
+            if protected and outcome and protected != outcome:
                 fairness_specs = [FairnessSpec(protected_attribute=protected, outcome=outcome)]
+            elif protected == outcome:
+                st.warning("Protected attribute and outcome must be different columns.")
         else:
             st.caption("Select the statistical-parity metric to configure fairness.")
 
