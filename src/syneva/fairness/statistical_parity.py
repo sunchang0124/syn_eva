@@ -44,7 +44,8 @@ class StatisticalParity:
         drifts: list[float] = []
         headline: tuple[float, float, float] | None = None
         for sp in self.specs:
-            if sp.protected_attribute not in real.columns or sp.outcome not in real.columns:
+            cols = {sp.protected_attribute, sp.outcome}
+            if not cols <= set(real.columns) or not cols <= set(synthetic.columns):
                 notes.append(
                     f"spec {sp.protected_attribute}->{sp.outcome} skipped (missing column)"
                 )
