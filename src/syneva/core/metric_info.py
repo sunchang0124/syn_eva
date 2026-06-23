@@ -164,6 +164,7 @@ _SCALAR_LABELS: dict[str, str] = {
     "identical_match_rate": "Exact-copy rate",
     "identical_matches": "Exact copies",
     "nndr_median": "Median distance ratio",
+    "nndr_median_holdout": "Median distance ratio (holdout)",
     "c2st_auc": "Classifier AUC",
     "mean_mi_diff": "Mean MI difference",
     "mmd": "MMD",
