@@ -131,18 +131,18 @@
       "notes": [],
       "per_column": {
         "age": {
-          "ci_overlap": 0.9970379388890949
+          "ci_overlap": 0.9970379388895871
         },
         "hours_per_week": {
-          "ci_overlap": 0.9660938380201366
+          "ci_overlap": 0.966093838020819
         },
         "income": {
-          "ci_overlap": 0.9953791021261845
+          "ci_overlap": 0.9953791021261849
         }
       },
       "scalars": {
-        "mean_ci_overlap": 0.9861702930118054,
-        "score": 0.9861702930118054
+        "mean_ci_overlap": 0.986170293012197,
+        "score": 0.986170293012197
       },
       "spec": {
         "c": "congruence",

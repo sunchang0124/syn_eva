@@ -5,7 +5,7 @@ from typing import ClassVar
 import numpy as np
 import pandas as pd
 
-from syneva.core.metadata import ColumnType
+from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
@@ -24,7 +24,12 @@ class QuantileMSE:
         scope="per-column",
     )
 
-    def compute(self, real, synthetic, meta) -> MetricResult:
+    def compute(
+        self,
+        real: pd.DataFrame | None,
+        synthetic: pd.DataFrame,
+        meta: Metadata,
+    ) -> MetricResult:
         assert real is not None
         per_column: dict[str, dict[str, float]] = {}
         notes: list[str] = []

@@ -5,7 +5,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from syneva.core.metadata import ColumnType
+from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
@@ -23,7 +23,12 @@ class CIOverlap:
         scope="per-column",
     )
 
-    def compute(self, real, synthetic, meta) -> MetricResult:
+    def compute(
+        self,
+        real: pd.DataFrame | None,
+        synthetic: pd.DataFrame,
+        meta: Metadata,
+    ) -> MetricResult:
         assert real is not None
         per_column: dict[str, dict[str, float]] = {}
         notes: list[str] = []
@@ -39,9 +44,13 @@ class CIOverlap:
             se_s = float(s.std()) / math.sqrt(len(s))
             lo_r, hi_r = float(r.mean()) - 1.96 * se_r, float(r.mean()) + 1.96 * se_r
             lo_s, hi_s = float(s.mean()) - 1.96 * se_s, float(s.mean()) + 1.96 * se_s
-            overlap = max(0.0, min(hi_r, hi_s) - max(lo_r, lo_s))
             avg_width = ((hi_r - lo_r) + (hi_s - lo_s)) / 2.0
-            frac = float(min(1.0, max(0.0, overlap / (avg_width + _EPS))))
+            if avg_width < _EPS:
+                # Zero-width CIs (constant column): full overlap iff the means match.
+                frac = 1.0 if abs(float(r.mean()) - float(s.mean())) < _EPS else 0.0
+            else:
+                overlap = max(0.0, min(hi_r, hi_s) - max(lo_r, lo_s))
+                frac = float(min(1.0, max(0.0, overlap / avg_width)))
             per_column[name] = {"ci_overlap": frac}
         if not per_column:
             return MetricResult(

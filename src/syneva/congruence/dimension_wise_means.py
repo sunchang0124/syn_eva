@@ -4,7 +4,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from syneva.core.metadata import ColumnType
+from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
@@ -22,7 +22,12 @@ class DimensionWiseMeans:
         scope="per-column",
     )
 
-    def compute(self, real, synthetic, meta) -> MetricResult:
+    def compute(
+        self,
+        real: pd.DataFrame | None,
+        synthetic: pd.DataFrame,
+        meta: Metadata,
+    ) -> MetricResult:
         assert real is not None
         per_column: dict[str, dict[str, float]] = {}
         notes: list[str] = []
@@ -31,8 +36,8 @@ class DimensionWiseMeans:
                 continue
             r = pd.to_numeric(real[name], errors="coerce").dropna()
             s = pd.to_numeric(synthetic[name], errors="coerce").dropna()
-            if len(r) == 0 or len(s) == 0:
-                notes.append(f"column '{name}' skipped (empty after NaN-drop)")
+            if len(r) < 2 or len(s) < 2:
+                notes.append(f"column '{name}' skipped (need >=2 values for std)")
                 continue
             d = abs(float(r.mean()) - float(s.mean())) / (float(r.std()) + _EPS)
             per_column[name] = {"std_mean_diff": d}

@@ -20,3 +20,10 @@ def test_disjoint_means_no_overlap():
     r = CIOverlap().compute(real, syn, Metadata.infer(real))
     assert r.scalars["mean_ci_overlap"] < 0.05
     assert r.scalars["score"] < 0.05
+
+
+def test_identical_constant_column_scores_one():
+    df = pd.DataFrame({"x": [5.0] * 100})
+    r = CIOverlap().compute(df, df, Metadata.infer(df))
+    assert r.scalars["score"] == 1.0
+    assert r.per_column["x"]["ci_overlap"] == 1.0
