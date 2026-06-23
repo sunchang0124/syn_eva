@@ -130,6 +130,35 @@
       "error": null,
       "notes": [],
       "per_column": {
+        "age": {
+          "ci_overlap": 0.9970379388890949
+        },
+        "hours_per_week": {
+          "ci_overlap": 0.9660938380201366
+        },
+        "income": {
+          "ci_overlap": 0.9953791021261845
+        }
+      },
+      "scalars": {
+        "mean_ci_overlap": 0.9861702930118054,
+        "score": 0.9861702930118054
+      },
+      "spec": {
+        "c": "congruence",
+        "data_types": [
+          "static"
+        ],
+        "name": "ci_overlap",
+        "requires_real": true,
+        "scope": "per-column",
+        "tier": "core"
+      }
+    },
+    {
+      "error": null,
+      "notes": [],
+      "per_column": {
         "age|education": {
           "abs_corr_diff": 0.0018732937137249748
         },
@@ -194,6 +223,35 @@
     {
       "error": null,
       "notes": [],
+      "per_column": {
+        "age": {
+          "std_mean_diff": 0.0005197814113873151
+        },
+        "hours_per_week": {
+          "std_mean_diff": 0.005960488926800749
+        },
+        "income": {
+          "std_mean_diff": 0.0008112951224640924
+        }
+      },
+      "scalars": {
+        "mean_abs_std_diff": 0.0024305218202173855,
+        "score": 0.9975694781797826
+      },
+      "spec": {
+        "c": "congruence",
+        "data_types": [
+          "static"
+        ],
+        "name": "dimension_wise_means",
+        "requires_real": true,
+        "scope": "per-column",
+        "tier": "core"
+      }
+    },
+    {
+      "error": null,
+      "notes": [],
       "per_column": null,
       "scalars": {
         "pmse": 0.0003593614630450688,
@@ -207,6 +265,44 @@
         "name": "pmse",
         "requires_real": true,
         "scope": "table-level",
+        "tier": "core"
+      }
+    },
+    {
+      "error": null,
+      "notes": [],
+      "per_column": {
+        "age": {
+          "hellinger": 0.05901184712736085
+        },
+        "education": {
+          "hellinger": 0.01978123001669919
+        },
+        "high_income": {
+          "hellinger": 0.005820486856632397
+        },
+        "hours_per_week": {
+          "hellinger": 0.06224443919942282
+        },
+        "income": {
+          "hellinger": 0.050213657558110046
+        },
+        "sex": {
+          "hellinger": 0.0
+        }
+      },
+      "scalars": {
+        "mean_hellinger": 0.03284527679303755,
+        "score": 0.9671547232069625
+      },
+      "spec": {
+        "c": "congruence",
+        "data_types": [
+          "static"
+        ],
+        "name": "hellinger",
+        "requires_real": true,
+        "scope": "per-column",
         "tier": "core"
       }
     },
@@ -237,6 +333,35 @@
           "static"
         ],
         "name": "ks_statistic",
+        "requires_real": true,
+        "scope": "per-column",
+        "tier": "core"
+      }
+    },
+    {
+      "error": null,
+      "notes": [],
+      "per_column": {
+        "age": {
+          "quantile_mse": 0.0016405118808677699
+        },
+        "hours_per_week": {
+          "quantile_mse": 0.00294784853409323
+        },
+        "income": {
+          "quantile_mse": 0.00038137001579593034
+        }
+      },
+      "scalars": {
+        "mean_quantile_mse": 0.0016565768102523102,
+        "score": 0.9592989335489559
+      },
+      "spec": {
+        "c": "congruence",
+        "data_types": [
+          "static"
+        ],
+        "name": "quantile_mse",
         "requires_real": true,
         "scope": "per-column",
         "tier": "core"
