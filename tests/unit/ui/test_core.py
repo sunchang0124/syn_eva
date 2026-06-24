@@ -167,3 +167,12 @@ def test_run_report_accepts_holdout():
     rep = core.run_report(real, syn, Metadata.infer(real), ["dcr"], holdout=hold)
     by = {r.spec.name: r for r in rep.results}
     assert "p05_dcr_holdout" in by["dcr"].scalars
+
+
+def test_run_report_preset_uses_default_registry():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    syn = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    # preset drives selection even though selected_names is empty
+    rep = core.run_report(real, syn, Metadata.infer(real), [], preset="fast")
+    assert len(rep.results) > 0
+    assert all(r.spec.tier == "core" for r in rep.results)

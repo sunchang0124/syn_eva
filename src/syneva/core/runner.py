@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from syneva.core.errors import MetricError, SchemaError, SynevaError
 from syneva.core.metadata import Metadata
 from syneva.core.metric import MetricResult
+from syneva.core.presets import _UNSET, get_preset
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _default_registry
 from syneva.core.report import Report
@@ -41,15 +42,16 @@ def evaluate(
     synthetic: pd.DataFrame,
     metadata: Metadata | None = None,
     *,
-    tiers: Sequence[str] = ("core",),
+    tiers: Sequence[str] | object = _UNSET,
     data_type: str = "static",
-    cs: Sequence[str] | None = None,
+    cs: Sequence[str] | None | object = _UNSET,
     utility_tasks: list[UtilityTask] | None = None,
-    run_utility: bool = False,
+    run_utility: bool | object = _UNSET,
     fairness_specs: list[FairnessSpec] | None = None,
-    run_fairness: bool = False,
-    distance: str = "euclidean",
+    run_fairness: bool | object = _UNSET,
+    distance: str | object = _UNSET,
     holdout: pd.DataFrame | None = None,
+    preset: str | None = None,
     random_state: int = 42,
     nan_policy: Literal["drop", "explicit_na", "raise"] = "drop",
 ) -> Report:
@@ -68,6 +70,7 @@ def evaluate(
         run_fairness=run_fairness,
         distance=distance,
         holdout=holdout,
+        preset=preset,
         random_state=random_state,
         nan_policy=nan_policy,
     )
@@ -79,20 +82,36 @@ def evaluate_with(
     real: pd.DataFrame | None,
     synthetic: pd.DataFrame,
     metadata: Metadata | None = None,
-    tiers: Sequence[str] = ("core",),
+    tiers: Sequence[str] | object = _UNSET,
     data_type: str = "static",
-    cs: Sequence[str] | None = None,
+    cs: Sequence[str] | None | object = _UNSET,
     utility_tasks: list[UtilityTask] | None = None,
-    run_utility: bool = False,
+    run_utility: bool | object = _UNSET,
     fairness_specs: list[FairnessSpec] | None = None,
-    run_fairness: bool = False,
-    distance: str = "euclidean",
+    run_fairness: bool | object = _UNSET,
+    distance: str | object = _UNSET,
     holdout: pd.DataFrame | None = None,
+    preset: str | None = None,
     random_state: int = 42,
     nan_policy: str = "drop",
     # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
 ) -> Report:
     from syneva.utility.task import suggest_tasks
+
+    preset_obj = get_preset(preset) if preset is not None else None
+
+    def _resolve(value, attr, hard_default):
+        if value is not _UNSET:
+            return value
+        if preset_obj is not None:
+            return getattr(preset_obj, attr)
+        return hard_default
+
+    tiers = _resolve(tiers, "tiers", ("core",))
+    cs = _resolve(cs, "cs", None)
+    run_utility = _resolve(run_utility, "run_utility", False)
+    run_fairness = _resolve(run_fairness, "run_fairness", False)
+    distance = _resolve(distance, "distance", "euclidean")
 
     if distance not in ("euclidean", "gower"):
         raise SynevaError(f"unknown distance '{distance}'; use 'euclidean' or 'gower'")
