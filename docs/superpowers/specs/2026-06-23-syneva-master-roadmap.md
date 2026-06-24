@@ -120,12 +120,12 @@ Legend: ✅ exists · 🅿️ parity (SynthEval) · 🆕 novelty.
 
 Each row is a future design spec → implementation plan. "Touches" lists the main files.
 
-| # | Component | Adds | Depends on | Touches |
-|---|---|---|---|---|
-| C1 | **Parity 0a — fidelity metrics** | 7 metrics (table above) + parity manifest | none | congruence/, coverage/extended/, metric_info, tests/parity |
-| C2 | **Parity 0b — privacy + fairness** | hitting_rate, epsilon_identifiability, attribute_disclosure; `fairness` dim + statistical_parity; `FairnessSpec` | C1; config plumbing | compliance/, new fairness/, runner, metadata |
-| C3 | **Parity 0c — methodology rigor** | Gower distance backend; holdout support; presets; multi-classifier utility | C1–C2 | _encode, runner, utility/, cli, ui |
-| C4 | **Benchmark & ranking engine** | rank N synthetic datasets; linear/normal/quantile; leaderboard report + UI tab | C3 (presets/holdout) | new benchmark/, render/, cli, ui |
+| # | Component | Adds | Depends on | Touches | Status |
+|---|---|---|---|---|---|
+| C1 | **Parity 0a — fidelity metrics** | 7 metrics (table above) + parity manifest | none | congruence/, coverage/extended/, metric_info, tests/parity | ✅ done |
+| C2 | **Parity 0b — privacy + fairness** | hitting_rate, epsilon_identifiability, attribute_disclosure; `fairness` dim + statistical_parity; `FairnessSpec` | C1; config plumbing | compliance/, new fairness/, runner, metadata | ✅ done |
+| C3 | **Parity 0c — methodology rigor** | Gower distance backend (0c-a); holdout support (0c-b); presets (0c-c); multi-classifier utility (0c-d) | C1–C2 | _encode, runner, utility/, cli, ui | ✅ done |
+| C4 | **Benchmark & ranking engine** | rank N synthetic datasets; linear/normal/quantile; leaderboard report + UI tab | C3 (presets/holdout) | new benchmark/, render/, cli, ui | ⏭️ next |
 | C5 | **Preservation (novelty #1)** | `preservation` dim + minority/outlier/tail/subgroup metrics; `SubgroupSpec` | C1; benchmark for experiments | new preservation/, runner, metadata, ui |
 | C6 | **Validated aggregate (novelty #4)** | calibrated 7 Cs score predicting downstream utility; weighting in Report | C4 (benchmark) + many datasets | core/report, experiments/ |
 | C7 | **Longitudinal (novelty #2)** | sequence data model + `temporal` dim + temporal metrics | C1; backend | backends/longitudinal, new temporal/, metadata |
