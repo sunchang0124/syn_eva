@@ -60,6 +60,13 @@ def _sidebar() -> dict | None:
         st.header("3 · Evaluators")
         catalog = core.metric_catalog()
 
+        profile = st.selectbox(
+            "Profile",
+            ["Custom", "fast", "full", "privacy"],
+            index=0,
+            help="A preset runs a curated metric set; Custom lets you pick metrics by hand.",
+        )
+
         # Convenience selection buttons
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -91,6 +98,7 @@ def _sidebar() -> dict | None:
                     value=(m["tier"] == "core"),
                     key=f"chk_{m['name']}",
                     help=m["info"] or None,
+                    disabled=profile != "Custom",
                 ):
                     selected.append(m["name"])
                     if m["c"] == "utility":
@@ -139,6 +147,7 @@ def _sidebar() -> dict | None:
         "fairness_selected": fairness_selected,
         "fairness_specs": fairness_specs,
         "holdout": holdout,
+        "preset": None if profile == "Custom" else profile,
         "run": run,
     }
 
@@ -183,8 +192,8 @@ def main() -> None:
 
     cfg = _sidebar()
     if cfg and cfg["run"]:
-        if not cfg["selected"]:
-            st.warning("Select at least one evaluator in the sidebar.")
+        if cfg["preset"] is None and not cfg["selected"]:
+            st.warning("Select at least one evaluator, or choose a Profile.")
         elif cfg["utility_selected"] and not cfg["utility_tasks"]:
             st.warning("A utility metric is selected but no target column was chosen.")
         elif cfg["fairness_selected"] and not cfg["fairness_specs"]:
@@ -202,6 +211,7 @@ def main() -> None:
                     cfg["utility_tasks"],
                     fairness_specs=cfg["fairness_specs"],
                     holdout=cfg["holdout"],
+                    preset=cfg["preset"],
                 )
             except (SynevaError, ValueError) as e:
                 st.error(f"Evaluation failed: {e}")

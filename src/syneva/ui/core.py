@@ -95,6 +95,7 @@ def run_report(
     utility_tasks: list[UtilityTask] | None = None,
     fairness_specs: list | None = None,
     holdout: object | None = None,
+    preset: str | None = None,
     random_state: int = 42,
 ) -> Report:
     """Run exactly the selected metrics and return a Report.
@@ -104,8 +105,26 @@ def run_report(
     Fairness metrics only run when at least one is selected; `run_fairness` is
     inferred from the selection so the caller need not pass it separately.
 
+    When `preset` is given, it overrides the manual selection: the report is run
+    against the default full registry with that preset (which resolves the
+    metric tiers/cs/flags), and `selected_names` is ignored.
+
     Note: data_type is fixed to "static" (the only supported kind in v0.1).
     """
+    if preset is not None:
+        from syneva.core.registry import registry as default_registry
+
+        return evaluate_with(
+            default_registry,
+            real=real,
+            synthetic=synthetic,
+            metadata=metadata,
+            utility_tasks=utility_tasks,
+            fairness_specs=fairness_specs,
+            holdout=holdout,
+            preset=preset,
+            random_state=random_state,
+        )
     reg = build_selection_registry(selected_names)
     run_utility = any(cls.spec.c == _UTILITY_C for cls in reg.metrics())
     run_fairness = any(cls.spec.c == _FAIRNESS_C for cls in reg.metrics())
