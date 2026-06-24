@@ -21,10 +21,11 @@ class MultiTargetUtility:
         scope="table-level",
     )
     random_state: int = 42
+    holdout: object | None = None  # pandas DataFrame test set, or None
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         tasks = suggest_tasks(meta)
-        suite = TSTRSuite(tasks=tasks, random_state=self.random_state)
+        suite = TSTRSuite(tasks=tasks, random_state=self.random_state, holdout=self.holdout)
         inner = suite.compute(real, synthetic, meta)
         return MetricResult(
             spec=self.spec,

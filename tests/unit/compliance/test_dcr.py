@@ -28,3 +28,28 @@ def test_dcr_gower_backend_runs():
     r = DCR(distance="gower").compute(real, syn, Metadata.infer(real))
     assert 0.0 <= r.scalars["score"] <= 1.0
     assert r.scalars["median_dcr"] >= 0.0
+
+
+def test_dcr_holdout_baseline_flags_memorization():
+    import pandas as pd
+
+    from syneva.core.metadata import Metadata
+
+    real = pd.DataFrame({"x": [float(v) for v in range(100)]})
+    syn = real.copy()  # verbatim copy => far closer to real than a disjoint holdout
+    hold = pd.DataFrame({"x": [float(v) for v in range(1000, 1100)]})
+    r = DCR(holdout=hold).compute(real, syn, Metadata.infer(real))
+    assert "p05_dcr_holdout" in r.scalars
+    assert r.scalars["score"] < 0.5  # synthetic far closer than holdout -> risk
+
+
+def test_dcr_holdout_safe_when_synthetic_like_holdout():
+    import pandas as pd
+
+    from syneva.core.metadata import Metadata
+
+    real = pd.DataFrame({"x": [float(v) for v in range(100)]})
+    syn = pd.DataFrame({"x": [v + 500.0 for v in range(100)]})
+    hold = pd.DataFrame({"x": [v + 500.0 for v in range(100)]})  # syn as far as holdout
+    r = DCR(holdout=hold).compute(real, syn, Metadata.infer(real))
+    assert r.scalars["score"] > 0.8

@@ -94,6 +94,7 @@ def run_report(
     selected_names: list[str],
     utility_tasks: list[UtilityTask] | None = None,
     fairness_specs: list | None = None,
+    holdout: object | None = None,
     random_state: int = 42,
 ) -> Report:
     """Run exactly the selected metrics and return a Report.
@@ -118,6 +119,7 @@ def run_report(
         run_utility=run_utility,
         fairness_specs=fairness_specs,
         run_fairness=run_fairness,
+        holdout=holdout,
         random_state=random_state,
     )
 

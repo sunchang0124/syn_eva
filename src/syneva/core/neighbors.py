@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 
-from syneva.compliance._encode import encode_pair
+from syneva.compliance._encode import encode_frames, encode_pair
 from syneva.core.distance import gower_matrix
 from syneva.core.metadata import ColumnType, Metadata
 
@@ -32,6 +32,7 @@ class Neighbors:
         distance: str = "euclidean",
         cap: int = 2000,
         random_state: int = 42,
+        holdout: pd.DataFrame | None = None,
     ) -> None:
         if distance not in _VALID:
             raise ValueError(f"unknown distance '{distance}'; use one of {_VALID}")
@@ -40,21 +41,34 @@ class Neighbors:
         if distance == "gower":
             rng = np.random.default_rng(random_state)
             r, s = real, synthetic
+            h = holdout
             if len(r) > cap:
                 r = r.iloc[rng.choice(len(r), cap, replace=False)]
                 self.capped = True
             if len(s) > cap:
                 s = s.iloc[rng.choice(len(s), cap, replace=False)]
                 self.capped = True
+            if h is not None and len(h) > cap:
+                h = h.iloc[rng.choice(len(h), cap, replace=False)]
+                self.capped = True
             self._d_rr = gower_matrix(r, r, meta)
             self._d_rs = gower_matrix(r, s, meta)
             self._d_ss = gower_matrix(s, s, meta)
+            self._d_hr = gower_matrix(h, r, meta) if h is not None else None
+            self._d_hh = gower_matrix(h, h, meta) if h is not None else None
             self._n_features = _usable_feature_count(meta)
             self._nr, self._ns = len(r), len(s)
         else:
-            self._x_real, self._x_syn = encode_pair(real, synthetic, meta)
+            if holdout is not None:
+                self._x_real, self._x_syn, self._x_holdout = encode_frames(
+                    [real, synthetic, holdout], meta
+                )
+            else:
+                self._x_real, self._x_syn = encode_pair(real, synthetic, meta)
+                self._x_holdout = None
             self._n_features = self._x_real.shape[1]
             self._nr, self._ns = len(self._x_real), len(self._x_syn)
+        self._has_holdout = holdout is not None
 
     @property
     def n_features(self) -> int:
@@ -109,3 +123,36 @@ class Neighbors:
             .fit(self._x_syn)
             .kneighbors(self._x_real, return_distance=False)[:, 0]
         )
+
+    def holdout_to_real(self, k: int = 1) -> np.ndarray:
+        if not self._has_holdout:
+            raise ValueError("no holdout provided to Neighbors")
+        if self.distance == "gower":
+            d = self._d_hr
+            if k > d.shape[1]:
+                raise ValueError(f"k={k} too large: only {d.shape[1]} real rows")
+            return np.partition(d, k - 1, axis=1)[:, k - 1]
+        n_real = len(self._x_real)
+        if k > n_real:
+            raise ValueError(f"k={k} too large: only {n_real} real rows")
+        return (
+            NearestNeighbors(n_neighbors=k)
+            .fit(self._x_real)
+            .kneighbors(self._x_holdout)[0][:, k - 1]
+        )
+
+    def holdout_self(self, k: int = 1) -> np.ndarray:
+        if not self._has_holdout:
+            raise ValueError("no holdout provided to Neighbors")
+        if self.distance == "gower":
+            d = self._d_hh.copy()
+            n = d.shape[0]
+            if k >= n:
+                raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")
+            np.fill_diagonal(d, np.inf)
+            return np.partition(d, k - 1, axis=1)[:, k - 1]
+        n = len(self._x_holdout)
+        if k >= n:
+            raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")
+        x = self._x_holdout
+        return NearestNeighbors(n_neighbors=k + 1).fit(x).kneighbors(x)[0][:, k]
