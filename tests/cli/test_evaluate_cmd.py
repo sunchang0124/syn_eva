@@ -57,3 +57,51 @@ def test_evaluate_cli_handles_missing_real(tmp_path):
     )
     assert proc.returncode != 0
     assert "no runnable" in proc.stderr.lower() or "syneva" in proc.stderr.lower()
+
+
+def test_cli_preset_full_runs(tmp_path):
+    real = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
+    syn = Path("tests/fixtures/adult_income_syn_good_500.parquet").resolve()
+    out = tmp_path / "rep"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "syneva.cli.main",
+            "evaluate",
+            "--real",
+            str(real),
+            "--synthetic",
+            str(syn),
+            "--preset",
+            "full",
+            "--out",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert (out / "scorecard.json").exists()
+
+
+def test_cli_unknown_preset_exits_nonzero(tmp_path):
+    syn = Path("tests/fixtures/adult_income_syn_good_500.parquet").resolve()
+    out = tmp_path / "rep"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "syneva.cli.main",
+            "evaluate",
+            "--synthetic",
+            str(syn),
+            "--preset",
+            "bogus",
+            "--out",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode != 0

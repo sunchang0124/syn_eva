@@ -11,6 +11,7 @@ import typer
 import syneva
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+from syneva.core.presets import _UNSET
 
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
 
@@ -49,9 +50,10 @@ def evaluate(
     synthetic: Path = typer.Option(..., exists=True, dir_okay=False),
     metadata: Path | None = typer.Option(None, exists=True, dir_okay=False),
     out: Path = typer.Option(Path("./syneva-report")),
-    tiers: str = typer.Option("core", help="comma-separated tiers"),
+    tiers: str | None = typer.Option(None, help="comma-separated tiers"),
     cs: str | None = typer.Option(None, help="comma-separated Cs to restrict to"),
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
+    preset: str | None = typer.Option(None, help="evaluation preset: fast | full | privacy"),
     pdf: bool = typer.Option(False, help="also write scorecard.pdf"),
 ) -> None:
     out.mkdir(parents=True, exist_ok=True)
@@ -63,9 +65,10 @@ def evaluate(
             real_df,
             syn_df,
             meta,
-            tiers=tuple(t.strip() for t in tiers.split(",")),
-            cs=tuple(c.strip() for c in cs.split(",")) if cs else None,
-            run_utility=run_utility,
+            tiers=(tuple(t.strip() for t in tiers.split(",")) if tiers else _UNSET),
+            cs=(tuple(c.strip() for c in cs.split(",")) if cs else _UNSET),
+            run_utility=(True if run_utility else _UNSET),
+            preset=preset,
         )
         rep.to_json(out / "scorecard.json")
         rep.to_html(out / "scorecard.html")
