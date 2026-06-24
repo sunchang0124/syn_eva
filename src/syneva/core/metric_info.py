@@ -63,6 +63,7 @@ METRIC_INFO: dict[str, str] = {
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
+    "model_panel_utility": "Trains linear, random-forest, and gradient-boosting models on the synthetic data and on the real data, then compares how well each performs on a real test set; reports the average ratio and the per-family breakdown.",
     "feature_importance_spearman": "Whether a model finds the same features important in synthetic and real data.",
     "discriminative_score": "Whether a model can distinguish real from synthetic rows.",
 }
@@ -104,6 +105,7 @@ RAW_HINT: dict[str, str] = {
     "dp_ledger": "Privacy budget epsilon: smaller epsilon = stronger privacy guarantee. Informational.",
     "tstr_suite": "Synthetic-trained performance as a fraction of real-trained, around 1 when just as useful. Higher is better.",
     "multi_target_utility": "Average utility ratio across targets, around 1 when just as useful. Higher is better.",
+    "model_panel_utility": "Average utility ratio across model families, around 1 when synthetic is just as useful as real. Higher is better.",
     "feature_importance_spearman": "Rank correlation from -1 to 1; 1 = identical importance ordering. Higher is better.",
     "discriminative_score": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = separable. Closer to 0.5 is better.",
     "statistical_parity": "Drift = |synthetic parity gap - real parity gap|, 0 to 1. 0 means the real fairness structure is preserved. Lower is better.",
@@ -145,6 +147,7 @@ METRIC_NAMES: dict[str, str] = {
     "dp_ledger": "Differential-privacy ledger",
     "tstr_suite": "Train on synthetic, test on real",
     "multi_target_utility": "Multi-target utility",
+    "model_panel_utility": "Model-panel utility",
     "feature_importance_spearman": "Feature-importance correlation",
     "discriminative_score": "Discriminative score",
     "statistical_parity": "Statistical parity difference",
@@ -184,6 +187,11 @@ _SCALAR_LABELS: dict[str, str] = {
     "spd_synthetic": "Parity gap (synthetic)",
     "spd_real": "Parity gap (real)",
     "parity_drift": "Parity drift",
+    "utility_ratio_mean": "Mean utility ratio",
+    "ratio_linear": "Utility ratio — linear model",
+    "ratio_random_forest": "Utility ratio — random forest",
+    "ratio_hist_gbdt": "Utility ratio — gradient boosting",
+    "ratio_spread": "Spread across model families (std)",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
