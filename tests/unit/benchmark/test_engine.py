@@ -46,3 +46,36 @@ def test_preset_forwarded_to_all(real_df, syn_good_df, syn_shifted_df, metadata)
     )
     for name in ("good", "shifted"):
         assert set(res.c_scores[name]) == {"compliance"}
+
+
+def test_ranking_better_candidate_wins_all_modes(real_df, syn_good_df, syn_shifted_df, metadata):
+    res = benchmark(real_df, {"good": syn_good_df, "shifted": syn_shifted_df}, metadata)
+    for mode in ("absolute", "linear", "normal", "quantile"):
+        ranked = res.ranking(normalization=mode)
+        assert ranked[0][1] == "good", f"mode={mode}"
+        assert [r[0] for r in ranked] == [1, 2]
+
+
+def test_ranking_by_single_c(real_df, syn_good_df, syn_shifted_df, metadata):
+    res = benchmark(real_df, {"good": syn_good_df, "shifted": syn_shifted_df}, metadata)
+    ranked = res.ranking(by="compliance")
+    assert {r[1] for r in ranked} == {"good", "shifted"}
+
+
+def test_ranking_unknown_by_raises(real_df, syn_good_df, metadata):
+    res = benchmark(real_df, {"good": syn_good_df}, metadata)
+    with pytest.raises(SynevaError, match="by"):
+        res.ranking(by="not_a_thing")
+
+
+def test_single_candidate_ranks_first_with_note(real_df, syn_good_df, metadata):
+    res = benchmark(real_df, {"only": syn_good_df}, metadata)
+    ranked = res.ranking(normalization="linear")
+    assert ranked == [(1, "only", ranked[0][2])]
+
+
+def test_roundtrip_dict_preserves_ranking(real_df, syn_good_df, syn_shifted_df, metadata):
+    res = benchmark(real_df, {"good": syn_good_df, "shifted": syn_shifted_df}, metadata)
+    res2 = BenchmarkResult.from_dict(res.to_dict())
+    assert res2.ranking() == res.ranking()
+    assert res2.overall == res.overall

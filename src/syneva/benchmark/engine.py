@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -101,3 +102,81 @@ class BenchmarkResult:
             for r in rep.results:
                 out[r.spec.name] = r.spec.c
         return out
+
+    def _normalized_per_metric(self, normalization: str) -> dict[str, dict[str, float]]:
+        from syneva.benchmark.normalize import normalize_across
+
+        sm = self.score_matrix
+        out: dict[str, dict[str, float]] = {}
+        for m in self.metrics():
+            present = [c for c in self.reports if m in sm[c]]
+            vals = [sm[c][m] for c in present]
+            normed = normalize_across(vals, normalization)
+            out[m] = dict(zip(present, normed, strict=True))
+        return out
+
+    def _candidate_key(
+        self, candidate: str, metric_names: list[str], nm: dict[str, dict[str, float]]
+    ) -> float:
+        cmap = self._metric_c_map()
+        by_c: dict[str, list[float]] = defaultdict(list)
+        for m in metric_names:
+            v = nm.get(m, {}).get(candidate)
+            if v is not None:
+                by_c[cmap[m]].append(v)
+        if not by_c:
+            return 0.0
+        c_means = [sum(vs) / len(vs) for vs in by_c.values()]
+        return sum(c_means) / len(c_means)
+
+    def ranking(
+        self, normalization: str = "absolute", by: str = "overall"
+    ) -> list[tuple[int, str, float]]:
+        cands = list(self.reports)
+        if (
+            len(cands) < 2
+            and normalization != "absolute"
+            and "single-candidate cohort: relative normalization is degenerate" not in self.notes
+        ):
+            self.notes.append("single-candidate cohort: relative normalization is degenerate")
+        nm = self._normalized_per_metric(normalization)
+        cmap = self._metric_c_map()
+        if by == "overall":
+            metric_names = self.metrics()
+        elif by in self.c_dims():
+            metric_names = [m for m in self.metrics() if cmap.get(m) == by]
+        elif by in self.metrics():
+            metric_names = [by]
+        else:
+            raise SynevaError(
+                f"unknown ranking target by='{by}'; use 'overall', a C dimension, or a metric name"
+            )
+        keys = {c: self._candidate_key(c, metric_names, nm) for c in cands}
+        order = sorted(cands, key=lambda c: (-keys[c], c))
+        return [(i + 1, c, keys[c]) for i, c in enumerate(order)]
+
+    def to_dict(self) -> dict:
+        return {
+            "reports": {name: rep.to_dict() for name, rep in self.reports.items()},
+            "random_state": self.random_state,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> BenchmarkResult:
+        return cls(
+            reports={name: Report.from_dict(r) for name, r in d["reports"].items()},
+            random_state=d.get("random_state", 42),
+        )
+
+    def to_json(self, path) -> None:
+        import json
+        from pathlib import Path
+
+        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str))
+
+    @classmethod
+    def from_json(cls, path) -> BenchmarkResult:
+        import json
+        from pathlib import Path
+
+        return cls.from_dict(json.loads(Path(path).read_text()))
