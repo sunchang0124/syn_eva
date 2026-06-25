@@ -1,4 +1,5 @@
 from syneva._version import __version__
+from syneva.benchmark import BenchmarkResult, benchmark
 from syneva.core.errors import (
     MetadataError,
     MetricError,
@@ -16,6 +17,7 @@ from syneva.fairness.spec import FairnessSpec
 from syneva.utility.task import UtilityTask
 
 __all__ = [
+    "BenchmarkResult",
     "ColumnMetadata",
     "ColumnType",
     "FairnessSpec",
@@ -33,6 +35,7 @@ __all__ = [
     "SynevaError",
     "UtilityTask",
     "__version__",
+    "benchmark",
     "evaluate",
     "registry",
 ]
