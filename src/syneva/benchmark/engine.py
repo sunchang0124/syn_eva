@@ -125,7 +125,7 @@ class BenchmarkResult:
             if v is not None:
                 by_c[cmap[m]].append(v)
         if not by_c:
-            return 0.0
+            return float("-inf")
         c_means = [sum(vs) / len(vs) for vs in by_c.values()]
         return sum(c_means) / len(c_means)
 

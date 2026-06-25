@@ -3,7 +3,11 @@ import math
 import pytest
 
 from syneva.benchmark.engine import BenchmarkResult, benchmark
-from syneva.core.errors import SynevaError
+from syneva.core.errors import MetricError, SynevaError
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+from syneva.core.metric import MetricResult, MetricSpec
+from syneva.core.report import Report
+from syneva.core.run_info import RunInfo
 
 
 def test_runs_each_candidate(real_df, syn_good_df, syn_shifted_df, metadata):
@@ -79,3 +83,62 @@ def test_roundtrip_dict_preserves_ranking(real_df, syn_good_df, syn_shifted_df, 
     res2 = BenchmarkResult.from_dict(res.to_dict())
     assert res2.ranking() == res.ranking()
     assert res2.overall == res.overall
+
+
+def test_all_errored_candidate_ranks_last_under_relative_norm():
+    """A candidate whose every metric errored must rank LAST, not tied with a
+    genuine worst candidate that happens to normalize to key 0.0."""
+    # Shared MetricSpec — same metric aligned across all three candidates
+    spec = MetricSpec(
+        name="test_metric",
+        c="congruence",
+        tier="core",
+        data_types=frozenset(["static"]),
+        requires_real=True,
+        scope="table-level",
+    )
+
+    # Minimal metadata (one numeric column)
+    meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+
+    # Minimal RunInfo
+    run_info = RunInfo(
+        random_state=42,
+        started_at=0.0,
+        finished_at=1.0,
+        library_versions={},
+    )
+
+    def make_report(score: float | None) -> Report:
+        if score is None:
+            # errored MetricResult — no usable score
+            result = MetricResult(
+                spec=spec,
+                scalars=None,
+                error=MetricError("simulated error"),
+            )
+        else:
+            result = MetricResult(
+                spec=spec,
+                scalars={"score": score},
+                error=None,
+            )
+        return Report(metadata=meta, results=[result], run_info=run_info)
+
+    res = BenchmarkResult(
+        reports={
+            "best": make_report(0.9),
+            "zworst": make_report(0.1),  # real worst — normalizes to key 0.0
+            "aaa_err": make_report(None),  # all-errored; name sorts BEFORE "zworst"
+        }
+    )
+
+    for mode in ("linear", "quantile", "normal", "absolute"):
+        ranked = res.ranking(normalization=mode)
+        names_in_order = [name for _, name, _ in ranked]
+        assert names_in_order[0] == "best", (
+            f"mode={mode}: expected 'best' first, got {names_in_order}"
+        )
+        assert names_in_order[-1] == "aaa_err", (
+            f"mode={mode}: all-errored candidate 'aaa_err' must be last, got {names_in_order}"
+        )
