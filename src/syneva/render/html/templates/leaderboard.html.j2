@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>syneva benchmark leaderboard</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; color: #222; }
+  h1 { border-bottom: 2px solid #444; padding-bottom: .3em; }
+  h2 { margin-top: 2rem; color: #2b5; }
+  table { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: 13px; }
+  th, td { border-bottom: 1px solid #eee; padding: 5px 9px; text-align: left; }
+  .modeline { font-size: 12px; color: #667; background: #f4f6f8; padding: .5rem .8rem; border-radius: 6px; margin-bottom: 1rem; }
+  .cell { display: inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 600; }
+  .v-excellent { background: #d6f5e0; color: #1a7f43; }
+  .v-good { background: #e2f0d9; color: #3d7a1f; }
+  .v-fair { background: #fff3cd; color: #8a6d00; }
+  .v-poor { background: #fde2e2; color: #a32020; }
+  .bar-track { background: #eee; border-radius: 4px; height: 12px; width: 160px; display: inline-block; vertical-align: middle; }
+  .bar-fill { height: 12px; border-radius: 4px; }
+  .bar-fill.v-excellent { background: #1a7f43; } .bar-fill.v-good { background: #3d7a1f; }
+  .bar-fill.v-fair { background: #c9a400; } .bar-fill.v-poor { background: #a32020; }
+  details.drill { margin: .6rem 0; border: 1px solid #ddd; border-radius: 6px; padding: .4rem .8rem; }
+  details.drill summary { font-weight: 600; cursor: pointer; }
+  .muted { color: #999; }
+  /* scorecard rules — used by embedded fragment drill-downs */
+  .summary { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .summary .card { background: #f4f6f8; padding: .8rem 1rem; border-radius: 6px; min-width: 11rem; max-width: 15rem; flex: 1; }
+  .summary .card .label { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: .05em; }
+  .summary .card .score { font-size: 1.6rem; font-weight: 600; }
+  .metric { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+  .metric-header { display: flex; justify-content: space-between; align-items: center; }
+  .metric-header .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #eef5ff; }
+  .metric-failed { background: #fff5f5; border-color: #f99; }
+  .metric-failed .badge { background: #fee; color: #a00; }
+  img.plot { display: block; max-width: 100%; margin-top: .8rem; }
+  .code { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 11px; color: #667; background: #eef; padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+  .metric-desc { font-size: 13px; color: #555; margin: .4rem 0 .2rem; }
+  .metric-score { margin: .6rem 0 .2rem; }
+  .metric-score .score-value { font-size: 1.7rem; font-weight: 700; color: #333; }
+  .metric-score .score-max { font-size: 12px; color: #999; margin-left: 3px; }
+  .metric-score .score-note { font-size: 12px; color: #777; margin-left: 8px; }
+  .raw-hint { font-size: 12px; color: #777; font-style: italic; margin: .3rem 0 0; }
+  .verdict { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+             margin-left: 8px; vertical-align: middle; text-transform: uppercase; letter-spacing: .03em; }
+  details.details { margin-top: .5rem; }
+  details.details summary { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                            color: #999; cursor: pointer; }
+  .card .card-desc { font-size: 11px; color: #667; margin-top: .4rem; line-height: 1.3; }
+</style>
+</head>
+<body>
+  <h1>syneva benchmark leaderboard</h1>
+  <div class="modeline">
+    Ranking normalization: <strong>{{ normalization }}</strong>.
+    Displayed scores are absolute (0–1, 1 = ideal); the ranking order reflects the selected normalization.
+    {% if notes %}<br>{{ notes|join("; ") }}{% endif %}
+  </div>
+
+  <h2>Leaderboard</h2>
+  <table class="leaderboard">
+    <thead><tr><th>#</th><th>Candidate</th><th>Overall</th>
+      {% for c in c_dims %}<th title="{{ c_info[c] }}">{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in leaderboard_rows %}
+      <tr><td>{{ row.rank }}</td><td>{{ row.candidate }}</td>
+        <td>{% if row.overall.score is not none %}<span class="cell {{ row.overall.cls }}">{{ "%.3f"|format(row.overall.score) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+        {% for c in c_dims %}{% set cc = row.c_cells[c] %}
+        <td>{% if cc.score is not none %}<span class="cell {{ cc.cls }}">{{ "%.3f"|format(cc.score) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Per-dimension bars</h2>
+  {% for b in bars %}
+    <div><strong>{{ b.candidate }}</strong>
+      {% for cb in b.c_bars %}
+        <div>{{ cb.c }} <span class="bar-track"><span class="bar-fill {{ cb.cls }}" style="width: {{ (cb.score * 100)|round(1) if cb.score is not none else 0 }}%"></span></span>
+          {% if cb.score is not none %}{{ "%.3f"|format(cb.score) }}{% else %}<span class="muted">—</span>{% endif %}</div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+
+  <h2>Score matrix</h2>
+  <table class="score-matrix">
+    <thead><tr><th>Candidate</th>{% for m in metrics %}<th title="{{ m }}">{{ metric_names[m] }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in matrix_rows %}
+      <tr><td>{{ row.candidate }}</td>
+        {% for m in metrics %}{% set cc = row.cells[m] %}
+        <td>{% if cc.score is not none %}<span class="cell {{ cc.cls }}">{{ "%.2f"|format(cc.score) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Per-candidate scorecards</h2>
+  {% for d in drilldowns %}
+    <details class="drill"><summary>{{ d.candidate }}</summary>
+      {{ d.html|safe }}
+    </details>
+  {% endfor %}
+</body>
+</html>

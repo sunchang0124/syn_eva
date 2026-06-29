@@ -81,6 +81,60 @@ def evaluate(
 
 
 @app.command()
+def benchmark(
+    candidate: list[str] = typer.Option(
+        ..., "--candidate", help="named synthetic dataset as name=path (repeatable)"
+    ),
+    real: Path | None = typer.Option(None, exists=True, dir_okay=False),
+    metadata: Path | None = typer.Option(None, exists=True, dir_okay=False),
+    out: Path = typer.Option(Path("./syneva-benchmark")),
+    holdout: Path | None = typer.Option(None, exists=True, dir_okay=False),
+    preset: str | None = typer.Option(None, help="evaluation preset: fast | full | privacy"),
+    tiers: str | None = typer.Option(None, help="comma-separated tiers"),
+    cs: str | None = typer.Option(None, help="comma-separated Cs to restrict to"),
+    run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
+    normalization: str = typer.Option("absolute", help="ranking: absolute|linear|normal|quantile"),
+) -> None:
+    candidates: dict[str, pd.DataFrame] = {}
+    for entry in candidate:
+        if "=" not in entry:
+            raise typer.BadParameter(f"candidate must be name=path, got '{entry}'")
+        name, _, path_str = entry.partition("=")
+        if not name:
+            raise typer.BadParameter(f"candidate name is empty in '{entry}'")
+        if name in candidates:
+            raise typer.BadParameter(f"duplicate candidate name '{name}'")
+        cand_path = Path(path_str)
+        if not cand_path.exists():
+            raise typer.BadParameter(f"candidate '{name}' path does not exist: {path_str}")
+        candidates[name] = _load_df(cand_path)
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        real_df = _load_df(real) if real else None
+        meta = _load_metadata(metadata)
+        holdout_df = _load_df(holdout) if holdout else None
+        res = syneva.benchmark(
+            real_df,
+            candidates,
+            meta,
+            holdout=holdout_df,
+            preset=preset,
+            tiers=(tuple(t.strip() for t in tiers.split(",")) if tiers else _UNSET),
+            cs=(tuple(c.strip() for c in cs.split(",")) if cs else _UNSET),
+            run_utility=(True if run_utility else _UNSET),
+        )
+        ranked = res.ranking(normalization=normalization)  # fail fast on bad normalization
+        res.to_html(out / "leaderboard.html", normalization=normalization)
+        res.to_json(out / "benchmark.json")
+        for rank, name, score in ranked:
+            typer.echo(f"{rank}. {name}  {score:.4f}")
+        typer.echo(f"wrote leaderboard to {out}/")
+    except SynevaError as e:
+        typer.echo(f"syneva error: {e}", err=True)
+        raise typer.Exit(code=2) from e
+
+
+@app.command()
 def ui() -> None:
     """Launch the Streamlit UI."""
     try:
