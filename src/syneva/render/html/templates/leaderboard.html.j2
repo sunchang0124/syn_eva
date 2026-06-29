@@ -22,6 +22,31 @@
   details.drill { margin: .6rem 0; border: 1px solid #ddd; border-radius: 6px; padding: .4rem .8rem; }
   details.drill summary { font-weight: 600; cursor: pointer; }
   .muted { color: #999; }
+  /* scorecard rules — used by embedded fragment drill-downs */
+  .summary { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .summary .card { background: #f4f6f8; padding: .8rem 1rem; border-radius: 6px; min-width: 11rem; max-width: 15rem; flex: 1; }
+  .summary .card .label { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: .05em; }
+  .summary .card .score { font-size: 1.6rem; font-weight: 600; }
+  .metric { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+  .metric-header { display: flex; justify-content: space-between; align-items: center; }
+  .metric-header .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #eef5ff; }
+  .metric-failed { background: #fff5f5; border-color: #f99; }
+  .metric-failed .badge { background: #fee; color: #a00; }
+  img.plot { display: block; max-width: 100%; margin-top: .8rem; }
+  .code { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 11px; color: #667; background: #eef; padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+  .metric-desc { font-size: 13px; color: #555; margin: .4rem 0 .2rem; }
+  .metric-score { margin: .6rem 0 .2rem; }
+  .metric-score .score-value { font-size: 1.7rem; font-weight: 700; color: #333; }
+  .metric-score .score-max { font-size: 12px; color: #999; margin-left: 3px; }
+  .metric-score .score-note { font-size: 12px; color: #777; margin-left: 8px; }
+  .raw-hint { font-size: 12px; color: #777; font-style: italic; margin: .3rem 0 0; }
+  .verdict { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+             margin-left: 8px; vertical-align: middle; text-transform: uppercase; letter-spacing: .03em; }
+  details.details { margin-top: .5rem; }
+  details.details summary { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                            color: #999; cursor: pointer; }
+  .card .card-desc { font-size: 11px; color: #667; margin-top: .4rem; line-height: 1.3; }
 </style>
 </head>
 <body>

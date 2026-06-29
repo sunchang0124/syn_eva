@@ -39,3 +39,12 @@ def test_to_html_writes_file(tmp_path):
     p = tmp_path / "lb.html"
     res.to_html(p)
     assert p.read_text() == render_leaderboard(res)
+
+
+def test_leaderboard_styles_embedded_scorecards():
+    # the leaderboard <head> must define the scorecard card classes so embedded
+    # drill-down scorecards are styled, not bare HTML
+    html = render_leaderboard(_result())
+    head = html.split("</head>")[0]
+    for cls in (".metric", ".metric-header", ".metric-desc"):
+        assert cls in head, f"{cls} missing from leaderboard <head> styles"
