@@ -1,3 +1,4 @@
+{% if not fragment -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -42,6 +43,7 @@
 </style>
 </head>
 <body>
+{%- endif %}
   <h1>syneva scorecard</h1>
   <p class="subtitle">7 Cs framework — synthetic tabular data evaluation</p>
   {% if score_mode == "actual" %}
@@ -126,5 +128,7 @@
        duration={{ "%.2f"|format((run_info.finished_at or 0) - run_info.started_at) }}s</p>
     {% if run_info.warnings %}<p>warnings: {{ run_info.warnings|join("; ") }}</p>{% endif %}
   </div>
+{% if not fragment -%}
 </body>
 </html>
+{%- endif %}

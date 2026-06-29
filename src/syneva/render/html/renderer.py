@@ -23,7 +23,11 @@ _ENV = jinja2.Environment(
 
 
 def render_html(
-    report: Report, *, interactive: bool = False, score_mode: str = "normalized"
+    report: Report,
+    *,
+    interactive: bool = False,
+    score_mode: str = "normalized",
+    fragment: bool = False,
 ) -> str:
     """Render the scorecard.
 
@@ -82,5 +86,6 @@ def render_html(
         by_c=by_c_view,
         summary_cards=summary_cards,
         score_mode=score_mode,
+        fragment=fragment,
         run_info=report.run_info,
     )
