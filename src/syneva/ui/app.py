@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -186,41 +187,160 @@ def _render_results(report) -> None:
         st.caption("PDF export needs `pip install 'syneva[pdf]'`.")
 
 
+def _benchmark_sidebar() -> dict | None:
+    """Sidebar controls for benchmark mode; returns a config dict or None."""
+    with st.sidebar:
+        st.header("1 · Real data")
+        real_file = st.file_uploader(
+            "Real data (CSV/Parquet)", type=["csv", "parquet"], key="bm_real"
+        )
+        st.header("2 · Synthetic candidates")
+        cand_files = st.file_uploader(
+            "Synthetic candidates (CSV/Parquet)",
+            type=["csv", "parquet"],
+            accept_multiple_files=True,
+            key="bm_candidates",
+        )
+        holdout_file = st.file_uploader(
+            "Holdout / test data (optional)", type=["csv", "parquet"], key="bm_holdout"
+        )
+
+        real = core.load_table(real_file) if real_file is not None else None
+        candidates: dict = {}
+        for f in cand_files or []:
+            name = Path(f.name).stem
+            unique = name
+            i = 2
+            while unique in candidates:
+                unique = f"{name}_{i}"
+                i += 1
+            candidates[unique] = core.load_table(f)
+        holdout = core.load_table(holdout_file) if holdout_file is not None else None
+
+        if not candidates:
+            st.info("Upload one or more synthetic candidate files to begin.")
+            return None
+
+        st.header("3 · Column metadata")
+        basis = real if real is not None else next(iter(candidates.values()))
+        edited = st.data_editor(
+            core.metadata_rows(Metadata.infer(basis)),
+            num_rows="fixed",
+            use_container_width=True,
+            key="bm_meta",
+        )
+
+        st.header("4 · Profile & ranking")
+        profile = st.selectbox(
+            "Profile", ["Custom", "fast", "full", "privacy"], index=0, key="bm_profile"
+        )
+        normalization = st.selectbox(
+            "Ranking normalization",
+            ["absolute", "linear", "normal", "quantile"],
+            index=0,
+            key="bm_norm",
+        )
+        run = st.button("Run benchmark", type="primary", key="bm_run")
+
+    return {
+        "real": real,
+        "candidates": candidates,
+        "holdout": holdout,
+        "edited": edited,
+        "preset": None if profile == "Custom" else profile,
+        "normalization": normalization,
+        "run": run,
+    }
+
+
+def _render_benchmark(result, normalization: str) -> None:
+    st.subheader("Leaderboard")
+    overall = result.overall
+    c_scores = result.c_scores
+    summary = []
+    for rank, name, _key in result.ranking(normalization=normalization):
+        row = {"rank": rank, "candidate": name, "overall": round(overall.get(name, 0.0), 3)}
+        for c, score in c_scores.get(name, {}).items():
+            row[c] = round(score, 3)
+        summary.append(row)
+    st.dataframe(summary, use_container_width=True, hide_index=True)
+
+    html_str = core.leaderboard_html_str(result, normalization=normalization)
+    components.html(html_str, height=900, scrolling=True)
+    st.download_button("Download HTML", html_str, "leaderboard.html")
+    st.download_button("Download JSON", core.benchmark_json_str(result), "benchmark.json")
+
+
 def main() -> None:
     st.set_page_config(page_title="syneva", layout="wide")
     st.title("syneva — 7 Cs scorecard")
+    mode = st.sidebar.radio(
+        "Mode", ["Single scorecard", "Benchmark (compare datasets)"], key="mode"
+    )
 
-    cfg = _sidebar()
+    if mode == "Single scorecard":
+        cfg = _sidebar()
+        if cfg and cfg["run"]:
+            if cfg["preset"] is None and not cfg["selected"]:
+                st.warning("Select at least one evaluator, or choose a Profile.")
+            elif cfg["utility_selected"] and not cfg["utility_tasks"]:
+                st.warning("A utility metric is selected but no target column was chosen.")
+            elif cfg["fairness_selected"] and not cfg["fairness_specs"]:
+                st.warning(
+                    "A fairness metric is selected but no protected attribute/outcome was chosen."
+                )
+            else:
+                try:
+                    meta = core.metadata_from_editor(cfg["edited"])
+                    st.session_state["report"] = core.run_report(
+                        cfg["real"],
+                        cfg["synthetic"],
+                        meta,
+                        cfg["selected"],
+                        cfg["utility_tasks"],
+                        fairness_specs=cfg["fairness_specs"],
+                        holdout=cfg["holdout"],
+                        preset=cfg["preset"],
+                    )
+                except (SynevaError, ValueError) as e:
+                    st.error(f"Evaluation failed: {e}")
+
+        report = st.session_state.get("report")
+        if report is None:
+            st.write("Configure inputs in the sidebar, then click **Run evaluation**.")
+            return
+        _render_results(report)
+        return
+
+    # Benchmark mode
+    cfg = _benchmark_sidebar()
     if cfg and cfg["run"]:
-        if cfg["preset"] is None and not cfg["selected"]:
-            st.warning("Select at least one evaluator, or choose a Profile.")
-        elif cfg["utility_selected"] and not cfg["utility_tasks"]:
-            st.warning("A utility metric is selected but no target column was chosen.")
-        elif cfg["fairness_selected"] and not cfg["fairness_specs"]:
-            st.warning(
-                "A fairness metric is selected but no protected attribute/outcome was chosen."
-            )
+        if not cfg["candidates"]:
+            st.warning("Upload at least one synthetic candidate.")
         else:
             try:
                 meta = core.metadata_from_editor(cfg["edited"])
-                st.session_state["report"] = core.run_report(
-                    cfg["real"],
-                    cfg["synthetic"],
-                    meta,
-                    cfg["selected"],
-                    cfg["utility_tasks"],
-                    fairness_specs=cfg["fairness_specs"],
-                    holdout=cfg["holdout"],
-                    preset=cfg["preset"],
+                st.session_state["benchmark"] = (
+                    core.run_benchmark(
+                        cfg["real"],
+                        cfg["candidates"],
+                        meta,
+                        holdout=cfg["holdout"],
+                        preset=cfg["preset"],
+                    ),
+                    cfg["normalization"],
                 )
             except (SynevaError, ValueError) as e:
-                st.error(f"Evaluation failed: {e}")
-
-    report = st.session_state.get("report")
-    if report is None:
-        st.write("Configure inputs in the sidebar, then click **Run evaluation**.")
+                st.error(f"Benchmark failed: {e}")
+    bm = st.session_state.get("benchmark")
+    if bm is None:
+        st.write(
+            "Upload real data and synthetic candidates in the sidebar, "
+            "then click **Run benchmark**."
+        )
         return
-    _render_results(report)
+    result, normalization = bm
+    _render_benchmark(result, normalization)
 
 
 if __name__ == "__main__":
