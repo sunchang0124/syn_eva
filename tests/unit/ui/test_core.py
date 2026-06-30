@@ -176,3 +176,36 @@ def test_run_report_preset_uses_default_registry():
     rep = core.run_report(real, syn, Metadata.infer(real), [], preset="fast")
     assert len(rep.results) > 0
     assert all(r.spec.tier == "core" for r in rep.results)
+
+
+def test_run_benchmark_ranks_good_first():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    good = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    shifted = pd.read_parquet(f"{FIX}/adult_income_syn_shifted_500.parquet")
+    res = core.run_benchmark(real, {"good": good, "shifted": shifted}, Metadata.infer(real))
+    ranked = [name for _, name, _ in res.ranking()]
+    assert ranked[0] == "good"
+
+
+def test_leaderboard_html_str_matches_renderer():
+    from syneva.render.html.benchmark_renderer import render_leaderboard
+
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    good = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    res = core.run_benchmark(real, {"good": good}, Metadata.infer(real))
+    html = core.leaderboard_html_str(res, normalization="linear")
+    assert html == render_leaderboard(res, normalization="linear")
+    assert "good" in html
+
+
+def test_benchmark_json_str_roundtrips():
+    from syneva.benchmark.engine import BenchmarkResult
+
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    good = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    res = core.run_benchmark(real, {"good": good}, Metadata.infer(real))
+    s = core.benchmark_json_str(res)
+    import json
+
+    restored = BenchmarkResult.from_dict(json.loads(s))
+    assert restored.ranking() == res.ranking()

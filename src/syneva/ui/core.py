@@ -8,7 +8,7 @@ from typing import Any
 
 import pandas as pd
 
-import syneva  # noqa: F401  ensure all built-in metrics are registered
+import syneva
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.metric_info import describe_metric, display_name
 from syneva.core.registry import MetricRegistry
@@ -156,6 +156,31 @@ def report_html_str(
 def report_json_str(report: Report) -> str:
     """Serialize the report to a JSON string (always carries every raw scalar)."""
     return json.dumps(report.to_dict(), indent=2, default=str)
+
+
+def run_benchmark(
+    real,
+    candidates: dict,
+    metadata,
+    *,
+    holdout=None,
+    preset: str | None = None,
+):
+    """Run the benchmark engine for the UI (mirrors run_report's role)."""
+
+    return syneva.benchmark(real, candidates, metadata, holdout=holdout, preset=preset)
+
+
+def leaderboard_html_str(result, *, normalization: str = "absolute") -> str:
+    """In-memory leaderboard HTML (analog of report_html_str)."""
+    from syneva.render.html.benchmark_renderer import render_leaderboard
+
+    return render_leaderboard(result, normalization=normalization)
+
+
+def benchmark_json_str(result) -> str:
+    """Serialize a BenchmarkResult to a JSON string."""
+    return json.dumps(result.to_dict(), indent=2, default=str)
 
 
 def report_pdf_bytes(report: Report, *, score_mode: str = "normalized") -> bytes:
