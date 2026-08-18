@@ -61,6 +61,8 @@ METRIC_INFO: dict[str, str] = {
     "dp_ledger": "The differential-privacy budget the generator declared, if any.",
     # Fairness — outcome-rate preservation across protected groups
     "statistical_parity": "Whether the synthetic data preserves the real data's outcome-rate gap between protected groups.",
+    # Preservation — minorities, tails, and subgroups
+    "rare_category_retention": "Whether categories that are rare in the real data survive into the synthetic data.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -110,6 +112,7 @@ RAW_HINT: dict[str, str] = {
     "feature_importance_spearman": "Rank correlation from -1 to 1; 1 = identical importance ordering. Higher is better.",
     "discriminative_score": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = separable. Closer to 0.5 is better.",
     "statistical_parity": "Drift = |synthetic parity gap - real parity gap|, 0 to 1. 0 means the real fairness structure is preserved. Lower is better.",
+    "rare_category_retention": "Mean retention of rare categories, 0 to 1: 1 = every rare category keeps its real frequency, 0 = all rare categories lost. Higher is better.",
 }
 
 
@@ -152,6 +155,7 @@ METRIC_NAMES: dict[str, str] = {
     "feature_importance_spearman": "Feature-importance correlation",
     "discriminative_score": "Discriminative score",
     "statistical_parity": "Statistical parity difference",
+    "rare_category_retention": "Rare-category retention",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -193,6 +197,9 @@ _SCALAR_LABELS: dict[str, str] = {
     "ratio_random_forest": "Utility ratio — random forest",
     "ratio_hist_gbdt": "Utility ratio — gradient boosting",
     "ratio_spread": "Spread across model families (std)",
+    "n_rare_categories": "Rare categories found",
+    "pct_rare_missing": "Share of rare categories missing",
+    "retention": "Mean retention",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
