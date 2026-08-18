@@ -15,6 +15,7 @@ C = Literal[
     "compliance",
     "utility",
     "fairness",
+    "preservation",
     "constraint",
     "completeness",
     "comprehension",

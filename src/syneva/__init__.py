@@ -14,6 +14,7 @@ from syneva.core.report import Report
 from syneva.core.run_info import RunInfo
 from syneva.core.runner import evaluate
 from syneva.fairness.spec import FairnessSpec
+from syneva.preservation.spec import SubgroupSpec
 from syneva.utility.task import UtilityTask
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "Report",
     "RunInfo",
     "SchemaError",
+    "SubgroupSpec",
     "SynevaError",
     "UtilityTask",
     "__version__",
@@ -46,4 +48,5 @@ from syneva import compliance as _compliance  # noqa: F401
 from syneva import congruence as _congruence  # noqa: F401
 from syneva import coverage as _coverage  # noqa: F401
 from syneva import fairness as _fairness  # noqa: F401
+from syneva import preservation as _preservation  # noqa: F401
 from syneva import utility as _utility  # noqa: F401
