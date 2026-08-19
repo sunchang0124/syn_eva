@@ -65,6 +65,7 @@ METRIC_INFO: dict[str, str] = {
     "rare_category_retention": "Whether categories that are rare in the real data survive into the synthetic data.",
     "tail_coverage": "Whether synthetic values reach into the extreme tails of each numeric column.",
     "minority_class_density": "Whether the least-frequent class of each categorical column keeps its share of the data.",
+    "subgroup_fidelity": "Whether declared subgroups keep their size and their internal distributions in the synthetic data.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -117,6 +118,7 @@ RAW_HINT: dict[str, str] = {
     "rare_category_retention": "Mean retention of rare categories, 0 to 1: 1 = every rare category keeps its real frequency, 0 = all rare categories lost. Higher is better.",
     "tail_coverage": "Fraction of the expected tail mass the synthetic data reproduces, 0 to 1: 1 = both tails fully populated, 0 = tails empty. Higher is better.",
     "minority_class_density": "Symmetric density ratio of each column's least-frequent class, 0 to 1: 1 = share preserved, 0 = class vanished; over-representation is penalized the same as under-representation. Higher is better.",
+    "subgroup_fidelity": "Even blend of subgroup-size preservation and within-subgroup distribution match, 0 to 1: 1 = subgroup fully preserved, 0 = subgroup erased. Higher is better.",
 }
 
 
@@ -162,6 +164,7 @@ METRIC_NAMES: dict[str, str] = {
     "rare_category_retention": "Rare-category retention",
     "tail_coverage": "Tail coverage",
     "minority_class_density": "Minority-class density",
+    "subgroup_fidelity": "Subgroup fidelity",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -211,6 +214,11 @@ _SCALAR_LABELS: dict[str, str] = {
     "tail_coverage": "Tail coverage",
     "worst_density_ratio": "Worst density ratio",
     "density_ratio": "Density ratio",
+    "worst_subgroup_score": "Worst subgroup score",
+    "mean_share_drift": "Mean subgroup-share drift",
+    "share_real": "Subgroup share (real)",
+    "share_syn": "Subgroup share (synthetic)",
+    "shape_score": "Within-subgroup shape score",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
