@@ -64,6 +64,7 @@ METRIC_INFO: dict[str, str] = {
     # Preservation — minorities, tails, and subgroups
     "rare_category_retention": "Whether categories that are rare in the real data survive into the synthetic data.",
     "tail_coverage": "Whether synthetic values reach into the extreme tails of each numeric column.",
+    "minority_class_density": "Whether the least-frequent class of each categorical column keeps its share of the data.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -115,6 +116,7 @@ RAW_HINT: dict[str, str] = {
     "statistical_parity": "Drift = |synthetic parity gap - real parity gap|, 0 to 1. 0 means the real fairness structure is preserved. Lower is better.",
     "rare_category_retention": "Mean retention of rare categories, 0 to 1: 1 = every rare category keeps its real frequency, 0 = all rare categories lost. Higher is better.",
     "tail_coverage": "Fraction of the expected tail mass the synthetic data reproduces, 0 to 1: 1 = both tails fully populated, 0 = tails empty. Higher is better.",
+    "minority_class_density": "Symmetric density ratio of each column's least-frequent class, 0 to 1: 1 = share preserved, 0 = class vanished; over-representation is penalized the same as under-representation. Higher is better.",
 }
 
 
@@ -159,6 +161,7 @@ METRIC_NAMES: dict[str, str] = {
     "statistical_parity": "Statistical parity difference",
     "rare_category_retention": "Rare-category retention",
     "tail_coverage": "Tail coverage",
+    "minority_class_density": "Minority-class density",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -206,6 +209,8 @@ _SCALAR_LABELS: dict[str, str] = {
     "lower_tail_coverage": "Lower-tail coverage",
     "upper_tail_coverage": "Upper-tail coverage",
     "tail_coverage": "Tail coverage",
+    "worst_density_ratio": "Worst density ratio",
+    "density_ratio": "Density ratio",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",

@@ -1,4 +1,7 @@
 from syneva.preservation import (
+    minority_class_density as minority_class_density,  # side-effect: registers metric
+)
+from syneva.preservation import (
     rare_category_retention as rare_category_retention,  # side-effect: registers metric
 )
 from syneva.preservation import (
