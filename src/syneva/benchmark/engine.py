@@ -25,6 +25,7 @@ def benchmark(
     utility_tasks=None,
     run_fairness=_UNSET,
     fairness_specs=None,
+    subgroup_specs=None,
     distance=_UNSET,
     random_state: int = 42,
 ) -> BenchmarkResult:
@@ -50,6 +51,7 @@ def benchmark(
             utility_tasks=utility_tasks,
             run_fairness=run_fairness,
             fairness_specs=fairness_specs,
+            subgroup_specs=subgroup_specs,
             distance=distance,
             random_state=random_state,
         )
