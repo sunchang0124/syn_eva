@@ -66,6 +66,7 @@ METRIC_INFO: dict[str, str] = {
     "tail_coverage": "Whether synthetic values reach into the extreme tails of each numeric column.",
     "minority_class_density": "Whether the least-frequent class of each categorical column keeps its share of the data.",
     "subgroup_fidelity": "Whether declared subgroups keep their size and their internal distributions in the synthetic data.",
+    "minority_utility_gap": "Whether a model trained on synthetic data serves declared subgroups as well as it serves the overall population.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -119,6 +120,7 @@ RAW_HINT: dict[str, str] = {
     "tail_coverage": "Fraction of the expected tail mass the synthetic data reproduces, 0 to 1: 1 = both tails fully populated, 0 = tails empty. Higher is better.",
     "minority_class_density": "Symmetric density ratio of each column's least-frequent class, 0 to 1: 1 = share preserved, 0 = class vanished; over-representation is penalized the same as under-representation. Higher is better.",
     "subgroup_fidelity": "Even blend of subgroup-size preservation and within-subgroup distribution match, 0 to 1: 1 = subgroup fully preserved, 0 = subgroup erased. Higher is better.",
+    "minority_utility_gap": "Excess gap = synthetic-trained performance gap minus real-trained gap, floored at 0. 0 means training on synthetic data costs the subgroup nothing beyond what real data already would. Lower is better.",
 }
 
 
@@ -165,6 +167,7 @@ METRIC_NAMES: dict[str, str] = {
     "tail_coverage": "Tail coverage",
     "minority_class_density": "Minority-class density",
     "subgroup_fidelity": "Subgroup fidelity",
+    "minority_utility_gap": "Minority utility gap",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -219,6 +222,12 @@ _SCALAR_LABELS: dict[str, str] = {
     "share_real": "Subgroup share (real)",
     "share_syn": "Subgroup share (synthetic)",
     "shape_score": "Within-subgroup shape score",
+    "worst_excess_gap": "Worst excess gap",
+    "mean_gap_synthetic": "Mean gap (synthetic-trained)",
+    "mean_gap_real": "Mean gap (real-trained)",
+    "gap_synthetic": "Gap (synthetic-trained)",
+    "gap_real": "Gap (real-trained)",
+    "excess_gap": "Excess gap",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
