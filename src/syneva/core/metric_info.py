@@ -67,6 +67,7 @@ METRIC_INFO: dict[str, str] = {
     "minority_class_density": "Whether the least-frequent class of each categorical column keeps its share of the data.",
     "subgroup_fidelity": "Whether declared subgroups keep their size and their internal distributions in the synthetic data.",
     "minority_utility_gap": "Whether a model trained on synthetic data serves declared subgroups as well as it serves the overall population.",
+    "minority_privacy_risk": "Whether disclosure risk concentrates on declared subgroups rather than spreading evenly across the data.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -121,6 +122,7 @@ RAW_HINT: dict[str, str] = {
     "minority_class_density": "Symmetric density ratio of each column's least-frequent class, 0 to 1: 1 = share preserved, 0 = class vanished; over-representation is penalized the same as under-representation. Higher is better.",
     "subgroup_fidelity": "Even blend of subgroup-size preservation and within-subgroup distribution match, 0 to 1: 1 = subgroup fully preserved, 0 = subgroup erased. Higher is better.",
     "minority_utility_gap": "Excess gap = synthetic-trained performance gap minus real-trained gap, floored at 0. 0 means training on synthetic data costs the subgroup nothing beyond what real data already would. Lower is better.",
+    "minority_privacy_risk": "Ratio of the subgroup's median distance-to-nearest-synthetic-record to the overall median, capped at 1: 1 = no concentrated risk, near 0 = subgroup members are much closer to synthetic records than average. Higher is better.",
 }
 
 
@@ -168,6 +170,7 @@ METRIC_NAMES: dict[str, str] = {
     "minority_class_density": "Minority-class density",
     "subgroup_fidelity": "Subgroup fidelity",
     "minority_utility_gap": "Minority utility gap",
+    "minority_privacy_risk": "Minority privacy risk",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -228,6 +231,11 @@ _SCALAR_LABELS: dict[str, str] = {
     "gap_synthetic": "Gap (synthetic-trained)",
     "gap_real": "Gap (real-trained)",
     "excess_gap": "Excess gap",
+    "mean_risk_ratio": "Mean risk ratio",
+    "worst_risk_ratio": "Worst risk ratio",
+    "risk_ratio": "Risk ratio",
+    "median_dcr_subgroup": "Median distance (subgroup)",
+    "median_dcr_overall": "Median distance (overall)",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
