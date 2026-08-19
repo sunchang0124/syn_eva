@@ -5,6 +5,7 @@ from typing import ClassVar
 
 import pandas as pd
 
+from syneva.core.errors import MetricError
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.preservation._util import numeric_columns
@@ -25,6 +26,8 @@ class TailCoverage:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
+        if not 0.0 < self.tail_quantile < 0.5:
+            raise MetricError("tail_quantile must be in (0, 0.5)")
         notes: list[str] = []
         per_column: dict[str, dict[str, float]] = {}
         lowers: list[float] = []

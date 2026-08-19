@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+import pytest
 
+from syneva.core.errors import MetricError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.preservation.tail_coverage import TailCoverage
 
@@ -47,3 +49,13 @@ def test_no_numeric_columns_scores_one_with_note():
     res = TailCoverage().compute(df, df.copy(), meta)
     assert res.scalars["score"] == 1.0
     assert res.notes
+
+
+def test_tail_quantile_zero_raises():
+    with pytest.raises(MetricError):
+        TailCoverage(tail_quantile=0.0).compute(_real(), _real().copy(), _meta())
+
+
+def test_tail_quantile_half_raises():
+    with pytest.raises(MetricError):
+        TailCoverage(tail_quantile=0.5).compute(_real(), _real().copy(), _meta())
