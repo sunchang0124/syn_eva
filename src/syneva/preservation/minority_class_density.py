@@ -31,6 +31,7 @@ class MinorityClassDensity:
             )
         for name in cat_cols:
             p_real = real[name].value_counts(normalize=True)
+            p_real = p_real[p_real > 0]
             if p_real.empty:
                 continue
             # least-frequent class; ties broken by sorted label for determinism

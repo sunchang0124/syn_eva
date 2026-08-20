@@ -46,6 +46,14 @@ def test_no_rare_categories_scores_one_with_note():
     assert any("no rare categories" in n for n in res.notes)
 
 
+def test_unused_category_level_excluded():
+    real = pd.DataFrame(
+        {"cat": pd.Categorical(["A"] * 90 + ["B"] * 10, categories=["A", "B", "C"])}
+    )
+    res = RareCategoryRetention().compute(real, real.copy(), _meta())
+    assert res.scalars["score"] == 1.0
+
+
 def test_no_categorical_columns_scores_one_with_note():
     meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
     df = pd.DataFrame({"x": [1.0, 2.0, 3.0]})

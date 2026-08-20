@@ -34,6 +34,7 @@ class RareCategoryRetention:
             )
         for name in cat_cols:
             p_real = real[name].value_counts(normalize=True)
+            p_real = p_real[p_real > 0]
             p_syn = synthetic[name].value_counts(normalize=True)
             rare = p_real[p_real < self.rare_threshold]
             if rare.empty:

@@ -45,6 +45,14 @@ def test_minority_tie_is_deterministic():
     assert abs(res.per_column["cat"]["density_ratio"] - 0.5) < 0.02
 
 
+def test_unused_category_level_excluded():
+    real = pd.DataFrame(
+        {"cat": pd.Categorical(["A"] * 90 + ["B"] * 10, categories=["A", "B", "C"])}
+    )
+    res = MinorityClassDensity().compute(real, real.copy(), _meta())
+    assert res.scalars["score"] == 1.0
+
+
 def test_no_categorical_columns_scores_one_with_note():
     meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
     df = pd.DataFrame({"x": [1.0, 2.0]})

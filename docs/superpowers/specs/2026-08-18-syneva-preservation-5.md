@@ -108,7 +108,9 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
 - **Scalars:** `{score, lower_tail_coverage, upper_tail_coverage}` (means across columns).
   `per_column[col] = mean of the column's two tail coverages`.
 - **Skips:** no numeric columns → `score = 1.0` + note. A constant real column (degenerate
-  quantiles) → that column skipped + note.
+  quantiles) → that column skipped + note. A tail whose cutoff equals the real column's
+  extremum (e.g. a bounded/discrete column where `lo == min` or `hi == max`) is strictly
+  impossible and is skipped independently of the other tail, with a note naming the column.
 
 ### 3. `minority_class_density` (auto)
 - **Measures:** whether each categorical column's single least-frequent class keeps its density.
@@ -164,8 +166,12 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
   supported), `min_rows: int = 10`, `cap: int = 2000`, `random_state: int = 42`.
 - **Compute:** encode real + synthetic in the shared space (`encode_pair`, or the Gower matrix
   when `distance="gower"`). Synthetic index capped at `cap` seeded rows. Real query rows capped at
-  `cap` with **all subgroup members (of every spec) kept first**, random fill after; note when
-  capped. DCR = distance from each kept real row to its nearest synthetic row. Per spec:
+  `cap` by keeping at most `cap // 2` subgroup members (seeded random choice when there are more)
+  and filling the remaining budget with non-members (all of them if fewer than the budget); note
+  when capped. If there are no non-member rows left to fill with, the split baseline can't be
+  computed — note "subgroup '<name>' risk not measurable (subgroup spans all kept rows)" per spec
+  and skip affected specs (score contribution omitted). DCR = distance from each kept real row to
+  its nearest synthetic row. Per spec:
   `risk_ratio = median DCR(subgroup members) / (median DCR(all kept rows) + _EPS)`;
   `score_spec = 1.0 if risk_ratio >= 1 else risk_ratio`.
 - **Aggregation:** `score = min over runnable specs` (worst subgroup — conservative, the privacy

@@ -52,16 +52,41 @@ class MinorityPrivacyRisk:
             member_mask |= sp.matches(real).to_numpy()
         member_idx = np.flatnonzero(member_mask)
         other_idx = np.flatnonzero(~member_mask)
-        if len(member_idx) >= self.cap:
-            kept_idx = rng.choice(member_idx, self.cap, replace=False)
-            notes.append(f"real subgroup rows capped at {self.cap}")
-        elif len(real) > self.cap:
-            fill = rng.choice(other_idx, self.cap - len(member_idx), replace=False)
-            kept_idx = np.concatenate([member_idx, fill])
-            notes.append(f"real rows capped at {self.cap} (all subgroup members kept)")
+        not_measurable = False
+        if len(real) > self.cap or len(member_idx) >= self.cap:
+            member_budget = self.cap // 2
+            if len(member_idx) > member_budget:
+                kept_members = rng.choice(member_idx, member_budget, replace=False)
+            else:
+                kept_members = member_idx
+            fill_budget = self.cap - len(kept_members)
+            if len(other_idx) > fill_budget:
+                kept_others = rng.choice(other_idx, fill_budget, replace=False)
+            else:
+                kept_others = other_idx
+            if len(kept_others) == 0:
+                not_measurable = True
+                kept_idx = np.arange(len(real))
+                for sp in specs:
+                    notes.append(
+                        f"subgroup '{sp.name}' risk not measurable (subgroup spans all kept rows)"
+                    )
+            else:
+                kept_idx = np.concatenate([kept_members, kept_others])
+                notes.append(
+                    f"real rows capped at {self.cap} "
+                    f"({len(kept_members)} subgroup members + {len(kept_others)} others kept)"
+                )
         else:
             kept_idx = np.arange(len(real))
         real_kept = real.iloc[kept_idx].reset_index(drop=True)
+
+        if not_measurable:
+            return MetricResult(
+                spec=self.spec,
+                scalars={"score": 1.0},
+                notes=[*notes, "no runnable subgroup specs"],
+            )
 
         if self.distance == "gower":
             dcr = gower_matrix(real_kept, syn, meta).min(axis=1)

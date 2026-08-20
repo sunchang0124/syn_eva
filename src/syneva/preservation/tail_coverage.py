@@ -38,6 +38,7 @@ class TailCoverage:
                 spec=self.spec, scalars={"score": 1.0}, notes=["no numeric columns"]
             )
         q = self.tail_quantile
+        processed_cols = 0
         for name in num_cols:
             rv = pd.to_numeric(real[name], errors="coerce").dropna()
             sv = pd.to_numeric(synthetic[name], errors="coerce").dropna()
@@ -48,27 +49,41 @@ class TailCoverage:
             if lo == hi:
                 notes.append(f"column '{name}' skipped (degenerate quantiles)")
                 continue
-            lower = min(float((sv < lo).mean()) / q, 1.0)
-            upper = min(float((sv > hi).mean()) / q, 1.0)
-            lowers.append(lower)
-            uppers.append(upper)
-            per_column[name] = {"tail_coverage": (lower + upper) / 2}
-        if not lowers:
+            processed_cols += 1
+            col_tails: list[float] = []
+            if lo == float(rv.min()):
+                notes.append(f"column '{name}' lower tail skipped (cutoff equals minimum)")
+            else:
+                lower = min(float((sv < lo).mean()) / q, 1.0)
+                lowers.append(lower)
+                col_tails.append(lower)
+            if hi == float(rv.max()):
+                notes.append(f"column '{name}' upper tail skipped (cutoff equals maximum)")
+            else:
+                upper = min(float((sv > hi).mean()) / q, 1.0)
+                uppers.append(upper)
+                col_tails.append(upper)
+            if col_tails:
+                per_column[name] = {"tail_coverage": sum(col_tails) / len(col_tails)}
+        all_tails = lowers + uppers
+        if not all_tails:
+            fallback_note = (
+                "no usable numeric columns" if processed_cols == 0 else "no tails measured"
+            )
             return MetricResult(
                 spec=self.spec,
                 scalars={"score": 1.0},
-                notes=[*notes, "no usable numeric columns"],
+                notes=[*notes, fallback_note],
             )
-        mean_lower = sum(lowers) / len(lowers)
-        mean_upper = sum(uppers) / len(uppers)
-        score = float(min(1.0, max(0.0, (mean_lower + mean_upper) / 2)))
+        score = float(min(1.0, max(0.0, sum(all_tails) / len(all_tails))))
+        scalars: dict[str, float] = {"score": score}
+        if lowers:
+            scalars["lower_tail_coverage"] = sum(lowers) / len(lowers)
+        if uppers:
+            scalars["upper_tail_coverage"] = sum(uppers) / len(uppers)
         return MetricResult(
             spec=self.spec,
-            scalars={
-                "score": score,
-                "lower_tail_coverage": mean_lower,
-                "upper_tail_coverage": mean_upper,
-            },
+            scalars=scalars,
             per_column=per_column,
             notes=notes,
         )

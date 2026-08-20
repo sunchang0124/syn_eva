@@ -59,3 +59,23 @@ def test_tail_quantile_zero_raises():
 def test_tail_quantile_half_raises():
     with pytest.raises(MetricError):
         TailCoverage(tail_quantile=0.5).compute(_real(), _real().copy(), _meta())
+
+
+def test_identical_likert_data_scores_one():
+    df = pd.DataFrame({"x": [1, 2, 3, 4, 5] * 40})
+    res = TailCoverage().compute(df, df.copy(), _meta())
+    assert res.scalars["score"] == 1.0
+    assert any("lower tail skipped" in n for n in res.notes)
+    assert any("upper tail skipped" in n for n in res.notes)
+
+
+def test_zero_inflated_identical_data_scores_high():
+    rng = np.random.default_rng(0)
+    positive = rng.exponential(1.0, 400) + 0.01
+    x = np.concatenate([np.zeros(600), positive])
+    df = pd.DataFrame({"x": x})
+    res = TailCoverage().compute(df, df.copy(), _meta())
+    assert res.scalars["score"] > 0.9
+    assert "lower_tail_coverage" not in res.scalars
+    assert res.scalars["upper_tail_coverage"] > 0.9
+    assert any("lower tail skipped" in n for n in res.notes)
