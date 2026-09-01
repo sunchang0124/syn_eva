@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -85,7 +86,7 @@ def _sidebar() -> dict | None:
 
         selected: list[str] = []
         utility_selected = False
-        for c in ["congruence", "coverage", "compliance", "utility", "fairness"]:
+        for c in ["congruence", "coverage", "compliance", "utility", "fairness", "preservation"]:
             group = [m for m in catalog if m["c"] == c]
             if not group:
                 continue
@@ -136,6 +137,44 @@ def _sidebar() -> dict | None:
         else:
             st.caption("Select the statistical-parity metric to configure fairness.")
 
+        st.header("6 · Preservation")
+        preservation_subgroup_selected = any(
+            m["c"] == "preservation"
+            and m["name"] in selected
+            and m["name"] in ("subgroup_fidelity", "minority_utility_gap", "minority_privacy_risk")
+            for m in catalog
+        )
+        subgroup_specs = None
+        if preservation_subgroup_selected:
+            from syneva import SubgroupSpec
+
+            sg_name = st.text_input("Subgroup name", value="subgroup 1")
+            sg_cols = st.multiselect("Subgroup condition column(s)", options=list(real.columns))
+            conditions: dict = {}
+            for col in sg_cols:
+                if pd.api.types.is_numeric_dtype(real[col]):
+                    lo = st.number_input(
+                        f"'{col}' min", value=float(real[col].min()), key=f"sg_lo_{col}"
+                    )
+                    hi = st.number_input(
+                        f"'{col}' max", value=float(real[col].max()), key=f"sg_hi_{col}"
+                    )
+                    conditions[col] = (lo, hi)
+                else:
+                    vals = st.multiselect(
+                        f"'{col}' values",
+                        options=sorted(real[col].dropna().unique().tolist()),
+                        key=f"sg_vals_{col}",
+                    )
+                    if vals:
+                        conditions[col] = vals
+            if conditions:
+                subgroup_specs = [SubgroupSpec(name=sg_name, conditions=conditions)]
+            else:
+                st.info("No subgroup defined — only the automatic preservation metrics will run.")
+        else:
+            st.caption("Select a subgroup metric to configure subgroups.")
+
         run = st.button("Run evaluation", type="primary")
 
     return {
@@ -147,6 +186,7 @@ def _sidebar() -> dict | None:
         "utility_tasks": utility_tasks,
         "fairness_selected": fairness_selected,
         "fairness_specs": fairness_specs,
+        "subgroup_specs": subgroup_specs,
         "holdout": holdout,
         "preset": None if profile == "Custom" else profile,
         "run": run,
@@ -299,6 +339,7 @@ def main() -> None:
                         cfg["selected"],
                         cfg["utility_tasks"],
                         fairness_specs=cfg["fairness_specs"],
+                        subgroup_specs=cfg["subgroup_specs"],
                         holdout=cfg["holdout"],
                         preset=cfg["preset"],
                     )

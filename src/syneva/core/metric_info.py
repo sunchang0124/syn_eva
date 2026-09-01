@@ -21,6 +21,7 @@ C_INFO: dict[str, str] = {
     "compliance": "Does the synthetic data protect privacy, without copying or exposing real individuals?",
     "utility": "Is the synthetic data as useful as the real data for training models?",
     "fairness": "Does the synthetic data preserve the real data's fairness across protected groups?",
+    "preservation": "Does the synthetic data preserve rare categories, distribution tails, and small subgroups of the real data?",
 }
 
 METRIC_INFO: dict[str, str] = {
@@ -60,6 +61,13 @@ METRIC_INFO: dict[str, str] = {
     "dp_ledger": "The differential-privacy budget the generator declared, if any.",
     # Fairness — outcome-rate preservation across protected groups
     "statistical_parity": "Whether the synthetic data preserves the real data's outcome-rate gap between protected groups.",
+    # Preservation — minorities, tails, and subgroups
+    "rare_category_retention": "Whether categories that are rare in the real data survive into the synthetic data.",
+    "tail_coverage": "Whether synthetic values reach into the extreme tails of each numeric column.",
+    "minority_class_density": "Whether the least-frequent class of each categorical column keeps its share of the data.",
+    "subgroup_fidelity": "Whether declared subgroups keep their size and their internal distributions in the synthetic data.",
+    "minority_utility_gap": "Whether a model trained on synthetic data serves declared subgroups as well as it serves the overall population.",
+    "minority_privacy_risk": "Whether disclosure risk concentrates on declared subgroups rather than spreading evenly across the data.",
     # Utility — usefulness for modeling
     "tstr_suite": "How well a model trained on synthetic data performs on real data, relative to training on real data.",
     "multi_target_utility": "The train-on-synthetic, test-on-real check applied to every column as a prediction target.",
@@ -109,6 +117,12 @@ RAW_HINT: dict[str, str] = {
     "feature_importance_spearman": "Rank correlation from -1 to 1; 1 = identical importance ordering. Higher is better.",
     "discriminative_score": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = separable. Closer to 0.5 is better.",
     "statistical_parity": "Drift = |synthetic parity gap - real parity gap|, 0 to 1. 0 means the real fairness structure is preserved. Lower is better.",
+    "rare_category_retention": "Mean retention of rare categories, 0 to 1: 1 = every rare category keeps its real frequency, 0 = all rare categories lost. Higher is better.",
+    "tail_coverage": "Fraction of the expected tail mass the synthetic data reproduces, 0 to 1: 1 = both tails fully populated, 0 = tails empty. Higher is better.",
+    "minority_class_density": "Symmetric density ratio of each column's least-frequent class, 0 to 1: 1 = share preserved, 0 = class vanished; over-representation is penalized the same as under-representation. Higher is better.",
+    "subgroup_fidelity": "Even blend of subgroup-size preservation and within-subgroup distribution match, 0 to 1: 1 = subgroup fully preserved, 0 = subgroup erased. Higher is better.",
+    "minority_utility_gap": "Excess gap = synthetic-trained performance gap minus real-trained gap, floored at 0. 0 means training on synthetic data costs the subgroup nothing beyond what real data already would. Lower is better.",
+    "minority_privacy_risk": "Ratio of the subgroup's median distance-to-nearest-synthetic-record to the overall median, capped at 1: 1 = no concentrated risk, near 0 = subgroup members are much closer to synthetic records than average. Higher is better.",
 }
 
 
@@ -151,6 +165,12 @@ METRIC_NAMES: dict[str, str] = {
     "feature_importance_spearman": "Feature-importance correlation",
     "discriminative_score": "Discriminative score",
     "statistical_parity": "Statistical parity difference",
+    "rare_category_retention": "Rare-category retention",
+    "tail_coverage": "Tail coverage",
+    "minority_class_density": "Minority-class density",
+    "subgroup_fidelity": "Subgroup fidelity",
+    "minority_utility_gap": "Minority utility gap",
+    "minority_privacy_risk": "Minority privacy risk",
 }
 
 # Readable labels for the per-metric detail rows. Anything not listed falls back
@@ -192,6 +212,30 @@ _SCALAR_LABELS: dict[str, str] = {
     "ratio_random_forest": "Utility ratio — random forest",
     "ratio_hist_gbdt": "Utility ratio — gradient boosting",
     "ratio_spread": "Spread across model families (std)",
+    "n_rare_categories": "Rare categories found",
+    "pct_rare_missing": "Share of rare categories missing",
+    "retention": "Mean retention",
+    "lower_tail_coverage": "Lower-tail coverage",
+    "upper_tail_coverage": "Upper-tail coverage",
+    "tail_coverage": "Tail coverage",
+    "worst_density_ratio": "Worst density ratio",
+    "density_ratio": "Density ratio",
+    "worst_subgroup_score": "Worst subgroup score",
+    "mean_share_drift": "Mean subgroup-share drift",
+    "share_real": "Subgroup share (real)",
+    "share_syn": "Subgroup share (synthetic)",
+    "shape_score": "Within-subgroup shape score",
+    "worst_excess_gap": "Worst excess gap",
+    "mean_gap_synthetic": "Mean gap (synthetic-trained)",
+    "mean_gap_real": "Mean gap (real-trained)",
+    "gap_synthetic": "Gap (synthetic-trained)",
+    "gap_real": "Gap (real-trained)",
+    "excess_gap": "Excess gap",
+    "mean_risk_ratio": "Mean risk ratio",
+    "worst_risk_ratio": "Worst risk ratio",
+    "risk_ratio": "Risk ratio",
+    "median_dcr_subgroup": "Median distance (subgroup)",
+    "median_dcr_overall": "Median distance (overall)",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",

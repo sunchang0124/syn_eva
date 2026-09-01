@@ -8,6 +8,7 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from syneva.fairness.spec import FairnessSpec
+    from syneva.preservation.spec import SubgroupSpec
     from syneva.utility.task import UtilityTask
 
 from syneva.core.errors import MetricError, SchemaError, SynevaError
@@ -20,7 +21,9 @@ from syneva.core.report import Report
 from syneva.core.run_info import RunInfo
 
 
-def _instantiate(cls, utility_tasks, fairness_specs, distance, holdout, random_state):
+def _instantiate(
+    cls, utility_tasks, fairness_specs, subgroup_specs, distance, holdout, random_state
+):
     """Instantiate a metric, passing only the kwargs its constructor accepts."""
     params = inspect.signature(cls).parameters
     kwargs = {}
@@ -28,6 +31,8 @@ def _instantiate(cls, utility_tasks, fairness_specs, distance, holdout, random_s
         kwargs["tasks"] = utility_tasks
     if "specs" in params:
         kwargs["specs"] = fairness_specs if fairness_specs is not None else []
+    if "subgroup_specs" in params:
+        kwargs["subgroup_specs"] = subgroup_specs if subgroup_specs is not None else []
     if "distance" in params:
         kwargs["distance"] = distance
     if "holdout" in params:
@@ -49,6 +54,7 @@ def evaluate(
     run_utility: bool | object = _UNSET,
     fairness_specs: list[FairnessSpec] | None = None,
     run_fairness: bool | object = _UNSET,
+    subgroup_specs: list[SubgroupSpec] | None = None,
     distance: str | object = _UNSET,
     holdout: pd.DataFrame | None = None,
     preset: str | None = None,
@@ -68,6 +74,7 @@ def evaluate(
         run_utility=run_utility,
         fairness_specs=fairness_specs,
         run_fairness=run_fairness,
+        subgroup_specs=subgroup_specs,
         distance=distance,
         holdout=holdout,
         preset=preset,
@@ -89,6 +96,7 @@ def evaluate_with(
     run_utility: bool | object = _UNSET,
     fairness_specs: list[FairnessSpec] | None = None,
     run_fairness: bool | object = _UNSET,
+    subgroup_specs: list[SubgroupSpec] | None = None,
     distance: str | object = _UNSET,
     holdout: pd.DataFrame | None = None,
     preset: str | None = None,
@@ -145,6 +153,11 @@ def evaluate_with(
     if not run_fairness:
         selected = [c for c in selected if c.spec.c != "fairness"]
 
+    if not subgroup_specs:
+        # preservation metrics that need subgroups are dropped, not skipped,
+        # so spec-less runs stay noise-free
+        selected = [c for c in selected if "subgroup_specs" not in inspect.signature(c).parameters]
+
     if not selected:
         raise SynevaError(
             "no runnable metrics for this selection "
@@ -155,7 +168,9 @@ def evaluate_with(
     results: list[MetricResult] = []
     for cls in selected:
         try:
-            inst = _instantiate(cls, utility_tasks, fairness_specs, distance, holdout, random_state)
+            inst = _instantiate(
+                cls, utility_tasks, fairness_specs, subgroup_specs, distance, holdout, random_state
+            )
             results.append(inst.compute(real, synthetic, metadata))
         except Exception as e:
             results.append(

@@ -94,6 +94,7 @@ def run_report(
     selected_names: list[str],
     utility_tasks: list[UtilityTask] | None = None,
     fairness_specs: list | None = None,
+    subgroup_specs: list | None = None,
     holdout: object | None = None,
     preset: str | None = None,
     random_state: int = 42,
@@ -104,6 +105,9 @@ def run_report(
     inferred from the selection so the caller need not pass it separately.
     Fairness metrics only run when at least one is selected; `run_fairness` is
     inferred from the selection so the caller need not pass it separately.
+    Subgroup preservation metrics (subgroup_fidelity, minority_utility_gap,
+    minority_privacy_risk) are dropped by the runner when `subgroup_specs` is
+    not provided, even if selected.
 
     When `preset` is given, it overrides the manual selection: the report is run
     against the default full registry with that preset (which resolves the
@@ -121,6 +125,7 @@ def run_report(
             metadata=metadata,
             utility_tasks=utility_tasks,
             fairness_specs=fairness_specs,
+            subgroup_specs=subgroup_specs,
             holdout=holdout,
             preset=preset,
             random_state=random_state,
@@ -138,6 +143,7 @@ def run_report(
         run_utility=run_utility,
         fairness_specs=fairness_specs,
         run_fairness=run_fairness,
+        subgroup_specs=subgroup_specs,
         holdout=holdout,
         random_state=random_state,
     )
