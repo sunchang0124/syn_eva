@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 import numpy as np
+import pandas as pd
 
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.neighbors import Neighbors
@@ -20,7 +21,7 @@ class NNDR:
         scope="table-level",
     )
 
-    def __init__(self, distance: str = "euclidean", holdout: object | None = None) -> None:
+    def __init__(self, distance: str = "euclidean", holdout: pd.DataFrame | None = None) -> None:
         self.distance = distance
         self.holdout = holdout
 
