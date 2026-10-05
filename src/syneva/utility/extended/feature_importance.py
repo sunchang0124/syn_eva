@@ -51,6 +51,6 @@ class FeatureImportanceCorrelation:
                 scalars={"score": 1.0, "spearman_rho": 1.0},
                 notes=["not enough features"],
             )
-        rho = float(spearmanr(fi_real[:n], fi_syn[:n]).correlation or 0.0)
+        rho = float(spearmanr(fi_real[:n], fi_syn[:n]).correlation or 0.0)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
         score = float((rho + 1) / 2)  # map [-1, 1] -> [0, 1]
         return MetricResult(spec=self.spec, scalars={"score": score, "spearman_rho": rho})

@@ -117,7 +117,8 @@ def _sidebar() -> dict | None:
                     options=["classification", "regression"],
                     key=f"task_{t}",
                 )
-                utility_tasks.append(UtilityTask(target=t, task_type=kind))
+                task_type = "classification" if kind == "classification" else "regression"
+                utility_tasks.append(UtilityTask(target=t, task_type=task_type))
         else:
             st.caption("Select a utility metric to configure tasks.")
 

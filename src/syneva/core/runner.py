@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import pandas as pd
 
@@ -115,8 +115,8 @@ def evaluate_with(
             return getattr(preset_obj, attr)
         return hard_default
 
-    tiers = _resolve(tiers, "tiers", ("core",))
-    cs = _resolve(cs, "cs", None)
+    tiers = cast("Sequence[str]", _resolve(tiers, "tiers", ("core",)))
+    cs = cast("Sequence[str] | None", _resolve(cs, "cs", None))
     run_utility = _resolve(run_utility, "run_utility", False)
     run_fairness = _resolve(run_fairness, "run_fairness", False)
     distance = _resolve(distance, "distance", "euclidean")

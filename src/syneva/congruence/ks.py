@@ -40,7 +40,10 @@ class KSStatistic:
                 notes.append(f"column '{name}' skipped (empty after NaN-drop)")
                 continue
             stat, p = stats.ks_2samp(r.values, s.values)
-            per_column[name] = {"ks_statistic": float(stat), "p_value": float(p)}
+            per_column[name] = {
+                "ks_statistic": float(stat),  # pyright: ignore[reportArgumentType]  # scipy result types are untyped
+                "p_value": float(p),  # pyright: ignore[reportArgumentType]  # scipy result types are untyped
+            }
 
         if not per_column:
             return MetricResult(

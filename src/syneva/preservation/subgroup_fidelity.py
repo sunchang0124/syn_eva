@@ -22,7 +22,7 @@ def _column_distances(real_sub: pd.DataFrame, syn_sub: pd.DataFrame, meta) -> li
         sv = pd.to_numeric(syn_sub[name], errors="coerce").dropna()
         if rv.empty or sv.empty:
             continue
-        dists.append(float(ks_2samp(rv, sv).statistic))
+        dists.append(float(ks_2samp(rv, sv).statistic))  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
     for name in categorical_columns(meta):
         pr = real_sub[name].value_counts(normalize=True)
         ps = syn_sub[name].value_counts(normalize=True)

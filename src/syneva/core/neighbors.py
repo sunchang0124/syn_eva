@@ -129,6 +129,7 @@ class Neighbors:
             raise ValueError("no holdout provided to Neighbors")
         if self.distance == "gower":
             d = self._d_hr
+            assert d is not None
             if k > d.shape[1]:
                 raise ValueError(f"k={k} too large: only {d.shape[1]} real rows")
             return np.partition(d, k - 1, axis=1)[:, k - 1]
@@ -145,12 +146,14 @@ class Neighbors:
         if not self._has_holdout:
             raise ValueError("no holdout provided to Neighbors")
         if self.distance == "gower":
+            assert self._d_hh is not None
             d = self._d_hh.copy()
             n = d.shape[0]
             if k >= n:
                 raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")
             np.fill_diagonal(d, np.inf)
             return np.partition(d, k - 1, axis=1)[:, k - 1]
+        assert self._x_holdout is not None
         n = len(self._x_holdout)
         if k >= n:
             raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")

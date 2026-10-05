@@ -31,7 +31,7 @@ class MultiTargetUtility:
         inner = suite.compute(real, synthetic, meta)
         return MetricResult(
             spec=self.spec,
-            scalars={"score": inner.scalars.get("score", 1.0)},
+            scalars={"score": (inner.scalars or {}).get("score", 1.0)},
             per_column=inner.per_column,
             notes=inner.notes,
         )
