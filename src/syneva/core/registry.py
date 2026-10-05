@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from syneva.core.errors import RegistryError
 
 if TYPE_CHECKING:
     from syneva.core.metric import Metric
+
+# Generic so decorated classes keep their own type (constructor signature etc.).
+_M = TypeVar("_M", bound="type[Metric]")
 
 
 _VALID_TIERS = {"core", "extended", "custom"}
@@ -17,7 +20,7 @@ class MetricRegistry:
     def __init__(self) -> None:
         self._metrics: dict[str, type[Metric]] = {}
 
-    def register(self, cls: type[Metric]) -> type[Metric]:
+    def register(self, cls: _M) -> _M:
         self._metrics[cls.spec.name] = cls
         return cls
 
