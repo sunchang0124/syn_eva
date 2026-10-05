@@ -13,6 +13,18 @@ pip install syneva
 pip install 'syneva[pdf,plotly]'
 ```
 
+or when cloning the repository
+
+```bash
+# clone the repository to your local machine
+git clone git@github.com:sunchang0124/syn_eva.git
+
+cd syn_eva
+
+# download all dependencies
+uv sync --all-extras
+```
+
 ## Quickstart
 
 ```python
@@ -36,6 +48,12 @@ report.to_json("scorecard.json")
 syn-eva evaluate --real real.parquet --synthetic synthetic.parquet --out ./report --pdf
 ```
 
+or when having the repository cloned
+
+```bash
+uv run syn-eva evaluate --real real.parquet --synthetic synthetic.parquet --out ./report --pdf
+```
+
 ## Web UI
 
 A local Streamlit app for upload → pick evaluators → scorecard:
@@ -43,6 +61,14 @@ A local Streamlit app for upload → pick evaluators → scorecard:
 ```bash
 pip install 'syneva[ui]'
 syn-eva ui            # or: streamlit run src/syneva/ui/app.py
+```
+
+or when having the repository cloned
+
+```bash
+uv sync --extra ui
+
+uv run syn-eva ui
 ```
 
 Upload your real and synthetic tables, review the inferred column metadata
