@@ -12,3 +12,11 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: uv run python -m pyright src/syneva
+        language: system
+        types: [python]
+        pass_filenames: false

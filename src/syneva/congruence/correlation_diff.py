@@ -25,7 +25,7 @@ def _cramers_v(s1: pd.Series, s2: pd.Series) -> float | None:
     chi2, _, _, _ = chi2_contingency(ct, correction=False)
     n = int(ct.values.sum())
     denom = n * (min(r, k) - 1)
-    return math.sqrt(chi2 / denom) if denom > 0 else 0.0
+    return math.sqrt(chi2 / denom) if denom > 0 else 0.0  # pyright: ignore[reportOperatorIssue]  # scipy result types are untyped
 
 
 def _eta_squared(num: pd.Series, cat: pd.Series) -> float | None:
@@ -43,8 +43,10 @@ def _eta_squared(num: pd.Series, cat: pd.Series) -> float | None:
 def _pair_assoc(df: pd.DataFrame, a: str, b: str, ta: ColumnType, tb: ColumnType) -> float | None:
     """Return association measure for a column pair in one dataframe."""
     if ta is ColumnType.NUMERIC and tb is ColumnType.NUMERIC:
-        corr = df[[a, b]].corr(method="pearson").iloc[0, 1]
-        return None if np.isnan(corr) else float(corr)
+        # Constant column -> NaN (handled below); silence numpy's divide-by-zero warning.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            corr = float(df[a].corr(df[b], method="pearson"))
+        return None if np.isnan(corr) else corr
     if ta is ColumnType.CATEGORICAL and tb is ColumnType.CATEGORICAL:
         return _cramers_v(df[a], df[b])
     if {ta, tb} == {ColumnType.NUMERIC, ColumnType.CATEGORICAL}:

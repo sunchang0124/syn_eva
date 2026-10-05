@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
@@ -23,7 +24,7 @@ class MembershipInferenceAttack:
         scope="table-level",
     )
 
-    def __init__(self, holdout: object | None = None) -> None:
+    def __init__(self, holdout: pd.DataFrame | None = None) -> None:
         self.holdout = holdout
 
     def compute(self, real, synthetic, meta) -> MetricResult:

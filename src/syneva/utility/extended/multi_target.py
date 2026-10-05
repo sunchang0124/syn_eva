@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
+import pandas as pd
+
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.utility.task import suggest_tasks
@@ -21,7 +23,7 @@ class MultiTargetUtility:
         scope="table-level",
     )
     random_state: int = 42
-    holdout: object | None = None  # pandas DataFrame test set, or None
+    holdout: pd.DataFrame | None = None  # test set, or None
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         tasks = suggest_tasks(meta)
@@ -29,7 +31,7 @@ class MultiTargetUtility:
         inner = suite.compute(real, synthetic, meta)
         return MetricResult(
             spec=self.spec,
-            scalars={"score": inner.scalars.get("score", 1.0)},
+            scalars={"score": (inner.scalars or {}).get("score", 1.0)},
             per_column=inner.per_column,
             notes=inner.notes,
         )

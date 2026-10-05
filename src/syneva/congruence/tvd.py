@@ -65,7 +65,11 @@ class TotalVariationDistance:
             .value_counts(normalize=True)
             .to_dict()
         )
-        payload = BarComparison(real=r_freq, synthetic=s_freq, title=f"TVD: {worst}")
+        payload = BarComparison(
+            real={str(k): float(v) for k, v in r_freq.items()},
+            synthetic={str(k): float(v) for k, v in s_freq.items()},
+            title=f"TVD: {worst}",
+        )
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "mean_tvd": mean_tvd},

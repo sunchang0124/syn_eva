@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import accuracy_score, r2_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
@@ -26,7 +27,7 @@ class TSTRSuite:
     )
     tasks: list[UtilityTask] = field(default_factory=list)
     random_state: int = 42
-    holdout: object | None = None  # pandas DataFrame test set, or None
+    holdout: pd.DataFrame | None = None  # test set, or None
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None

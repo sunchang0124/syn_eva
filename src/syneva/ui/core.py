@@ -95,7 +95,7 @@ def run_report(
     utility_tasks: list[UtilityTask] | None = None,
     fairness_specs: list | None = None,
     subgroup_specs: list | None = None,
-    holdout: object | None = None,
+    holdout: pd.DataFrame | None = None,
     preset: str | None = None,
     random_state: int = 42,
 ) -> Report:
