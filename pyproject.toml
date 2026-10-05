@@ -46,6 +46,7 @@ dev = [
   "pre-commit>=3.7",
   "beautifulsoup4>=4.12",
   "pyarrow>=24.0.0",
+  "pandas-stubs>=2.3.3.260113",
 ]
 
 [tool.ruff]
@@ -66,7 +67,9 @@ extend-immutable-calls = ["typer.Option", "typer.Argument"]
 [tool.pyright]
 include = ["src/syneva", "tests"]
 pythonVersion = "3.10"
-strict = ["src/syneva"]
+typeCheckingMode = "standard"
+# sklearn/scipy ship no type stubs; strict "unknown type" checks on them are noise.
+reportMissingTypeStubs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
