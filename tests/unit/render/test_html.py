@@ -111,3 +111,32 @@ def test_failed_metric_shown_with_error():
     html = render_html(rep, interactive=False)
     assert "kaboom" in html
     assert "metric-failed" in html
+
+
+def _report_with_skipped():
+    spec = MetricSpec(
+        name="mia_auc",
+        c="compliance",
+        tier="extended",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+    rep = _report()
+    rep.results.append(MetricResult(spec=spec, skip_reason="needs a holdout"))
+    return rep
+
+
+def test_skipped_metric_shows_badge_and_reason():
+    soup = BeautifulSoup(render_html(_report_with_skipped()), "html.parser")
+    card = soup.find("code", string="mia_auc").find_parent("div", class_="metric")
+    assert "metric-skipped" in card["class"]
+    assert card.find(class_="v-skipped").get_text(strip=True) == "Skipped"
+    assert "needs a holdout" in card.find(class_="skip-reason").get_text()
+
+
+def test_skipped_metric_renders_in_actual_mode():
+    soup = BeautifulSoup(render_html(_report_with_skipped(), score_mode="actual"), "html.parser")
+    card = soup.find("code", string="mia_auc").find_parent("div", class_="metric")
+    assert card.find(class_="v-skipped") is not None
+    assert "needs a holdout" in card.find(class_="skip-reason").get_text()

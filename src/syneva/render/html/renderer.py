@@ -53,6 +53,7 @@ def render_html(
                 "detail_rows": detail_rows,
                 "notes": r.notes,
                 "error": str(r.error) if r.error else None,
+                "skip_reason": r.skip_reason,
                 "info": describe_metric(r.spec.name),
                 "raw_hint": raw_hint(r.spec.name),
                 "plot_b64": None,

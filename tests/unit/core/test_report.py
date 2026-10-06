@@ -41,6 +41,23 @@ def test_to_dict_from_dict_round_trip():
     r2 = Report.from_dict(d)
     assert r2.results[0].spec.name == "ks"
     assert r2.results[0].scalars == {"ks": 0.1, "p": 0.5}
+    assert r2.results[0].skip_reason is None
+
+
+def test_skip_reason_round_trips_and_is_not_aggregated():
+    r = _example_report()
+    spec = r.results[0].spec
+    r.results.append(MetricResult(spec=spec, skip_reason="needs a holdout"))
+    r2 = Report.from_dict(r.to_dict())
+    assert r2.results[1].skip_reason == "needs a holdout"
+    assert r2.results[1].scalars is None
+    assert set(r2.aggregated) == {"congruence"}
+
+
+def test_from_dict_accepts_reports_without_skip_reason():
+    d = _example_report().to_dict()
+    del d["results"][0]["skip_reason"]
+    assert Report.from_dict(d).results[0].skip_reason is None
 
 
 def test_to_json_writes_valid_file():
