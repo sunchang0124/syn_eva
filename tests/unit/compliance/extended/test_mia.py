@@ -7,7 +7,8 @@ def test_mia_without_holdout_is_skipped(real_df, syn_good_df, metadata):
     r = MembershipInferenceAttack().compute(real_df, real_df.copy(), metadata)
     assert r.scalars is None
     assert r.error is None
-    assert any("holdout" in n for n in r.notes)
+    assert r.skip_reason is not None
+    assert "holdout" in r.skip_reason
 
 
 def test_mia_with_holdout_runs(real_df, syn_good_df, metadata):

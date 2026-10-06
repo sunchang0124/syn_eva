@@ -44,6 +44,9 @@ class MetricResult:
     plot_payload: PlotPayload | None = None
     notes: list[str] = field(default_factory=list)
     error: MetricError | None = None
+    # Set when the metric could not run meaningfully on these inputs. A skipped
+    # result has scalars=None, so it is excluded from aggregates and rankings.
+    skip_reason: str | None = None
 
 
 @runtime_checkable

@@ -112,6 +112,7 @@ def _result_to_dict(r: MetricResult) -> dict:
         # MetricError.original (the causing exception) is not JSON-serializable
         # and is intentionally dropped; only the message string is persisted.
         "error": str(r.error) if r.error else None,
+        "skip_reason": r.skip_reason,
     }
 
 
@@ -132,6 +133,7 @@ def _result_from_dict(d: dict) -> MetricResult:
         per_column=d.get("per_column"),
         notes=d.get("notes") or [],
         error=err,
+        skip_reason=d.get("skip_reason"),
     )
 
 
