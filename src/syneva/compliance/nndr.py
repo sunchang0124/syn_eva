@@ -37,8 +37,10 @@ class NNDR:
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "nndr_median": 1.0},
-                notes=["insufficient data"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or there "
+                    "are fewer than 2 real rows or no synthetic rows."
+                ),
             )
         # Conventional NNDR: distance to the nearest real record over distance to
         # the second-nearest real record. Synthetic-to-synthetic distances must

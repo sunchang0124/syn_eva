@@ -45,9 +45,9 @@ class CategoryCoverage:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no categorical columns"],
+                notes=notes,
+                skip_reason="No categorical column has categories to cover.",
             )
 
         score = float(

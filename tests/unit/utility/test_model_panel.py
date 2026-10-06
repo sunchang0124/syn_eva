@@ -29,10 +29,11 @@ def test_panel_identical_data_ratios_near_one(real_df, metadata):
     assert r.scalars["ratio_spread"] < 0.3
 
 
-def test_panel_no_tasks_returns_unit_score(real_df, syn_good_df, metadata):
+def test_panel_no_tasks_is_skipped(real_df, syn_good_df, metadata):
     m = ModelPanelUtility(tasks=[])
     r = m.compute(real_df, syn_good_df, metadata)
-    assert r.scalars["score"] == 1.0
+    assert r.scalars is None
+    assert r.skip_reason
 
 
 def test_panel_runs_with_holdout(real_df, syn_good_df, metadata):

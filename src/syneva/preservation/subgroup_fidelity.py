@@ -86,8 +86,8 @@ class SubgroupFidelity:
         if not scores:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable subgroup specs"],
+                notes=notes,
+                skip_reason="No subgroup spec could be evaluated.",
             )
         return MetricResult(
             spec=self.spec,

@@ -39,16 +39,17 @@ def test_constant_column_skipped_with_note():
     meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
     df = pd.DataFrame({"x": [1.0] * 100})
     res = TailCoverage().compute(df, df.copy(), meta)
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("degenerate" in n for n in res.notes)
 
 
-def test_no_numeric_columns_scores_one_with_note():
+def test_no_numeric_columns_is_skipped():
     meta = Metadata(columns={"c": ColumnMetadata(name="c", dtype=ColumnType.CATEGORICAL)})
     df = pd.DataFrame({"c": ["a", "b"]})
     res = TailCoverage().compute(df, df.copy(), meta)
-    assert res.scalars["score"] == 1.0
-    assert res.notes
+    assert res.scalars is None
+    assert res.skip_reason
 
 
 def test_tail_quantile_zero_raises():
@@ -61,10 +62,11 @@ def test_tail_quantile_half_raises():
         TailCoverage(tail_quantile=0.5).compute(_real(), _real().copy(), _meta())
 
 
-def test_identical_likert_data_scores_one():
+def test_identical_likert_data_has_no_measurable_tails():
     df = pd.DataFrame({"x": [1, 2, 3, 4, 5] * 40})
     res = TailCoverage().compute(df, df.copy(), _meta())
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("lower tail skipped" in n for n in res.notes)
     assert any("upper tail skipped" in n for n in res.notes)
 

@@ -20,6 +20,7 @@ class PCAScatterMetric:
         data_types=frozenset({"static"}),
         requires_real=True,
         scope="table-level",
+        scoring=False,  # visualization only
     )
 
     def compute(self, real, synthetic, meta) -> MetricResult:
@@ -28,13 +29,11 @@ class PCAScatterMetric:
         if X_real.shape[1] < 2:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=["need >=2 encodable columns"],
+                skip_reason="The PCA plot needs at least 2 encodable columns.",
             )
         pca = PCA(n_components=2, random_state=42).fit(np.vstack([X_real, X_syn]))
         return MetricResult(
             spec=self.spec,
-            scalars={"score": 1.0},
             plot_payload=PCAScatter(
                 real_xy=pca.transform(X_real),
                 synthetic_xy=pca.transform(X_syn),

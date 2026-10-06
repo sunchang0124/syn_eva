@@ -29,8 +29,10 @@ class Authenticity:
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "authenticity": 1.0},
-                notes=["insufficient data"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or there "
+                    "are fewer than 2 real rows or no synthetic rows."
+                ),
             )
         d_syn_to_real = nb.syn_to_real(1)
         d_real_self = nb.real_self(1)

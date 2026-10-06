@@ -29,8 +29,7 @@ class FeatureImportanceCorrelation:
         if not self.target or self.target not in real.columns:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "spearman_rho": 1.0},
-                notes=["target not set or missing"],
+                skip_reason="No target column is set, or it is missing from the real data.",
             )
         tt = (
             "classification"
@@ -48,8 +47,7 @@ class FeatureImportanceCorrelation:
         if n < 2:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "spearman_rho": 1.0},
-                notes=["not enough features"],
+                skip_reason="Feature-importance correlation needs at least 2 features.",
             )
         rho = float(spearmanr(fi_real[:n], fi_syn[:n]).correlation or 0.0)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
         score = float((rho + 1) / 2)  # map [-1, 1] -> [0, 1]

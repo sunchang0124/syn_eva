@@ -22,8 +22,10 @@ class KAnonymity:
         if not qi:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "min_k": float("nan")},
-                notes=["no columns marked sensitive=True; skipping"],
+                skip_reason=(
+                    "No column is marked sensitive=True, so there are no quasi-identifiers to group"
+                    " on."
+                ),
             )
         groups = synthetic.groupby(qi, dropna=False).size()
         min_k = int(groups.min()) if len(groups) else 0

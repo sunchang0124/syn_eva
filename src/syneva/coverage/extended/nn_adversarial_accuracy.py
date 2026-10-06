@@ -36,8 +36,10 @@ class NNAdversarialAccuracy:
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "nn_adversarial_accuracy": 0.5},
-                notes=["insufficient data"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or a "
+                    "dataset has fewer than 2 rows."
+                ),
             )
         d_rr = nb.real_self(1)
         d_ss = nb.syn_self(1)

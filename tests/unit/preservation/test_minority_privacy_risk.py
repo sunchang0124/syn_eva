@@ -57,15 +57,16 @@ def test_tiny_subgroup_skipped():
     spec = SubgroupSpec(name="tiny", conditions={"x": (100.0, None)})
     real = _real()
     res = MinorityPrivacyRisk(subgroup_specs=[spec]).compute(real, real.copy(), _meta())
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("tiny" in n for n in res.notes)
 
 
-def test_no_specs_scores_one_with_note():
+def test_no_specs_is_skipped():
     real = _real()
     res = MinorityPrivacyRisk().compute(real, real.copy(), _meta())
-    assert res.scalars["score"] == 1.0
-    assert res.notes
+    assert res.scalars is None
+    assert res.skip_reason
 
 
 def test_capped_subgroup_majority_still_scores_low():

@@ -27,8 +27,7 @@ class SlicedWasserstein:
         if not nums:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "sliced_wasserstein": 0.0},
-                notes=["no numeric columns"],
+                skip_reason="There are no numeric columns to compare.",
             )
         X_real = real[nums].to_numpy(dtype=float)
         X_syn = synthetic[nums].to_numpy(dtype=float)

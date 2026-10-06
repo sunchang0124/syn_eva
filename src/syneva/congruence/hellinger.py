@@ -64,9 +64,9 @@ class Hellinger:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no numeric or categorical columns"],
+                notes=notes,
+                skip_reason="No numeric or categorical column has values to compare.",
             )
         mean_h = sum(v["hellinger"] for v in per_column.values()) / len(per_column)
         score = float(min(1.0, max(0.0, 1.0 - mean_h)))

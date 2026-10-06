@@ -63,18 +63,20 @@ def test_shifted_subgroup_drops_shape_term():
 def test_tiny_real_subgroup_skipped():
     spec = SubgroupSpec(name="tiny", conditions={"x": (100.0, None)})
     res = SubgroupFidelity(subgroup_specs=[spec]).compute(_real(), _real().copy(), _meta())
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("tiny" in n for n in res.notes)
 
 
 def test_invalid_spec_skipped_with_note():
     spec = SubgroupSpec(name="bad", conditions={"g": (0, 1)})
     res = SubgroupFidelity(subgroup_specs=[spec]).compute(_real(), _real().copy(), _meta())
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("bad" in n for n in res.notes)
 
 
-def test_no_specs_scores_one_with_note():
+def test_no_specs_is_skipped():
     res = SubgroupFidelity().compute(_real(), _real().copy(), _meta())
-    assert res.scalars["score"] == 1.0
-    assert res.notes
+    assert res.scalars is None
+    assert res.skip_reason

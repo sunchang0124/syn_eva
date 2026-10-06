@@ -75,8 +75,8 @@ class ModelPanelUtility:
         if not all_ratios:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable utility tasks"],
+                notes=notes,
+                skip_reason="No utility task could be evaluated.",
             )
         per_model_mean = {
             m: (float(np.mean(rs)) if rs else 0.0) for m, rs in ratios_by_model.items()

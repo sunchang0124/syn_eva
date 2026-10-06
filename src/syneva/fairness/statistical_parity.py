@@ -69,8 +69,11 @@ class StatisticalParity:
         if not drifts:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable fairness specs"],
+                notes=notes,
+                skip_reason=(
+                    "No fairness spec could be evaluated. Pass fairness_specs naming a protected "
+                    "attribute and an outcome column present in the data."
+                ),
             )
         mean_drift = sum(drifts) / len(drifts)
         score = float(min(1.0, max(0.0, 1.0 - mean_drift)))

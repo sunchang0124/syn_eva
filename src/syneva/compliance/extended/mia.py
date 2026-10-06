@@ -47,8 +47,10 @@ class MembershipInferenceAttack:
         if x_real.shape[1] == 0 or len(x_syn) < 1 or len(x_hold) < 1 or len(x_real) < 1:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "mia_auc": 0.5},
-                notes=["insufficient data"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to attack on, or the real, "
+                    "synthetic or holdout data is empty."
+                ),
             )
         nn = NearestNeighbors(n_neighbors=1).fit(x_syn)
         d_mem, _ = nn.kneighbors(x_real)

@@ -39,11 +39,11 @@ def test_oversampled_rare_category_capped_at_one():
     assert res.scalars["score"] == 1.0
 
 
-def test_no_rare_categories_scores_one_with_note():
+def test_no_rare_categories_is_skipped():
     real = pd.DataFrame({"cat": ["A"] * 50 + ["B"] * 50})
     res = RareCategoryRetention().compute(real, real.copy(), _meta())
-    assert res.scalars["score"] == 1.0
-    assert any("no rare categories" in n for n in res.notes)
+    assert res.scalars is None
+    assert "no rare categories" in res.skip_reason
 
 
 def test_unused_category_level_excluded():
@@ -51,12 +51,14 @@ def test_unused_category_level_excluded():
         {"cat": pd.Categorical(["A"] * 90 + ["B"] * 10, categories=["A", "B", "C"])}
     )
     res = RareCategoryRetention().compute(real, real.copy(), _meta())
-    assert res.scalars["score"] == 1.0
+    # the unused level C is not a lost rare category, so nothing is rare
+    assert res.scalars is None
+    assert res.skip_reason
 
 
-def test_no_categorical_columns_scores_one_with_note():
+def test_no_categorical_columns_is_skipped():
     meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
     df = pd.DataFrame({"x": [1.0, 2.0, 3.0]})
     res = RareCategoryRetention().compute(df, df.copy(), meta)
-    assert res.scalars["score"] == 1.0
-    assert res.notes
+    assert res.scalars is None
+    assert res.skip_reason

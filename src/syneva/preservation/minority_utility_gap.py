@@ -57,8 +57,10 @@ class MinorityUtilityGap:
         if not self.tasks:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no utility tasks configured; utility gap not computed"],
+                notes=notes,
+                skip_reason=(
+                    "No utility tasks are configured, so there is no utility gap to compute."
+                ),
             )
         class_tasks = []
         for t in self.tasks:
@@ -76,8 +78,8 @@ class MinorityUtilityGap:
         if not class_tasks or not specs:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable (task x subgroup) pairs"],
+                notes=notes,
+                skip_reason="No classification task and subgroup spec pair is configured.",
             )
 
         if self.holdout is not None:
@@ -141,8 +143,10 @@ class MinorityUtilityGap:
         if not pair_scores:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable (task x subgroup) pairs"],
+                notes=notes,
+                skip_reason=(
+                    "No (task, subgroup) pair had enough rows and a varying target to evaluate."
+                ),
             )
         return MetricResult(
             spec=self.spec,

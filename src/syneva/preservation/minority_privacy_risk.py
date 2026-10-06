@@ -37,8 +37,11 @@ class MinorityPrivacyRisk:
         if not specs:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable subgroup specs"],
+                notes=notes,
+                skip_reason=(
+                    "No subgroup spec could be evaluated. Pass subgroup_specs to measure minority "
+                    "privacy risk."
+                ),
             )
         rng = np.random.default_rng(self.random_state)
 
@@ -84,8 +87,11 @@ class MinorityPrivacyRisk:
         if not_measurable:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable subgroup specs"],
+                notes=notes,
+                skip_reason=(
+                    "No subgroup risk is measurable: each subgroup spans all kept real rows, so "
+                    "there is no baseline to compare against."
+                ),
             )
 
         if self.distance == "gower":
@@ -121,8 +127,8 @@ class MinorityPrivacyRisk:
         if not ratios:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable subgroup specs"],
+                notes=notes,
+                skip_reason="No subgroup spec could be evaluated.",
             )
         scores = [1.0 if r >= 1.0 else float(max(0.0, r)) for r in ratios]
         return MetricResult(

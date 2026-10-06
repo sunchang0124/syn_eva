@@ -103,9 +103,9 @@ class CorrelationDifference:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no eligible pairs"],
+                notes=notes,
+                skip_reason="No column pair has a defined association in both datasets.",
             )
 
         mean_diff = sum(v["abs_corr_diff"] for v in per_column.values()) / len(per_column)

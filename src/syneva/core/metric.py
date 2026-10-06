@@ -34,6 +34,9 @@ class MetricSpec:
     data_types: frozenset[DataType]
     requires_real: bool
     scope: Scope
+    # False for informational or visualization-only metrics (e.g. a declared DP
+    # budget, a PCA plot): their results are shown but never aggregated or ranked.
+    scoring: bool = True
 
 
 @dataclass

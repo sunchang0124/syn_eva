@@ -29,8 +29,10 @@ class AlphaPrecisionBetaRecall:
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "alpha_precision": 1.0, "beta_recall": 1.0},
-                notes=["no encodable columns or insufficient rows"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or a "
+                    "dataset has fewer than 2 rows."
+                ),
             )
         k = max(1, min(5, min(len(real), len(synthetic)) - 1))
         radii_real = nb.real_self(k)

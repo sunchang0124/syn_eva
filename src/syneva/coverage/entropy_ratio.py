@@ -67,9 +67,9 @@ class EntropyRatio:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no categorical columns"],
+                notes=notes,
+                skip_reason="No categorical column has a defined entropy ratio.",
             )
 
         score = float(sum(v["ratio"] for v in per_column.values()) / len(per_column))

@@ -52,7 +52,8 @@ def test_subgroup_metrics_run_with_specs():
     assert set(by) >= _SUBGROUP
     for name in _AUTO | _SUBGROUP:
         assert by[name].error is None, f"{name}: {by[name].error}"
-        assert 0.0 <= by[name].scalars["score"] <= 1.0
+        # skipped (e.g. no utility tasks, no rare categories) or a valid score
+        assert by[name].skip_reason or 0.0 <= by[name].scalars["score"] <= 1.0
 
 
 def test_benchmark_forwards_subgroup_specs():
