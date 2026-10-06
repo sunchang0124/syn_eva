@@ -54,6 +54,11 @@ or when having the repository cloned
 uv run syn-eva evaluate --real real.parquet --synthetic synthetic.parquet --out ./report --pdf
 ```
 
+Pass `--holdout holdout.parquet` (real rows that were *not* used to train the
+generator) to enable the membership-inference attack and the holdout variants
+of DCR/NNDR. Without a holdout, MIA is skipped and excluded from the
+compliance score.
+
 ## Web UI
 
 A local Streamlit app for upload → pick evaluators → scorecard:
@@ -83,7 +88,7 @@ view or download the scorecard as HTML/JSON/PDF.
   novelty rate, entropy ratio. Extended: alpha-precision/beta-recall,
   authenticity, PCA scatter.
 - **Compliance** (privacy/disclosure): DCR, NNDR, k-anonymity, identical
-  match rate. Extended: MIA AUC, DP ledger pass-through.
+  match rate. Extended: MIA AUC (requires a holdout), DP ledger pass-through.
 - **Task-based utility**: TSTR/TRTR/utility ratio per `UtilityTask`. Extended:
   multi-target sweep, feature-importance Spearman correlation, discriminative
   score.

@@ -50,6 +50,7 @@ def evaluate(
     synthetic: Path = typer.Option(..., exists=True, dir_okay=False),
     metadata: Path | None = typer.Option(None, exists=True, dir_okay=False),
     out: Path = typer.Option(Path("./syneva-report")),
+    holdout: Path | None = typer.Option(None, exists=True, dir_okay=False),
     tiers: str | None = typer.Option(None, help="comma-separated tiers"),
     cs: str | None = typer.Option(None, help="comma-separated Cs to restrict to"),
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
@@ -61,10 +62,12 @@ def evaluate(
         real_df = _load_df(real) if real else None
         syn_df = _load_df(synthetic)
         meta = _load_metadata(metadata)
+        holdout_df = _load_df(holdout) if holdout else None
         rep = syneva.evaluate(
             real_df,
             syn_df,
             meta,
+            holdout=holdout_df,
             tiers=(tuple(t.strip() for t in tiers.split(",")) if tiers else _UNSET),
             cs=(tuple(c.strip() for c in cs.split(",")) if cs else _UNSET),
             run_utility=(True if run_utility else _UNSET),

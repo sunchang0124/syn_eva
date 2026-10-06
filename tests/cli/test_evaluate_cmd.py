@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 
 def test_evaluate_cli_writes_outputs(tmp_path):
     real = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
@@ -32,6 +34,44 @@ def test_evaluate_cli_writes_outputs(tmp_path):
     assert (out / "scorecard.html").exists()
     loaded = json.loads((out / "scorecard.json").read_text())
     assert loaded["results"]
+
+
+def test_evaluate_cli_accepts_holdout(tmp_path):
+    real = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
+    syn = Path("tests/fixtures/adult_income_syn_good_500.parquet").resolve()
+    meta = Path("tests/fixtures/metadata.json").resolve()
+    holdout = tmp_path / "holdout.csv"
+    pd.read_parquet(real).sample(frac=0.3, random_state=1).to_csv(holdout, index=False)
+    out = tmp_path / "report"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "syneva.cli.main",
+            "evaluate",
+            "--real",
+            str(real),
+            "--synthetic",
+            str(syn),
+            "--metadata",
+            str(meta),
+            "--holdout",
+            str(holdout),
+            "--tiers",
+            "core,extended",
+            "--cs",
+            "compliance",
+            "--out",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    loaded = json.loads((out / "scorecard.json").read_text())
+    by = {r["spec"]["name"]: r for r in loaded["results"]}
+    assert by["mia_auc"]["scalars"] is not None
+    assert "mia_auc" in by["mia_auc"]["scalars"]
 
 
 def test_evaluate_cli_handles_missing_real(tmp_path):
