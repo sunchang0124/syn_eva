@@ -22,6 +22,15 @@ def test_holdout_runs_end_to_end(real_df, syn_good_df, metadata):
     assert by["tstr_suite"].error is None
 
 
+def test_mia_without_holdout_is_excluded_from_compliance(real_df, metadata):
+    # A verbatim copy must not earn MIA a perfect score; with no holdout the
+    # metric is skipped and left out of the compliance aggregate.
+    rep = syneva.evaluate(real_df, real_df.copy(), metadata, tiers=("core", "extended"))
+    by = {r.spec.name: r for r in rep.results}
+    assert by["mia_auc"].error is None
+    assert by["mia_auc"].scalars is None
+
+
 def test_holdout_schema_mismatch_raises(real_df, syn_good_df, metadata):
     bad = real_df.drop(columns=[real_df.columns[0]])
     with pytest.raises(SynevaError, match="holdout"):
