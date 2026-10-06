@@ -51,7 +51,7 @@ METRIC_INFO: dict[str, str] = {
     "nn_adversarial_accuracy": "Whether synthetic points are too close (memorization) or too far (poor coverage), judged by nearest-neighbour separability.",
     # Compliance — privacy and disclosure
     "dcr": "How far synthetic rows sit from the nearest real record.",
-    "nndr": "Whether synthetic rows are closer to real records than real records are to one another.",
+    "nndr": "Whether synthetic rows sit much closer to one real record than to any other, a sign of memorization.",
     "k_anonymity": "The size of the smallest group sharing the same sensitive values.",
     "identical_match_rate": "The share of synthetic rows that are exact copies of a real row.",
     "hitting_rate": "How often a real record has a near-identical synthetic counterpart.",
@@ -103,7 +103,7 @@ RAW_HINT: dict[str, str] = {
     "pca_scatter": "Visualization only; there is no numeric value to compare.",
     "nn_adversarial_accuracy": "Adversarial accuracy from 0 to 1: 0.5 = indistinguishable (ideal), toward 1 = too separable, toward 0 = memorized. Closer to 0.5 is better.",
     "dcr": "Distance to the nearest real record, in standardized units. Larger = more privacy. Higher is better.",
-    "nndr": "Distance ratio near 1 means synthetic rows are no closer to real records than reals are to each other. Higher is safer.",
+    "nndr": "Nearest over second-nearest real-record distance, 0 to 1. Near 0 means synthetic rows hug single real records. Higher is safer.",
     "k_anonymity": "The smallest matching-group size; larger groups hide individuals better. Higher is better.",
     "identical_match_rate": "Fraction of exact copies of real rows, 0 to 1. Fewer copies is safer. Lower is better.",
     "hitting_rate": "Fraction of real records reproduced by the synthetic data, 0 to 1. Lower is better.",
