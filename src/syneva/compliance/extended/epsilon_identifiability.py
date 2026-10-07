@@ -36,8 +36,10 @@ class EpsilonIdentifiability:
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 1:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "identifiability_risk": 0.0},
-                notes=["insufficient data"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or there "
+                    "are fewer than 2 real rows or no synthetic rows."
+                ),
             )
         d_self = nb.real_self(1)
         d_syn = nb.real_to_syn(1)

@@ -53,9 +53,9 @@ def test_unused_category_level_excluded():
     assert res.scalars["score"] == 1.0
 
 
-def test_no_categorical_columns_scores_one_with_note():
+def test_no_categorical_columns_is_skipped():
     meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
     df = pd.DataFrame({"x": [1.0, 2.0]})
     res = MinorityClassDensity().compute(df, df.copy(), meta)
-    assert res.scalars["score"] == 1.0
-    assert res.notes
+    assert res.scalars is None
+    assert res.skip_reason

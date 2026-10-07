@@ -35,8 +35,7 @@ class HittingRate:
         if not num and not cat:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "hit_rate": 0.0},
-                notes=["no usable columns"],
+                skip_reason="There are no numeric or categorical columns to compare.",
             )
         rng = np.random.default_rng(42)
         notes: list[str] = []

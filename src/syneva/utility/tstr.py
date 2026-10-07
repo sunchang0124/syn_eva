@@ -84,8 +84,8 @@ class TSTRSuite:
         if not per_task:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no runnable utility tasks"],
+                notes=notes,
+                skip_reason="No utility task could be evaluated.",
             )
         score = float(np.mean([v["ratio"] for v in per_task.values()]))
         scalars["score"] = min(1.0, max(0.0, score))

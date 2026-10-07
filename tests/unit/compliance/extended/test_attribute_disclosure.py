@@ -25,8 +25,8 @@ def test_copied_synthetic_high_disclosure():
 def test_no_sensitive_columns_skips():
     df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
     r = AttributeDisclosure().compute(df, df, Metadata.infer(df))
-    assert r.scalars["score"] == 1.0
-    assert any("sensitive" in n for n in r.notes)
+    assert r.scalars is None
+    assert "sensitive" in r.skip_reason
 
 
 def test_attribute_disclosure_gower_backend_runs():

@@ -27,7 +27,8 @@ class MinorityClassDensity:
         cat_cols = categorical_columns(meta)
         if not cat_cols:
             return MetricResult(
-                spec=self.spec, scalars={"score": 1.0}, notes=["no categorical columns"]
+                spec=self.spec,
+                skip_reason="There are no categorical columns with a minority class.",
             )
         for name in cat_cols:
             p_real = real[name].value_counts(normalize=True)
@@ -43,7 +44,8 @@ class MinorityClassDensity:
             per_column[name] = {"density_ratio": ratio}
         if not ratios:
             return MetricResult(
-                spec=self.spec, scalars={"score": 1.0}, notes=["no usable categorical columns"]
+                spec=self.spec,
+                skip_reason="No categorical column has values to find a minority class in.",
             )
         score = float(min(1.0, max(0.0, sum(ratios) / len(ratios))))
         return MetricResult(

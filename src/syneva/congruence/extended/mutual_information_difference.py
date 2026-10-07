@@ -56,8 +56,7 @@ class MutualInformationDifference:
         if len(cols) < 2:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "mean_mi_diff": 0.0},
-                notes=["need >=2 columns"],
+                skip_reason="Mutual information needs at least 2 usable columns.",
             )
         mr = _nmi_matrix(real, meta, cols)
         ms = _nmi_matrix(synthetic, meta, cols)

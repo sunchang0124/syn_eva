@@ -49,9 +49,9 @@ class QuantileMSE:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no numeric columns"],
+                notes=notes,
+                skip_reason="No numeric column has values to compare.",
             )
         mean_qmse = sum(v["quantile_mse"] for v in per_column.values()) / len(per_column)
         score = float(min(1.0, max(0.0, 1.0 - np.sqrt(mean_qmse))))

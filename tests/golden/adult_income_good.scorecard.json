@@ -65,6 +65,7 @@
         "name": "dcr",
         "requires_real": true,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -85,6 +86,7 @@
         "name": "hitting_rate",
         "requires_real": true,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -106,6 +108,7 @@
         "name": "identical_match_rate",
         "requires_real": true,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -127,6 +130,7 @@
         "name": "k_anonymity",
         "requires_real": false,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -147,6 +151,7 @@
         "name": "nndr",
         "requires_real": true,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -177,6 +182,7 @@
         "name": "ci_overlap",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -243,6 +249,7 @@
         "name": "correlation_difference",
         "requires_real": true,
         "scope": "pairwise",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -273,6 +280,7 @@
         "name": "dimension_wise_means",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -293,6 +301,7 @@
         "name": "pmse",
         "requires_real": true,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -332,6 +341,7 @@
         "name": "hellinger",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -365,6 +375,7 @@
         "name": "ks_statistic",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -395,6 +406,7 @@
         "name": "quantile_mse",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -425,6 +437,7 @@
         "name": "tvd",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -459,6 +472,7 @@
         "name": "wasserstein",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -493,6 +507,7 @@
         "name": "category_coverage",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -532,6 +547,7 @@
         "name": "entropy_ratio",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -553,6 +569,7 @@
         "name": "novelty_rate",
         "requires_real": true,
         "scope": "table-level",
+        "scoring": true,
         "tier": "core"
       }
     },
@@ -587,6 +604,7 @@
         "name": "range_coverage",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
         "tier": "core"
       }
     }

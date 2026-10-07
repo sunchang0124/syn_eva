@@ -44,15 +44,9 @@ class PMSE:
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(n_real), np.ones(len(synthetic))])
         X = StandardScaler().fit_transform(X)
-        try:
-            clf = LogisticRegression(max_iter=1000, random_state=42).fit(X, y)
-            p = clf.predict_proba(X)[:, 1]
-        except Exception as exc:
-            return MetricResult(
-                spec=self.spec,
-                scalars={"score": 1.0, "pmse": 0.0},
-                notes=[f"pMSE classifier failed: {exc}"],
-            )
+        # A classifier failure propagates; the runner records it as a metric error.
+        clf = LogisticRegression(max_iter=1000, random_state=42).fit(X, y)
+        p = clf.predict_proba(X)[:, 1]
         c = len(X_syn) / len(X)
         pmse = float(np.mean((p - c) ** 2))
         score = float(np.clip(1.0 - pmse * 8, 0.0, 1.0))  # rescale; pmse near 0 => score near 1

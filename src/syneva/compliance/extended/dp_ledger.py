@@ -15,6 +15,7 @@ class DPLedger:
         data_types=frozenset({"static"}),
         requires_real=False,
         scope="table-level",
+        scoring=False,  # reports a declared budget; it does not measure the data
     )
 
     def compute(self, real, synthetic, meta) -> MetricResult:
@@ -22,13 +23,14 @@ class DPLedger:
         if not ledger:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=["no DP ledger declared on synthetic.attrs['dp_ledger']"],
+                skip_reason=(
+                    "The synthetic data declares no differential-privacy ledger "
+                    "(synthetic.attrs['dp_ledger'])."
+                ),
             )
         return MetricResult(
             spec=self.spec,
             scalars={
-                "score": 1.0,
                 "epsilon": float(ledger["epsilon"]),
                 "delta": float(ledger.get("delta", 0.0)),
             },

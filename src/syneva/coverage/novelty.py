@@ -32,8 +32,7 @@ class NoveltyRate:
         if len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "novelty_rate": 1.0, "duplicates": 0.0},
-                notes=["synthetic dataset is empty; novelty_rate defaulted to 1.0"],
+                skip_reason="The synthetic data is empty.",
             )
 
         # Column alignment, NaN normalization and ID-column exclusion live in

@@ -30,7 +30,8 @@ class RareCategoryRetention:
         cat_cols = categorical_columns(meta)
         if not cat_cols:
             return MetricResult(
-                spec=self.spec, scalars={"score": 1.0}, notes=["no categorical columns"]
+                spec=self.spec,
+                skip_reason="There are no categorical columns to check for rare categories.",
             )
         for name in cat_cols:
             p_real = real[name].value_counts(normalize=True)
@@ -50,8 +51,8 @@ class RareCategoryRetention:
         if not retentions:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, "no rare categories in the real data"],
+                notes=notes,
+                skip_reason="The real data has no rare categories to retain.",
             )
         score = float(min(1.0, max(0.0, sum(retentions) / len(retentions))))
         return MetricResult(

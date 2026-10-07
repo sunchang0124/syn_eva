@@ -54,11 +54,11 @@ def test_distorted_subgroup_relationship_scores_low():
     assert res.per_column["b-group|y"]["excess_gap"] > 0.1
 
 
-def test_no_tasks_scores_one_with_note():
+def test_no_tasks_is_skipped():
     real = _real()
     res = MinorityUtilityGap(subgroup_specs=[_SPEC], tasks=None).compute(real, real.copy(), _meta())
-    assert res.scalars["score"] == 1.0
-    assert any("task" in n for n in res.notes)
+    assert res.scalars is None
+    assert "task" in res.skip_reason
 
 
 def test_regression_tasks_skipped():
@@ -67,7 +67,8 @@ def test_regression_tasks_skipped():
     res = MinorityUtilityGap(subgroup_specs=[_SPEC], tasks=[task]).compute(
         real, real.copy(), _meta()
     )
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("regression" in n for n in res.notes)
 
 
@@ -77,7 +78,8 @@ def test_tiny_subgroup_pair_skipped():
     res = MinorityUtilityGap(subgroup_specs=[spec], tasks=[_TASK]).compute(
         real, real.copy(), _meta()
     )
-    assert res.scalars["score"] == 1.0
+    assert res.scalars is None
+    assert res.skip_reason
     assert any("tiny" in n for n in res.notes)
 
 

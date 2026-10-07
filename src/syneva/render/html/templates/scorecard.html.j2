@@ -97,7 +97,7 @@
                 {% endfor %}
               </table>
             {% endif %}
-          {% else %}
+          {% elif r.score is not none %}
             <p class="metric-desc">No separate raw statistic; normalized score = {{ "%.4f"|format(r.score) }}.</p>
           {% endif %}
           {% if r.raw_hint %}<p class="raw-hint">How to read it: {{ r.raw_hint }}</p>{% endif %}

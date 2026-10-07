@@ -8,7 +8,7 @@ import pandas as pd
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import Metadata
 from syneva.core.presets import _UNSET
-from syneva.core.report import Report, _normalize_scalars
+from syneva.core.report import Report, _normalize_scalars, is_scored
 from syneva.core.runner import evaluate
 
 
@@ -70,7 +70,7 @@ class BenchmarkResult:
         for name, rep in self.reports.items():
             row: dict[str, float] = {}
             for r in rep.results:
-                if r.error is None and r.scalars is not None:
+                if is_scored(r):
                     row[r.spec.name] = _normalize_scalars(r)
             out[name] = row
         return out

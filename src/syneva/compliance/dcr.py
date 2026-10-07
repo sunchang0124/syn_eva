@@ -31,8 +31,10 @@ class DCR:
         if nb.n_features == 0 or len(real) == 0 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0, "median_dcr": 0.0, "p05_dcr": 0.0},
-                notes=["no encodable columns"],
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or a "
+                    "dataset is empty."
+                ),
             )
         dists = nb.syn_to_real(1)
         median = float(np.median(dists))

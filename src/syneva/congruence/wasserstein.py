@@ -49,9 +49,9 @@ class Wasserstein1:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no numeric columns"],
+                notes=notes,
+                skip_reason="No numeric column has values to compare.",
             )
 
         mean_normalized = sum(normalized) / len(normalized)

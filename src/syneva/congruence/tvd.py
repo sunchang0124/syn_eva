@@ -44,9 +44,9 @@ class TotalVariationDistance:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no categorical columns"],
+                notes=notes,
+                skip_reason="There are no categorical columns to compare.",
             )
 
         mean_tvd = sum(v["tvd"] for v in per_column.values()) / len(per_column)

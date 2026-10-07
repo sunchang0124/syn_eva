@@ -55,9 +55,9 @@ class CIOverlap:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no numeric columns"],
+                notes=notes,
+                skip_reason="No numeric column has enough values to compute a confidence interval.",
             )
         mean_overlap = sum(v["ci_overlap"] for v in per_column.values()) / len(per_column)
         return MetricResult(

@@ -28,7 +28,7 @@ class Report:
     def aggregated(self) -> dict[str, float]:
         scores: dict[str, float] = {}
         for c, rs in self.by_c.items():
-            usable = [r for r in rs if r.scalars is not None and r.error is None]
+            usable = [r for r in rs if is_scored(r)]
             if not usable:
                 continue
             per = [_normalize_scalars(r) for r in usable]
@@ -105,6 +105,7 @@ def _result_to_dict(r: MetricResult) -> dict:
             "data_types": sorted(r.spec.data_types),
             "requires_real": r.spec.requires_real,
             "scope": r.spec.scope,
+            "scoring": r.spec.scoring,
         },
         "scalars": r.scalars,
         "per_column": r.per_column,
@@ -125,6 +126,7 @@ def _result_from_dict(d: dict) -> MetricResult:
         data_types=frozenset(s["data_types"]),
         requires_real=s["requires_real"],
         scope=s["scope"],
+        scoring=s.get("scoring", True),
     )
     err = MetricError(d["error"]) if d.get("error") else None
     return MetricResult(
@@ -135,6 +137,14 @@ def _result_from_dict(d: dict) -> MetricResult:
         error=err,
         skip_reason=d.get("skip_reason"),
     )
+
+
+def is_scored(r: MetricResult) -> bool:
+    """Whether a result counts toward dimension scores and benchmark rankings.
+
+    Skipped (scalars=None), failed, and non-scoring results are excluded.
+    """
+    return r.spec.scoring and r.scalars is not None and r.error is None
 
 
 def _normalize_scalars(r: MetricResult) -> float:

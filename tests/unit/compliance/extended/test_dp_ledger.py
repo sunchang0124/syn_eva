@@ -4,11 +4,11 @@ from syneva.compliance.extended.dp_ledger import DPLedger
 from syneva.core.metadata import Metadata
 
 
-def test_no_ledger_reports_unknown():
+def test_no_ledger_is_skipped():
     df = pd.DataFrame({"x": [1, 2]})
     r = DPLedger().compute(None, df, Metadata.infer(df))
-    assert r.scalars["score"] == 1.0  # neutral when ledger absent
-    assert any("no DP ledger" in n for n in r.notes)
+    assert r.scalars is None
+    assert "ledger" in r.skip_reason
 
 
 def test_ledger_passes_through_epsilon():

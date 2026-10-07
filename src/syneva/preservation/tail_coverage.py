@@ -35,7 +35,8 @@ class TailCoverage:
         num_cols = numeric_columns(meta)
         if not num_cols:
             return MetricResult(
-                spec=self.spec, scalars={"score": 1.0}, notes=["no numeric columns"]
+                spec=self.spec,
+                skip_reason="There are no numeric columns with tails to cover.",
             )
         q = self.tail_quantile
         processed_cols = 0
@@ -67,13 +68,14 @@ class TailCoverage:
                 per_column[name] = {"tail_coverage": sum(col_tails) / len(col_tails)}
         all_tails = lowers + uppers
         if not all_tails:
-            fallback_note = (
-                "no usable numeric columns" if processed_cols == 0 else "no tails measured"
-            )
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
-                notes=[*notes, fallback_note],
+                notes=notes,
+                skip_reason=(
+                    "No numeric column has values to measure tails on."
+                    if processed_cols == 0
+                    else "No numeric column has a tail beyond its minimum or maximum to measure."
+                ),
             )
         score = float(min(1.0, max(0.0, sum(all_tails) / len(all_tails))))
         scalars: dict[str, float] = {"score": score}

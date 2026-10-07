@@ -37,9 +37,8 @@ class JensenShannon:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=["no categorical columns"],
+                skip_reason="There are no categorical columns to compare.",
             )
         mean = float(np.mean([v["jsd"] for v in per_column.values()]))
         return MetricResult(

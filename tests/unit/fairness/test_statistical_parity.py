@@ -35,7 +35,8 @@ def test_destroyed_bias_high_drift():
     assert r.scalars["score"] < 0.5
 
 
-def test_no_specs_score_one():
+def test_no_specs_is_skipped():
     df = _biased(40, 10)
     r = StatisticalParity(specs=[]).compute(df, df, _meta_gy())
-    assert r.scalars["score"] == 1.0
+    assert r.scalars is None
+    assert r.skip_reason

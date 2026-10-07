@@ -43,7 +43,11 @@ class MMD:
         x_real, x_syn = encode_pair(real, synthetic, meta)
         if x_real.shape[1] == 0 or len(x_real) == 0 or len(x_syn) == 0:
             return MetricResult(
-                spec=self.spec, scalars={"score": 1.0, "mmd": 0.0}, notes=["no encodable columns"]
+                spec=self.spec,
+                skip_reason=(
+                    "There are no numeric or categorical columns to measure distances on, or a "
+                    "dataset is empty."
+                ),
             )
         rng = np.random.default_rng(42)
         x_real = _subsample(x_real, rng)

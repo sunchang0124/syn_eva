@@ -44,9 +44,9 @@ class DimensionWiseMeans:
         if not per_column:
             return MetricResult(
                 spec=self.spec,
-                scalars={"score": 1.0},
                 per_column={},
-                notes=[*notes, "no numeric columns"],
+                notes=notes,
+                skip_reason="No numeric column has enough values to compare.",
             )
         mean_d = sum(v["std_mean_diff"] for v in per_column.values()) / len(per_column)
         score = float(min(1.0, max(0.0, 1.0 - mean_d)))
