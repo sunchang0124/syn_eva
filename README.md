@@ -76,6 +76,9 @@ uv sync --extra ui
 uv run syn-eva ui
 ```
 
+When working on syneva itself, `uv run syn-eva ui --reload` reruns the app
+whenever any syneva source file changes, so you don't have to restart it.
+
 Upload your real and synthetic tables, review the inferred column metadata
 (mark sensitive columns for k-anonymity/DCR), tick the evaluators to run, and
 view or download the scorecard as HTML/JSON/PDF.
