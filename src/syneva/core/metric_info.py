@@ -182,6 +182,7 @@ _SCALAR_LABELS: dict[str, str] = {
     "median_dcr": "Median distance",
     "median_dcr_holdout": "Median distance (holdout)",
     "p05_dcr_holdout": "5th-percentile distance (holdout)",
+    "p05_dcr_real": "5th-percentile distance (real to real)",
     "min_k": "Smallest group size (k)",
     "unique_groups": "Distinct groups",
     "identical_match_rate": "Exact-copy rate",

@@ -56,9 +56,35 @@ class DCR:
                 },
                 notes=notes,
             )
-        score = float(min(1.0, p05))
+        # Without a holdout, the baseline is how close real records sit to each
+        # other (leave-one-out), so the score does not depend on the number of
+        # encoded columns or the distance backend.
+        if len(real) < 2:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason="Without a holdout, DCR needs at least 2 real rows for a baseline.",
+            )
+        p05_real = float(np.quantile(nb.real_self(1), 0.05))
+        if p05_real == 0.0:
+            if p05 == 0.0:
+                return MetricResult(
+                    spec=self.spec,
+                    notes=notes,
+                    skip_reason=(
+                        "At least 5% of real rows have an exact duplicate, so the real data gives "
+                        "no distance baseline; see identical_match_rate for copied rows."
+                    ),
+                )
+            score = 1.0  # synthetic rows sit further from real than real rows do from each other
+        else:
+            score = float(min(1.0, p05 / p05_real))
         return MetricResult(
             spec=self.spec,
-            scalars={"score": score, "median_dcr": median, "p05_dcr": p05},
+            scalars={
+                "score": score,
+                "median_dcr": median,
+                "p05_dcr": p05,
+                "p05_dcr_real": p05_real,
+            },
             notes=notes,
         )
