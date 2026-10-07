@@ -287,27 +287,6 @@
     {
       "error": null,
       "notes": [],
-      "per_column": null,
-      "scalars": {
-        "pmse": 0.0003593614630450688,
-        "score": 0.9971251082956395
-      },
-      "skip_reason": null,
-      "spec": {
-        "c": "congruence",
-        "data_types": [
-          "static"
-        ],
-        "name": "pmse",
-        "requires_real": true,
-        "scope": "table-level",
-        "scoring": true,
-        "tier": "core"
-      }
-    },
-    {
-      "error": null,
-      "notes": [],
       "per_column": {
         "age": {
           "hellinger": 0.05901184712736085
@@ -375,6 +354,27 @@
         "name": "ks_statistic",
         "requires_real": true,
         "scope": "per-column",
+        "scoring": true,
+        "tier": "core"
+      }
+    },
+    {
+      "error": null,
+      "notes": [],
+      "per_column": null,
+      "scalars": {
+        "pmse": 0.0003593614630450688,
+        "score": 0.9971251082956395
+      },
+      "skip_reason": null,
+      "spec": {
+        "c": "congruence",
+        "data_types": [
+          "static"
+        ],
+        "name": "pmse",
+        "requires_real": true,
+        "scope": "table-level",
         "scoring": true,
         "tier": "core"
       }
