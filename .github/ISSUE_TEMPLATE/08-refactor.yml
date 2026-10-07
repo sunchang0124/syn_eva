@@ -17,7 +17,7 @@ body:
     id: affected
     attributes:
       label: Affected code
-      description: Files, classes or functions involved.
+      description: Files, classes or functions involved, or the modules or components if the exact files aren't clear yet.
     validations:
       required: true
   - type: textarea

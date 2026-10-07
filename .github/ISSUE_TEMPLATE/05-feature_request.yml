@@ -1,0 +1,51 @@
+name: Feature request / improvement
+description: A new option, CLI command, report element, or an improvement to existing behaviour.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a new metric use **New metric**. For larger changes (a new dimension or data backend, scoring or aggregation changes, breaking API changes) use **Design proposal**.
+        Maintainers set area labels during triage.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What you are trying to do, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you would like to happen. A sketch of the API or CLI usage helps.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now, or other approaches you rejected.
+  - type: textarea
+    id: area
+    attributes:
+      label: Affected area
+      description: Modules or components this touches, if you know. Leave empty if you're not sure.
+      placeholder: the CLI evaluate command, the HTML report
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Would this change existing behaviour or the public API?
+      options:
+        - "No"
+        - "Yes"
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'm willing to open a PR for this.

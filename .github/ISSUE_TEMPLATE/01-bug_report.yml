@@ -8,12 +8,17 @@ body:
       value: |
         Thanks for reporting. If a metric's formula or normalisation is wrong, use **Incorrect metric / statistics** instead.
         Maintainers set severity and area labels during triage.
-  - type: input
-    id: location
+
+        **Don't paste real or sensitive data.** Reproduce with a toy dataset or the fixtures in `tests/fixtures`.
+  - type: textarea
+    id: area
     attributes:
-      label: Location
-      description: File and line where the problem is, if you know it.
-      placeholder: src/syneva/compliance/extended/mia.py:52
+      label: Affected area
+      description: |
+        Where the problem is, as precisely as you know. A file and line, several files, a module (e.g. `syneva.compliance`), or a component (e.g. the HTML report, the CLI). Leave empty if you're not sure.
+      placeholder: |
+        src/syneva/compliance/extended/mia.py:52
+        or: the benchmark ranking
   - type: dropdown
     id: evidence
     attributes:

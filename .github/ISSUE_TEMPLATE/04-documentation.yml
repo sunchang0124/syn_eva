@@ -6,18 +6,21 @@ body:
   - type: markdown
     attributes:
       value: Maintainers set severity and area labels during triage.
-  - type: input
-    id: location
+  - type: textarea
+    id: area
     attributes:
-      label: Location
-      description: File, docstring, or page.
-      placeholder: src/syneva/coverage/novelty.py:12
+      label: Affected area
+      description: |
+        Where the docs are, or where they should be. A file, a docstring, a README section, a metric description in the report, or a topic that has no docs yet.
+      placeholder: |
+        src/syneva/core/metric_info.py, novelty_rate
+        or: README, nothing explains how to pass a holdout
     validations:
       required: true
   - type: textarea
     id: wrong
     attributes:
-      label: What's wrong
+      label: What's wrong or missing
     validations:
       required: true
   - type: textarea

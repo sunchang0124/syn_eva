@@ -1,0 +1,60 @@
+name: Design proposal
+description: A larger change that needs agreement before code, e.g. a new dimension or data backend, scoring changes, or a breaking API change.
+title: "[Proposal]: "
+labels: ["proposal", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when the change spans several modules, changes how scores are computed or aggregated, or changes the public API. Agreeing on the design here first saves rework in the PR.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of change
+      multiple: true
+      options:
+        - New dimension (e.g. filling in constraint, completeness, comprehension or consistency, which are still empty)
+        - New data backend or data type
+        - Scoring, thresholds or aggregation
+        - Report or output format
+        - Public API or CLI
+        - Integration with another library or generator
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: The problem this solves, and why the current design can't handle it.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed design
+      description: Interfaces, data flow, and how it fits the existing metric, registry and report structure.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Affected modules, breaking changes, migration for existing users, and whether existing reports and scores change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: questions
+    attributes:
+      label: Open questions

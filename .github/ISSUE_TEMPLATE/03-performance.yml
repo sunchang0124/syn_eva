@@ -6,11 +6,15 @@ body:
   - type: markdown
     attributes:
       value: Maintainers set severity and area labels during triage.
-  - type: input
-    id: location
+  - type: textarea
+    id: area
     attributes:
-      label: Location
-      placeholder: src/syneva/compliance/attribute_disclosure.py:88
+      label: Affected area
+      description: |
+        Where the problem is, as precisely as you know. A file and line, several files, a module (e.g. `syneva.compliance`), or a component (e.g. the HTML report, the CLI). Leave empty if you're not sure.
+      placeholder: |
+        src/syneva/compliance/extended/mia.py:52
+        or: the benchmark ranking
   - type: textarea
     id: description
     attributes:
