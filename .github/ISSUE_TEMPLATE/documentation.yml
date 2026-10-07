@@ -1,0 +1,26 @@
+name: Documentation
+description: Wrong, missing, or unclear docs, docstrings, or metric descriptions.
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Maintainers set severity and area labels during triage.
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: File, docstring, or page.
+      placeholder: src/syneva/coverage/novelty.py:12
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What's wrong
+    validations:
+      required: true
+  - type: textarea
+    id: correct
+    attributes:
+      label: Correct text

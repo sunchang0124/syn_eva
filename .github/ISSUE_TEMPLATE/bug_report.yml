@@ -1,0 +1,62 @@
+name: Bug report
+description: A crash, wrong result, or behaviour that contradicts the docs.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If a metric's formula or normalisation is wrong, use **Incorrect metric / statistics** instead.
+        Maintainers set severity and area labels during triage.
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: File and line where the problem is, if you know it.
+      placeholder: src/syneva/compliance/extended/mia.py:52
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Evidence
+      options:
+        - Reproduced
+        - Partially reproduced
+        - Code reading
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What goes wrong and why.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A minimal snippet or command. Leave empty for code-reading findings.
+      render: python
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: Include the output or traceback.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
+  - type: input
+    id: version
+    attributes:
+      label: Environment
+      description: syneva version or commit, Python version, OS.
+      placeholder: main @ c787d14, Python 3.12, Windows 11

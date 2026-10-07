@@ -1,0 +1,28 @@
+name: Refactor / tech debt
+description: Duplicated code, shortcuts, or structure that makes bugs likely.
+title: "[Refactor]: "
+labels: ["refactor", "tech-debt", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Maintainers set severity and area labels during triage.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem the current code causes. Link related issues.
+    validations:
+      required: true
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected code
+      description: Files, classes or functions involved.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true

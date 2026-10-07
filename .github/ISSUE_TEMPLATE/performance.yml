@@ -1,0 +1,36 @@
+name: Performance
+description: Excessive runtime or memory use.
+title: "[Perf]: "
+labels: ["performance", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Maintainers set severity and area labels during triage.
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      placeholder: src/syneva/compliance/attribute_disclosure.py:88
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is slow or memory-hungry, and why.
+    validations:
+      required: true
+  - type: input
+    id: size
+    attributes:
+      label: Input size
+      description: Rows and columns of real and synthetic data.
+      placeholder: real 50k x 30, synthetic 50k x 30
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed time / memory
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix

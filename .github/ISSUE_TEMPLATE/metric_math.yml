@@ -1,0 +1,68 @@
+name: Incorrect metric / statistics
+description: A metric's formula, normalisation, or scale gives misleading scores.
+title: "[Metric]: "
+labels: ["bug", "math", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when a metric runs but its number is wrong or misleading (e.g. a score floor above 0, a ratio that flips sign, mixed scales).
+        Maintainers set severity and area labels during triage.
+  - type: input
+    id: metric
+    attributes:
+      label: Metric
+      description: Metric name as shown in the report.
+      placeholder: jsd
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      placeholder: src/syneva/congruence/jsd.py:31
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Evidence
+      options:
+        - Reproduced
+        - Partially reproduced
+        - Code reading
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What the metric computes now and why that is wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: formula
+    attributes:
+      label: What the formula should be
+      description: The correct definition, with a reference if you have one. LaTeX is supported.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      render: python
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
