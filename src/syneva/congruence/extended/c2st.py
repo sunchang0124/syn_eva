@@ -7,7 +7,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold
 
-from syneva.congruence.pmse import _encode
+from syneva.compliance._encode import encode_pair
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
@@ -25,11 +25,8 @@ class C2ST:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        X_real = _encode(real, meta)
-        X_syn = _encode(synthetic, meta)
-        cols = max(X_real.shape[1], X_syn.shape[1])
-        X_real = np.pad(X_real, ((0, 0), (0, cols - X_real.shape[1])))
-        X_syn = np.pad(X_syn, ((0, 0), (0, cols - X_syn.shape[1])))
+        # Encode jointly so one-hot columns align by category, not by position.
+        X_real, X_syn = encode_pair(real, synthetic, meta)
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
         aucs: list[float] = []
