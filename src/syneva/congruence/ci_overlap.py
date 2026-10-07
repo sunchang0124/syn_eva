@@ -44,13 +44,18 @@ class CIOverlap:
             se_s = float(s.std()) / math.sqrt(len(s))
             lo_r, hi_r = float(r.mean()) - 1.96 * se_r, float(r.mean()) + 1.96 * se_r
             lo_s, hi_s = float(s.mean()) - 1.96 * se_s, float(s.mean()) + 1.96 * se_s
-            avg_width = ((hi_r - lo_r) + (hi_s - lo_s)) / 2.0
-            if avg_width < _EPS:
+            w_r, w_s = hi_r - lo_r, hi_s - lo_s
+            if w_r < _EPS and w_s < _EPS:
                 # Zero-width CIs (constant column): full overlap iff the means match.
                 frac = 1.0 if abs(float(r.mean()) - float(s.mean())) < _EPS else 0.0
+            elif w_r < _EPS or w_s < _EPS:
+                # A point shares no length with an interval.
+                frac = 0.0
             else:
+                # Karr et al. (2006): average the overlap's share of each interval, so a
+                # narrow CI nested inside a wide one is not judged by the average width.
                 overlap = max(0.0, min(hi_r, hi_s) - max(lo_r, lo_s))
-                frac = float(min(1.0, max(0.0, overlap / avg_width)))
+                frac = float(min(1.0, 0.5 * (overlap / w_r + overlap / w_s)))
             per_column[name] = {"ci_overlap": frac}
         if not per_column:
             return MetricResult(
