@@ -14,6 +14,18 @@ _EPS = 1e-12
 
 @registry.register
 class CIOverlap:
+    """Overlap of the 95% confidence intervals of each numeric column's mean.
+
+    Uses the interval overlap measure of Karr et al. (2006),
+    ``0.5 * (overlap / width_real + overlap / width_synthetic)``, clamped to [0, 1].
+
+    References
+    ----------
+    Karr, A. F., Kohnen, C. N., Oganian, A., Reiter, J. P., & Sanil, A. P. (2006).
+    A framework for evaluating the utility of data altered to protect confidentiality.
+    The American Statistician, 60(3), 224-232.
+    """
+
     spec: ClassVar[MetricSpec] = MetricSpec(
         name="ci_overlap",
         c="congruence",
