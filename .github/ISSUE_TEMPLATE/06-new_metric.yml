@@ -1,0 +1,118 @@
+name: New metric
+description: Propose a metric to add to one of the evaluation dimensions.
+title: "[Metric proposal]: "
+labels: ["enhancement", "new-metric", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Many metric bugs in this project came from the scoring rather than the raw statistic: unnormalised scales, a score floor above 0, ratios that flip sign, or crashes on constant columns. Please be specific about how the raw value becomes a 0–1 score and what happens on edge cases.
+  - type: input
+    id: name
+    attributes:
+      label: Metric name
+      placeholder: Maximum mean discrepancy (MMD)
+    validations:
+      required: true
+  - type: dropdown
+    id: dimension
+    attributes:
+      label: Dimension
+      options:
+        - congruence
+        - coverage
+        - compliance
+        - utility
+        - fairness
+        - preservation
+        - constraint
+        - completeness
+        - comprehension
+        - consistency
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: measures
+    attributes:
+      label: What it measures
+      description: In plain language, what a user learns from it and what it adds over the existing metrics in this dimension.
+    validations:
+      required: true
+  - type: textarea
+    id: definition
+    attributes:
+      label: Definition
+      description: The formula or algorithm. LaTeX is supported.
+    validations:
+      required: true
+  - type: textarea
+    id: scoring
+    attributes:
+      label: Scoring
+      description: |
+        How the raw value maps to a 0–1 score, which direction is better, and what the score is for identical data and for unrelated data.
+      placeholder: |
+        Raw MMD is >= 0, 0 for identical distributions.
+        score = exp(-MMD / sigma). Identical data -> 1.0, independent data -> close to 0.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - per-column
+        - pairwise
+        - table-level
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: data_types
+    attributes:
+      label: Data backends
+      multiple: true
+      options:
+        - static
+        - longitudinal
+        - relational
+    validations:
+      required: true
+  - type: dropdown
+    id: column_types
+    attributes:
+      label: Column types it supports
+      multiple: true
+      options:
+        - numeric
+        - categorical
+        - boolean
+        - datetime
+    validations:
+      required: true
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Inputs it needs
+      options:
+        - label: Real data (not only synthetic)
+        - label: A holdout set
+        - label: A target column / utility task
+        - label: Sensitive or protected attributes declared in metadata
+  - type: textarea
+    id: edge_cases
+    attributes:
+      label: Edge cases
+      description: What should happen with missing values, constant columns, very small samples, rare categories, or real and synthetic sets of different sizes.
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Papers, and existing implementations (e.g. SDMetrics, synthcity) to validate against.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'm willing to open a PR for this.

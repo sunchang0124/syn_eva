@@ -1,0 +1,28 @@
+name: Question
+description: How to use syneva, or how to interpret a score or report.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the answer turns out to be a bug or missing docs, a maintainer will relabel this issue.
+
+        **Don't paste real or sensitive data.** Share scores, report excerpts, or a toy reproduction instead.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: What you tried
+      description: The code or command you ran, and the output or scores you got.
+      render: python
+  - type: input
+    id: version
+    attributes:
+      label: Environment
+      description: syneva version or commit, Python version, OS.

@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Report a security or privacy vulnerability
+    url: https://github.com/sunchang0124/syn_eva/security/advisories/new
+    about: Please report vulnerabilities privately, not in a public issue.

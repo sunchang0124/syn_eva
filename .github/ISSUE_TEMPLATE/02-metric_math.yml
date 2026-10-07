@@ -8,6 +8,8 @@ body:
       value: |
         Use this when a metric runs but its number is wrong or misleading (e.g. a score floor above 0, a ratio that flips sign, mixed scales).
         Maintainers set severity and area labels during triage.
+
+        **Don't paste real or sensitive data.** Reproduce with a toy dataset or the fixtures in `tests/fixtures`.
   - type: input
     id: metric
     attributes:
@@ -16,11 +18,15 @@ body:
       placeholder: jsd
     validations:
       required: true
-  - type: input
-    id: location
+  - type: textarea
+    id: area
     attributes:
-      label: Location
-      placeholder: src/syneva/congruence/jsd.py:31
+      label: Affected area
+      description: |
+        Where the problem is, as precisely as you know. A file and line, several files, a module (e.g. `syneva.compliance`), or a component (e.g. the HTML report, the CLI). Leave empty if you're not sure.
+      placeholder: |
+        src/syneva/compliance/extended/mia.py:52
+        or: the benchmark ranking
   - type: dropdown
     id: evidence
     attributes:
