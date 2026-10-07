@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Annotated
 
 import pandas as pd
 import typer
@@ -12,6 +14,7 @@ import syneva
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.presets import _UNSET
+from syneva.ui import reload_notice
 
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
 
@@ -138,7 +141,12 @@ def benchmark(
 
 
 @app.command()
-def ui() -> None:
+def ui(
+    reload: Annotated[
+        bool,
+        typer.Option("--reload", help="rerun the app when any syneva source file changes (dev)"),
+    ] = False,
+) -> None:
     """Launch the Streamlit UI."""
     try:
         import streamlit  # noqa: F401
@@ -146,7 +154,27 @@ def ui() -> None:
         typer.echo("The UI needs Streamlit: pip install 'syneva[ui]'", err=True)
         sys.exit(2)
     app_path = Path(__file__).parent.parent / "ui" / "app.py"
-    proc = subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path)])
+    cmd = [sys.executable, "-m", "streamlit", "run"]
+    env = None
+    if reload:
+        # Streamlit only watches modules next to app.py (syneva/ui) or on
+        # PYTHONPATH. Putting the package root there makes it watch every
+        # syneva module and re-import the changed ones on the next rerun.
+        package_root = Path(syneva.__file__).resolve().parent.parent
+        if package_root.name in {"site-packages", "dist-packages"}:
+            typer.echo(
+                "--reload only picks up changes with an editable install "
+                "(uv sync or pip install -e .); Streamlit never watches site-packages.",
+                err=True,
+            )
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.pathsep.join(
+            p for p in (str(package_root), env.get("PYTHONPATH")) if p
+        )
+        env[reload_notice.ENV_VAR] = "1"
+        cmd += ["--server.runOnSave", "true"]
+        typer.echo(f"Reload on: the UI reruns when a file under {package_root / 'syneva'} changes.")
+    proc = subprocess.run([*cmd, str(app_path)], env=env)
     sys.exit(proc.returncode)
 
 
