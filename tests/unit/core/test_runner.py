@@ -114,3 +114,29 @@ def test_extended_utility_metrics_do_not_crash_on_instantiation():
     # None of these should have errored during instantiation
     for r in rep.results:
         assert r.error is None, f"{r.spec.name} errored: {r.error}"
+
+
+def test_feature_importance_receives_declared_utility_tasks(real_df, syn_good_df, metadata):
+    # Regression for #16: the runner never passed a target, so the metric always skipped.
+    import syneva  # noqa: F401  populate global registry
+    from syneva.core.registry import registry as g
+    from syneva.utility.task import UtilityTask
+
+    by = {c.spec.name: c for c in g.metrics()}
+    reg = MetricRegistry()
+    reg.register(by["feature_importance_spearman"])
+    rep = evaluate_with(
+        reg,
+        real=real_df,
+        synthetic=syn_good_df,
+        metadata=metadata,
+        tiers=("extended",),
+        run_utility=True,
+        utility_tasks=[UtilityTask("high_income", "classification")],
+    )
+    (r,) = rep.results
+    assert r.error is None
+    assert r.skip_reason is None
+    assert r.scalars is not None
+    assert -1.0 <= r.scalars["spearman_rho"] <= 1.0
+    assert set(r.per_column) == {"high_income"}
