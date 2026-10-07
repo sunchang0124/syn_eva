@@ -52,7 +52,11 @@ class FeatureImportanceCorrelation:
             if n < 2:
                 notes.append(f"task '{t.target}' has fewer than 2 features; skipped")
                 continue
-            rho = float(spearmanr(fi_real[:n], fi_syn[:n]).correlation or 0.0)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
+            rho = float(spearmanr(fi_real[:n], fi_syn[:n]).correlation)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
+            if np.isnan(rho):
+                # a constant importance vector (e.g. a constant target) has no ranking
+                notes.append(f"task '{t.target}': importance ranking undefined; rho set to 0")
+                rho = 0.0
             per_task[t.target] = {"spearman_rho": rho, "n_features": float(len(features))}
 
         if not per_task:

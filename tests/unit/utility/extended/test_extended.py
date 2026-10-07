@@ -50,3 +50,13 @@ def test_feature_importance_without_tasks_is_skipped(real_df, syn_good_df, metad
 def test_discriminative_score_returns_auc(real_df, syn_good_df, metadata):
     r = DiscriminativeScore().compute(real_df, syn_good_df, metadata)
     assert 0.0 <= r.scalars["auc"] <= 1.0
+
+
+def test_feature_importance_undefined_rho_falls_back_to_zero(real_df, syn_shifted_df, metadata):
+    # The shifted fixture's synthetic high_income is constant, so its model has
+    # all-zero importances and Spearman rho is undefined (NaN).
+    tasks = [UtilityTask("high_income", "classification")]
+    r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn_shifted_df, metadata)
+    assert r.scalars["spearman_rho"] == 0.0
+    assert r.scalars["score"] == 0.5
+    assert any("undefined" in n for n in r.notes)
