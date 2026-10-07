@@ -1,0 +1,31 @@
+name: CI / tooling / tests
+description: Failing or misconfigured workflows, linters, type checking, or tests.
+title: "[CI]: "
+labels: ["ci", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Maintainers set severity and area labels during triage.
+  - type: input
+    id: job
+    attributes:
+      label: Workflow or job
+      placeholder: ci / test (3.12)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Failure output
+      description: Relevant log lines or a link to the run.
+      render: text
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
