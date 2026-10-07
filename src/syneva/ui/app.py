@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import Metadata
 from syneva.core.metric_info import describe_c
-from syneva.ui import core
+from syneva.ui import core, reload_notice
 from syneva.utility.task import UtilityTask
 
 
@@ -386,4 +386,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    changed_at = reload_notice.begin()
     main()
+    reload_notice.end(changed_at)

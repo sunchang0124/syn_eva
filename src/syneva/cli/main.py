@@ -14,6 +14,7 @@ import syneva
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.presets import _UNSET
+from syneva.ui import reload_notice
 
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
 
@@ -170,7 +171,9 @@ def ui(
         env["PYTHONPATH"] = os.pathsep.join(
             p for p in (str(package_root), env.get("PYTHONPATH")) if p
         )
+        env[reload_notice.ENV_VAR] = "1"
         cmd += ["--server.runOnSave", "true"]
+        typer.echo(f"Reload on: the UI reruns when a file under {package_root / 'syneva'} changes.")
     proc = subprocess.run([*cmd, str(app_path)], env=env)
     sys.exit(proc.returncode)
 

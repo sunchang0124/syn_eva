@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 import syneva
 from syneva.cli import main as cli
+from syneva.ui import reload_notice
 
 
 def test_ui_builds_streamlit_command(monkeypatch):
@@ -66,6 +67,8 @@ def test_ui_reload_reruns_on_save_and_watches_the_package(monkeypatch):
     # folder containing the syneva package must be on it, ahead of what was there.
     package_root = str(Path(syneva.__file__).resolve().parent.parent)
     assert captured["env"]["PYTHONPATH"].split(os.pathsep) == [package_root, "existing"]
+    # Switches on the console messages when a reload starts and finishes.
+    assert captured["env"][reload_notice.ENV_VAR] == "1"
 
 
 def test_ui_reload_flag_on_command_line(monkeypatch):
