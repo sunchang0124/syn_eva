@@ -10,6 +10,13 @@ from syneva.core.metadata import ColumnType
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
+_NO_USABLE_COLUMN = "No numeric column has finite values that vary in the real data."
+
+
+def _varies(x: np.ndarray) -> bool:
+    # Exact test: the std of a constant float column can be ~1e-17 rather than 0.
+    return bool(x.max() > x.min())
+
 
 def _numeric_matrix(df: pd.DataFrame, cols: list[str]) -> np.ndarray:
     # Column-wise coercion turns pd.NA (nullable dtypes) and stray strings into NaN.
@@ -24,10 +31,14 @@ class SlicedWasserstein:
 
     Both datasets are standardized with the real column means and standard
     deviations before projecting, so the distance is in units of real standard
-    deviations and does not depend on the columns' scale. Rows with a missing
-    or infinite value in any numeric column are dropped (complete-case
-    analysis), and columns that are constant in the real data are left out,
-    since they have no spread to standardize by.
+    deviations and does not depend on the columns' scale. The scale comes from
+    the real data alone, not from both datasets combined, so the synthetic data
+    cannot move the yardstick it is measured against.
+
+    Columns with no finite values in either dataset, and columns that are
+    constant in the real data (no spread to standardize by), are left out with
+    a note. Rows with a missing or infinite value in a remaining column are
+    then dropped (complete-case analysis).
 
     References
     ----------
@@ -59,9 +70,30 @@ class SlicedWasserstein:
             )
         X_real = _numeric_matrix(real, nums)
         X_syn = _numeric_matrix(synthetic, nums)
+        if len(X_real) == 0 or len(X_syn) == 0:
+            return MetricResult(
+                spec=self.spec, skip_reason="The real or synthetic dataset is empty."
+            )
+        notes: list[str] = []
+        # Choose columns before dropping rows, so an unusable column (all missing, or
+        # constant in the real data) does not throw away rows through its missing values.
+        keep = np.ones(len(nums), dtype=bool)
+        for j, name in enumerate(nums):
+            real_vals = X_real[:, j][np.isfinite(X_real[:, j])]
+            if real_vals.size == 0 or not np.isfinite(X_syn[:, j]).any():
+                notes.append(
+                    f"column '{name}' skipped (no finite values in the real or synthetic data)"
+                )
+                keep[j] = False
+            elif not _varies(real_vals):
+                notes.append(f"column '{name}' skipped (constant in the real data)")
+                keep[j] = False
+        if not keep.any():
+            return MetricResult(spec=self.spec, notes=notes, skip_reason=_NO_USABLE_COLUMN)
+        nums = [n for n, k in zip(nums, keep, strict=True) if k]
+        X_real, X_syn = X_real[:, keep], X_syn[:, keep]
         real_ok = np.isfinite(X_real).all(axis=1)
         syn_ok = np.isfinite(X_syn).all(axis=1)
-        notes: list[str] = []
         n_drop_real, n_drop_syn = int((~real_ok).sum()), int((~syn_ok).sum())
         if n_drop_real or n_drop_syn:
             notes.append(
@@ -80,19 +112,15 @@ class SlicedWasserstein:
                     "least 2 real rows and 1 synthetic row."
                 ),
             )
-        # Exact test: std of a constant float column can be ~1e-17 rather than 0.
-        varying = X_real.max(axis=0) > X_real.min(axis=0)
+        # Dropping rows can leave a column with a single real value; its std would be 0.
+        varying = np.array([_varies(X_real[:, j]) for j in range(X_real.shape[1])])
         notes.extend(
             f"column '{name}' skipped (constant in the real data)"
-            for name, keep in zip(nums, varying, strict=True)
-            if not keep
+            for name, v in zip(nums, varying, strict=True)
+            if not v
         )
         if not varying.any():
-            return MetricResult(
-                spec=self.spec,
-                notes=notes,
-                skip_reason="Every numeric column is constant in the real data.",
-            )
+            return MetricResult(spec=self.spec, notes=notes, skip_reason=_NO_USABLE_COLUMN)
         X_real, X_syn = X_real[:, varying], X_syn[:, varying]
         mean = X_real.mean(axis=0)
         std = X_real.std(axis=0, ddof=1)

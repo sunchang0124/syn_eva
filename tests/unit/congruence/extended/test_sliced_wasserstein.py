@@ -76,7 +76,7 @@ def test_nullable_int_with_pd_na():
 
 
 def test_skips_when_no_complete_rows():
-    real = pd.DataFrame({"x": [1.0, np.nan, 3.0], "y": [np.nan, 2.0, np.nan]})
+    real = pd.DataFrame({"x": [1.0, np.nan, 3.0, np.nan], "y": [np.nan, 2.0, np.nan, 4.0]})
     r = SlicedWasserstein().compute(real, real.copy(), Metadata.infer(real))
     assert r.skip_reason is not None
 
@@ -111,3 +111,46 @@ def test_skips_when_every_real_column_is_constant():
     syn = pd.DataFrame({"x": [1.0] * 9 + [5.0], "y": [2.0] * 10})
     r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
     assert r.skip_reason is not None
+
+
+def test_empty_synthetic_is_skipped_not_crashing():
+    real = pd.DataFrame({"x": [1.0, np.nan, 3.0, 4.0]})
+    r = SlicedWasserstein().compute(real, real.iloc[:0], Metadata.infer(real))
+    assert r.skip_reason is not None
+
+
+def test_empty_real_is_skipped_not_crashing():
+    syn = pd.DataFrame({"x": [1.0, np.nan, 3.0, 4.0]})
+    r = SlicedWasserstein().compute(syn.iloc[:0], syn, Metadata.infer(syn))
+    assert r.skip_reason is not None
+
+
+def test_all_missing_column_is_excluded_not_dropping_every_row():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame({"x": rng.normal(size=500), "y": np.nan})
+    syn = pd.DataFrame({"x": rng.normal(size=500), "y": rng.normal(size=500)})
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert r.skip_reason is None
+    assert r.scalars["score"] > 0.9
+    assert "column 'y' skipped (no finite values in the real or synthetic data)" in r.notes
+    assert not any(n.startswith("dropped") for n in r.notes)
+
+
+def test_missing_values_in_excluded_column_do_not_drop_rows():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame({"x": rng.normal(size=500), "flag": 0.1})
+    syn = pd.DataFrame({"x": rng.normal(size=500), "flag": 0.1})
+    real.loc[:149, "flag"] = np.nan
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert "column 'flag' skipped (constant in the real data)" in r.notes
+    assert not any(n.startswith("dropped") for n in r.notes)
+
+
+def test_column_constant_after_row_drop_is_excluded():
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=200)
+    real = pd.DataFrame({"x": x, "c": [1.0] * 199 + [5.0], "y": [*x[:199], np.nan]})
+    syn = pd.DataFrame({"x": rng.normal(size=200), "c": 1.0, "y": rng.normal(size=200)})
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert np.isfinite(r.scalars["sliced_wasserstein"])
+    assert "column 'c' skipped (constant in the real data)" in r.notes
