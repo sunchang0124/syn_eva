@@ -61,7 +61,10 @@ def test_nan_rows_are_dropped_not_scored_zero():
     r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
     assert np.isfinite(r.scalars["sliced_wasserstein"])
     assert r.scalars["score"] > 0.9
-    assert any("1 real" in n and "2 synthetic" in n for n in r.notes)
+    assert (
+        "dropped 1 of 500 real (0.2%) and 2 of 500 synthetic (0.4%) rows "
+        "with a missing or non-finite numeric value"
+    ) in r.notes
 
 
 def test_nullable_int_with_pd_na():
@@ -75,4 +78,36 @@ def test_nullable_int_with_pd_na():
 def test_skips_when_no_complete_rows():
     real = pd.DataFrame({"x": [1.0, np.nan, 3.0], "y": [np.nan, 2.0, np.nan]})
     r = SlicedWasserstein().compute(real, real.copy(), Metadata.infer(real))
+    assert r.skip_reason is not None
+
+
+def test_infinite_values_are_dropped_not_scored_zero():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame({"x": rng.normal(size=500), "y": rng.normal(size=500)})
+    syn = pd.DataFrame({"x": rng.normal(size=500), "y": rng.normal(size=500)})
+    real.loc[0, "x"] = np.inf
+    syn.loc[5, "y"] = -np.inf
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert np.isfinite(r.scalars["sliced_wasserstein"])
+    assert r.scalars["score"] > 0.9
+    assert (
+        "dropped 1 of 500 real (0.2%) and 1 of 500 synthetic (0.2%) rows "
+        "with a missing or non-finite numeric value"
+    ) in r.notes
+
+
+def test_constant_real_column_is_excluded():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame({"x": rng.normal(size=500), "flag": 0.1})
+    syn = pd.DataFrame({"x": rng.normal(size=500), "flag": 0.1})
+    syn.loc[0, "flag"] = 1.0
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert r.scalars["score"] > 0.9
+    assert "column 'flag' skipped (constant in the real data)" in r.notes
+
+
+def test_skips_when_every_real_column_is_constant():
+    real = pd.DataFrame({"x": [1.0] * 10, "y": [2.0] * 10})
+    syn = pd.DataFrame({"x": [1.0] * 9 + [5.0], "y": [2.0] * 10})
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
     assert r.skip_reason is not None
