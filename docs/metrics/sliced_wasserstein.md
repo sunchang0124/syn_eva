@@ -28,15 +28,17 @@ $\max(0,\ 1 - SW_1 / 3)$.
 
 Before projecting:
 
-- Columns with no finite values in either dataset are left out, with a note.
+- Columns with no finite values in the real or the synthetic data are left out, with a note.
 - Columns that are constant in the real data are left out, with a note: there is no spread to standardize by.
 - Rows with a missing or infinite value in any remaining column are dropped (complete-case analysis). A note gives the count and share dropped on each side.
+- A column that becomes constant once those rows are gone is left out too, with a note, and the rows are recomputed without it, so rows dropped only because of that column are kept.
 
 The metric is skipped when:
 
 - a dataset is empty;
 - no usable column remains;
-- fewer than 2 real rows or no synthetic rows are left.
+- fewer than 2 real rows or no synthetic rows are left;
+- the distance is not finite, which happens when synthetic values are so far outside the real range that standardizing them overflows.
 
 ## When to use it
 

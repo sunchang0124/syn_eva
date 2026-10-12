@@ -153,4 +153,56 @@ def test_column_constant_after_row_drop_is_excluded():
     syn = pd.DataFrame({"x": rng.normal(size=200), "c": 1.0, "y": rng.normal(size=200)})
     r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
     assert np.isfinite(r.scalars["sliced_wasserstein"])
-    assert "column 'c' skipped (constant in the real data)" in r.notes
+    assert "column 'c' skipped (constant once rows with missing values are dropped)" in r.notes
+
+
+def test_rows_dropped_only_for_an_excluded_column_are_restored():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame(
+        {
+            "x": rng.normal(size=40),
+            "c": [np.nan] * 30 + [1.0] * 9 + [2.0],
+            "y": [*rng.normal(size=39), np.nan],
+        }
+    )
+    syn = pd.DataFrame({"x": rng.normal(size=40), "c": 1.0, "y": rng.normal(size=40)})
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert "column 'c' skipped (constant once rows with missing values are dropped)" in r.notes
+    assert (
+        "dropped 1 of 40 real (2.5%) and 0 of 40 synthetic (0.0%) rows "
+        "with a missing or non-finite numeric value"
+    ) in r.notes
+
+
+def test_huge_values_do_not_overflow_into_a_perfect_score():
+    real = pd.DataFrame({"x": [1e200, -1e200, 5e199, 0.0] * 50})
+    syn = pd.DataFrame({"x": [1e200] * 200})
+    meta = Metadata.infer(real)
+    huge = SlicedWasserstein().compute(real, syn, meta).scalars
+    unit = SlicedWasserstein().compute(real / 1e200, syn / 1e200, meta).scalars
+    assert huge["score"] < 1.0
+    assert np.isclose(huge["sliced_wasserstein"], unit["sliced_wasserstein"])
+
+
+def test_tiny_values_do_not_underflow_into_nan():
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame({"x": [0.0, 5e-324] * 20, "z": rng.normal(size=40)})
+    r = SlicedWasserstein().compute(real, real.copy(), Metadata.infer(real))
+    assert r.scalars["sliced_wasserstein"] == 0.0
+    assert r.scalars["score"] == 1.0
+
+
+def test_non_finite_distance_is_skipped_not_scored():
+    real = pd.DataFrame({"x": [1e-300, 2e-300, 3e-300] * 10})
+    syn = pd.DataFrame({"x": [1e300] * 30})
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert r.skip_reason is not None
+    assert not r.scalars
+
+
+def test_skip_reason_names_synthetic_side_when_column_is_missing_there():
+    real = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0]})
+    syn = pd.DataFrame({"x": [np.nan] * 4})
+    r = SlicedWasserstein().compute(real, syn, Metadata.infer(real))
+    assert r.skip_reason is not None
+    assert "synthetic" in r.skip_reason

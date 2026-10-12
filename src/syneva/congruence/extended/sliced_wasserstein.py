@@ -10,7 +10,10 @@ from syneva.core.metadata import ColumnType
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
-_NO_USABLE_COLUMN = "No numeric column has finite values that vary in the real data."
+_NO_USABLE_COLUMN = (
+    "No numeric column can be compared: each one is missing in the real or synthetic "
+    "data, or constant in the real data."
+)
 
 
 def _varies(x: np.ndarray) -> bool:
@@ -35,10 +38,12 @@ class SlicedWasserstein:
     the real data alone, not from both datasets combined, so the synthetic data
     cannot move the yardstick it is measured against.
 
-    Columns with no finite values in either dataset, and columns that are
-    constant in the real data (no spread to standardize by), are left out with
-    a note. Rows with a missing or infinite value in a remaining column are
-    then dropped (complete-case analysis).
+    Columns with no finite values in the real or the synthetic data, and
+    columns that are constant in the real data (no spread to standardize by),
+    are left out with a note. Rows with a missing or infinite value in a
+    remaining column are then dropped (complete-case analysis). A column that
+    is constant once those rows are gone is left out as well, and the rows are
+    recomputed without it.
 
     References
     ----------
@@ -88,12 +93,25 @@ class SlicedWasserstein:
             elif not _varies(real_vals):
                 notes.append(f"column '{name}' skipped (constant in the real data)")
                 keep[j] = False
-        if not keep.any():
-            return MetricResult(spec=self.spec, notes=notes, skip_reason=_NO_USABLE_COLUMN)
-        nums = [n for n, k in zip(nums, keep, strict=True) if k]
-        X_real, X_syn = X_real[:, keep], X_syn[:, keep]
-        real_ok = np.isfinite(X_real).all(axis=1)
-        syn_ok = np.isfinite(X_syn).all(axis=1)
+        # Drop incomplete rows over the kept columns. If that leaves a kept column with a
+        # single real value, exclude it too and recompute the rows from the full data, so
+        # rows lost only to that column come back. keep only shrinks, so this terminates.
+        while True:
+            if not keep.any():
+                return MetricResult(spec=self.spec, notes=notes, skip_reason=_NO_USABLE_COLUMN)
+            real_ok = np.isfinite(X_real[:, keep]).all(axis=1)
+            syn_ok = np.isfinite(X_syn[:, keep]).all(axis=1)
+            if real_ok.sum() < 2:
+                break
+            newly_constant = [j for j in np.flatnonzero(keep) if not _varies(X_real[real_ok, j])]
+            if not newly_constant:
+                break
+            for j in newly_constant:
+                notes.append(
+                    f"column '{nums[j]}' skipped (constant once rows with missing values "
+                    "are dropped)"
+                )
+                keep[j] = False
         n_drop_real, n_drop_syn = int((~real_ok).sum()), int((~syn_ok).sum())
         if n_drop_real or n_drop_syn:
             notes.append(
@@ -102,7 +120,7 @@ class SlicedWasserstein:
                 f"{len(X_syn)} synthetic ({n_drop_syn / len(X_syn):.1%}) rows "
                 "with a missing or non-finite numeric value"
             )
-        X_real, X_syn = X_real[real_ok], X_syn[syn_ok]
+        X_real, X_syn = X_real[real_ok][:, keep], X_syn[syn_ok][:, keep]
         if len(X_real) < 2 or len(X_syn) == 0:
             return MetricResult(
                 spec=self.spec,
@@ -112,27 +130,33 @@ class SlicedWasserstein:
                     "least 2 real rows and 1 synthetic row."
                 ),
             )
-        # Dropping rows can leave a column with a single real value; its std would be 0.
-        varying = np.array([_varies(X_real[:, j]) for j in range(X_real.shape[1])])
-        notes.extend(
-            f"column '{name}' skipped (constant in the real data)"
-            for name, v in zip(nums, varying, strict=True)
-            if not v
-        )
-        if not varying.any():
-            return MetricResult(spec=self.spec, notes=notes, skip_reason=_NO_USABLE_COLUMN)
-        X_real, X_syn = X_real[:, varying], X_syn[:, varying]
-        mean = X_real.mean(axis=0)
-        std = X_real.std(axis=0, ddof=1)
-        X_real = (X_real - mean) / std
-        X_syn = (X_syn - mean) / std
         rng = np.random.default_rng(42)
         d = X_real.shape[1]
         n_proj = 50
         dirs = rng.normal(size=(n_proj, d))
         dirs /= np.linalg.norm(dirs, axis=1, keepdims=True)
-        dists = [stats.wasserstein_distance(X_real @ v, X_syn @ v) for v in dirs]
+        # Dividing by the real max |x| first leaves the standardized values unchanged, but
+        # keeps the mean and std in floating-point range for very large or small values.
+        # Synthetic values far outside the real range can still overflow; the finiteness
+        # check below turns that into a skip instead of a warning and a silent score.
+        with np.errstate(over="ignore", invalid="ignore"):
+            scale = np.abs(X_real).max(axis=0)
+            X_real, X_syn = X_real / scale, X_syn / scale
+            mean = X_real.mean(axis=0)
+            std = X_real.std(axis=0, ddof=1)
+            X_real = (X_real - mean) / std
+            X_syn = (X_syn - mean) / std
+            dists = [stats.wasserstein_distance(X_real @ v, X_syn @ v) for v in dirs]
         sw = float(np.mean(dists))
+        if not np.isfinite(sw):
+            return MetricResult(
+                spec=self.spec,
+                notes=notes,
+                skip_reason=(
+                    "The distance is not finite: the synthetic values are too far outside "
+                    "the real range to standardize."
+                ),
+            )
         score = float(max(0.0, 1.0 - sw / 3.0))
         return MetricResult(
             spec=self.spec, scalars={"score": score, "sliced_wasserstein": sw}, notes=notes
