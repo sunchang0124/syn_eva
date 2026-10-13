@@ -6,17 +6,24 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python: ["3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-      - run: uv python install ${{ matrix.python }}
+          # Sets UV_PYTHON, which overrides the 3.10 pin in .python-version.
+          python-version: ${{ matrix.python }}
       - run: uv sync --all-extras
+      - name: Check the environment uses the matrix Python
+        run: >-
+          uv run python -c "import sys;
+          v = '%d.%d' % sys.version_info[:2];
+          print(sys.version);
+          assert v == '${{ matrix.python }}', f'expected ${{ matrix.python }}, got {v}'"
       - run: uv run ruff check .
       - run: uv run pyright src/syneva
-      - run: uv run pytest -x --cov=syneva --cov-report=term-missing
+      - run: uv run pytest -x
