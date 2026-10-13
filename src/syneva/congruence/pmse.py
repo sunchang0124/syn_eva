@@ -49,7 +49,10 @@ class PMSE:
         p = clf.predict_proba(X)[:, 1]
         c = len(X_syn) / len(X)
         pmse = float(np.mean((p - c) ** 2))
-        score = float(np.clip(1.0 - pmse * 8, 0.0, 1.0))  # rescale; pmse near 0 => score near 1
+        # A perfect classifier (p = 0 on real rows, 1 on synthetic) attains the
+        # maximum pMSE of c(1 - c) (Snoke et al., 2018), so normalizing by it
+        # maps fully separable data to 0 whatever the real/synthetic ratio.
+        score = float(np.clip(1.0 - pmse / (c * (1.0 - c)), 0.0, 1.0))
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "pmse": pmse},
