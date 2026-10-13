@@ -32,7 +32,8 @@ class JensenShannon:
             cats = r.index.union(s.index)
             p = np.array([r.get(c, 0.0) for c in cats])
             q = np.array([s.get(c, 0.0) for c in cats])
-            jsd = float(jensenshannon(p, q) ** 2)  # JS distance squared = JS divergence
+            # JS distance squared = JS divergence; base 2 bounds it to [0, 1]
+            jsd = float(jensenshannon(p, q, base=2) ** 2)
             per_column[name] = {"jsd": jsd}
         if not per_column:
             return MetricResult(
