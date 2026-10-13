@@ -26,3 +26,18 @@ def test_tstr_uses_holdout_as_test_set(real_df, syn_good_df, metadata):
     r = suite.compute(real_df, syn_good_df, metadata)
     assert "utility_ratio_high_income" in r.scalars
     assert r.scalars["utility_ratio_high_income"] >= 0.0
+
+
+def test_tstr_infers_classification_for_string_target(real_df, syn_good_df, metadata):
+    r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real_df, syn_good_df, metadata)
+    assert "utility_ratio_sex" in r.scalars
+
+
+def test_tstr_infers_classification_for_int_coded_target(real_df, syn_good_df, metadata):
+    # high_income is 0/1 int64 but declared categorical in the metadata
+    inferred = TSTRSuite(tasks=[UtilityTask(target="high_income")])
+    explicit = TSTRSuite(tasks=[UtilityTask(target="high_income", task_type="classification")])
+    assert (
+        inferred.compute(real_df, syn_good_df, metadata).scalars
+        == explicit.compute(real_df, syn_good_df, metadata).scalars
+    )

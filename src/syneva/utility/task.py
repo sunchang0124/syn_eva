@@ -13,6 +13,15 @@ class UtilityTask:
     features: list[str] | None = None
 
 
+def resolve_task_type(task: UtilityTask, meta: Metadata) -> Literal["classification", "regression"]:
+    """Return the task's declared type, or infer it from the target column's metadata."""
+    if task.task_type is not None:
+        return task.task_type
+    if meta.columns[task.target].dtype in (ColumnType.CATEGORICAL, ColumnType.BOOLEAN):
+        return "classification"
+    return "regression"
+
+
 def suggest_tasks(meta: Metadata) -> list[UtilityTask]:
     out: list[UtilityTask] = []
     for name, cm in meta.columns.items():

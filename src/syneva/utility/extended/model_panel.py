@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.utility._models import build_panel_pipelines, select_features
-from syneva.utility.task import UtilityTask
+from syneva.utility.task import UtilityTask, resolve_task_type
 from syneva.utility.tstr import _score
 
 _MODELS = ("linear", "random_forest", "hist_gbdt")
@@ -42,7 +42,7 @@ class ModelPanelUtility:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
             features = select_features(meta, t.target, t.features)
-            tt = t.task_type or "regression"
+            tt = resolve_task_type(t, meta)
             X_syn = synthetic[features]
             y_syn = synthetic[t.target]
             if self.holdout is not None:
@@ -55,7 +55,7 @@ class ModelPanelUtility:
                     real[t.target],
                     test_size=0.3,
                     random_state=self.random_state,
-                    stratify=real[t.target] if t.task_type == "classification" else None,
+                    stratify=real[t.target] if tt == "classification" else None,
                 )
             trtr_pipes = build_panel_pipelines(tt, meta, features, self.random_state)
             tstr_pipes = build_panel_pipelines(tt, meta, features, self.random_state)
