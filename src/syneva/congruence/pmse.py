@@ -37,6 +37,11 @@ class PMSE:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
+        if len(real) == 0 or len(synthetic) == 0:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason="A dataset is empty, so there are no rows to classify.",
+            )
         n_real = len(real)
         combined = pd.concat([real, synthetic], ignore_index=True)
         X = _encode(combined, meta)
