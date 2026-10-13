@@ -89,7 +89,7 @@ RAW_HINT: dict[str, str] = {
     "hellinger": "Ranges 0 to 1: 0 = identical distributions, larger = more different. Lower is better.",
     "quantile_mse": "Standardized mean squared error across quantiles: 0 = identical, larger = more deviation. Lower is better.",
     "dimension_wise_means": "Standardized gap between real and synthetic column means: 0 = identical, larger = more shifted. Lower is better.",
-    "sliced_wasserstein": "A distance: 0 = identical data clouds, larger = further apart. Lower is better.",
+    "sliced_wasserstein": "A distance in real standard deviations: 0 = identical data clouds, larger = further apart. Lower is better.",
     "jsd": "Ranges 0 to 1: 0 = identical distributions, larger = more different. Lower is better.",
     "c2st": "Classifier AUC: 0.5 = indistinguishable (ideal), 1.0 = perfectly separable. Closer to 0.5 is better.",
     "mutual_information_difference": "Mean absolute difference in normalized mutual information: 0 = identical structure, larger = more distortion. Lower is better.",
