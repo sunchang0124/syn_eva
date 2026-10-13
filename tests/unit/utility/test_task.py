@@ -26,13 +26,21 @@ def test_id_columns_not_suggested():
 
 
 def test_resolve_task_type_keeps_explicit_type():
-    meta = Metadata.infer(pd.DataFrame({"y": ["a", "b"]}))
-    assert resolve_task_type(UtilityTask(target="y", task_type="regression"), meta) == "regression"
+    df = pd.DataFrame({"y": ["a", "b"]})
+    task = UtilityTask(target="y", task_type="regression")
+    assert resolve_task_type(task, Metadata.infer(df), df) == "regression"
 
 
 def test_resolve_task_type_infers_from_metadata():
     df = pd.DataFrame({"num": [1.0, 2.0], "cat": ["a", "b"], "flag": [True, False]})
     meta = Metadata.infer(df)
-    assert resolve_task_type(UtilityTask(target="num"), meta) == "regression"
-    assert resolve_task_type(UtilityTask(target="cat"), meta) == "classification"
-    assert resolve_task_type(UtilityTask(target="flag"), meta) == "classification"
+    assert resolve_task_type(UtilityTask(target="num"), meta, df) == "regression"
+    assert resolve_task_type(UtilityTask(target="cat"), meta, df) == "classification"
+    assert resolve_task_type(UtilityTask(target="flag"), meta, df) == "classification"
+
+
+def test_resolve_task_type_infers_from_data_when_target_lacks_metadata():
+    df = pd.DataFrame({"x": [1.0, 2.0], "num": [1.0, 2.0], "cat": ["a", "b"]})
+    meta = Metadata.infer(df[["x"]])
+    assert resolve_task_type(UtilityTask(target="num"), meta, df) == "regression"
+    assert resolve_task_type(UtilityTask(target="cat"), meta, df) == "classification"

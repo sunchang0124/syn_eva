@@ -1,3 +1,4 @@
+from syneva.core.metadata import Metadata
 from syneva.utility.task import UtilityTask
 from syneva.utility.tstr import TSTRSuite
 
@@ -30,6 +31,13 @@ def test_tstr_uses_holdout_as_test_set(real_df, syn_good_df, metadata):
 
 def test_tstr_infers_classification_for_string_target(real_df, syn_good_df, metadata):
     r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real_df, syn_good_df, metadata)
+    assert "utility_ratio_sex" in r.scalars
+    assert "task 'sex': task_type inferred as classification" in r.notes
+
+
+def test_tstr_handles_target_missing_from_metadata(real_df, syn_good_df, metadata):
+    meta = Metadata(columns={n: c for n, c in metadata.columns.items() if n != "sex"})
+    r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real_df, syn_good_df, meta)
     assert "utility_ratio_sex" in r.scalars
 
 

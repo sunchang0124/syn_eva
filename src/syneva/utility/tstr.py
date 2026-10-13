@@ -42,7 +42,9 @@ class TSTRSuite:
             features = select_features(meta, t.target, t.features)
             X_syn = synthetic[features]
             y_syn = synthetic[t.target]
-            tt = resolve_task_type(t, meta)
+            tt = resolve_task_type(t, meta, real)
+            if t.task_type is None:
+                notes.append(f"task '{t.target}': task_type inferred as {tt}")
             if self.holdout is not None:
                 X_test = self.holdout[features]
                 y_test = self.holdout[t.target]

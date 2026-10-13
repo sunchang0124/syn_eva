@@ -42,7 +42,9 @@ class ModelPanelUtility:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
             features = select_features(meta, t.target, t.features)
-            tt = resolve_task_type(t, meta)
+            tt = resolve_task_type(t, meta, real)
+            if t.task_type is None:
+                notes.append(f"task '{t.target}': task_type inferred as {tt}")
             X_syn = synthetic[features]
             y_syn = synthetic[t.target]
             if self.holdout is not None:

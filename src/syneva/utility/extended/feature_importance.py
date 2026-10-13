@@ -6,11 +6,10 @@ from typing import ClassVar
 import numpy as np
 from scipy.stats import spearmanr
 
-from syneva.core.metadata import ColumnType
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.utility._models import build_pipeline, select_features
-from syneva.utility.task import UtilityTask
+from syneva.utility.task import UtilityTask, resolve_task_type
 
 
 @registry.register
@@ -36,11 +35,7 @@ class FeatureImportanceCorrelation:
             if t.target not in real.columns:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
-            tt = t.task_type or (
-                "classification"
-                if meta.columns[t.target].dtype in (ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
-                else "regression"
-            )
+            tt = resolve_task_type(t, meta, real)
             features = select_features(meta, t.target, t.features)
             pipe_real = build_pipeline(tt, meta, features, self.random_state)
             pipe_syn = build_pipeline(tt, meta, features, self.random_state)
