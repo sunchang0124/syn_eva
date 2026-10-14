@@ -44,3 +44,20 @@ def test_panel_runs_with_holdout(real_df, syn_good_df, metadata):
     )
     r = m.compute(real_df, syn_good_df, metadata)
     assert 0.0 <= r.scalars["score"] <= 1.0
+
+
+def test_model_panel_infers_classification_for_string_target(real_df, syn_good_df, metadata):
+    r = ModelPanelUtility(tasks=[UtilityTask(target="sex")]).compute(real_df, syn_good_df, metadata)
+    assert "sex/random_forest" in r.per_column
+    assert "task 'sex': task_type inferred as classification" in r.notes
+
+
+def test_model_panel_infers_classification_for_int_coded_target(real_df, syn_good_df, metadata):
+    inferred = ModelPanelUtility(tasks=[UtilityTask(target="high_income")])
+    explicit = ModelPanelUtility(
+        tasks=[UtilityTask(target="high_income", task_type="classification")]
+    )
+    assert (
+        inferred.compute(real_df, syn_good_df, metadata).scalars
+        == explicit.compute(real_df, syn_good_df, metadata).scalars
+    )

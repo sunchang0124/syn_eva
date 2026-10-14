@@ -16,7 +16,7 @@ from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.preservation._util import runnable_specs
 from syneva.preservation.spec import SubgroupSpec
-from syneva.utility.task import UtilityTask
+from syneva.utility.task import UtilityTask, resolve_task_type
 
 
 def _make_model(meta, features: list[str]) -> Pipeline:
@@ -64,14 +64,7 @@ class MinorityUtilityGap:
             )
         class_tasks = []
         for t in self.tasks:
-            kind = t.task_type
-            if kind is None:
-                kind = (
-                    "classification"
-                    if meta.columns[t.target].dtype in (ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
-                    else "regression"
-                )
-            if kind == "classification":
+            if resolve_task_type(t, meta, real) == "classification":
                 class_tasks.append(t)
             else:
                 notes.append(f"task '{t.target}' skipped (regression not supported)")
