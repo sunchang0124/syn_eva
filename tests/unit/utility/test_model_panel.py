@@ -52,6 +52,14 @@ def test_model_panel_infers_classification_for_string_target(real_df, syn_good_d
     assert "task 'sex': task_type inferred as classification" in r.notes
 
 
+def test_model_panel_unstratified_split_when_a_class_has_one_row(real_df, syn_good_df, metadata):
+    real = real_df.copy()
+    real.loc[real.index[0], "sex"] = "Other"
+    r = ModelPanelUtility(tasks=[UtilityTask(target="sex")]).compute(real, syn_good_df, metadata)
+    assert "sex/random_forest" in r.per_column
+    assert any("split without stratification" in n for n in r.notes)
+
+
 def test_model_panel_infers_classification_for_int_coded_target(real_df, syn_good_df, metadata):
     inferred = ModelPanelUtility(tasks=[UtilityTask(target="high_income")])
     explicit = ModelPanelUtility(

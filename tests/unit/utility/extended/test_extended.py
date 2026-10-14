@@ -12,6 +12,14 @@ def test_multi_target_runs_all_columns(real_df, syn_good_df, metadata):
     assert r.per_column  # at least one auto-suggested task
 
 
+def test_multi_target_survives_rare_category(real_df, syn_good_df, metadata):
+    # One rare category in any auto-suggested target used to crash the stratified split
+    real = real_df.copy()
+    real.loc[real.index[0], "education"] = "Preschool"
+    r = MultiTargetUtility().compute(real, syn_good_df, metadata)
+    assert "education" in r.per_column
+
+
 def test_feature_importance_correlation_returns_value(real_df, syn_good_df, metadata):
     r = FeatureImportanceCorrelation(tasks=[UtilityTask("high_income")]).compute(
         real_df, syn_good_df, metadata
