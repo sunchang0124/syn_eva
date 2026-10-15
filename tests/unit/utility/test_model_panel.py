@@ -61,3 +61,29 @@ def test_model_panel_infers_classification_for_int_coded_target(real_df, syn_goo
         inferred.compute(real_df, syn_good_df, metadata).scalars
         == explicit.compute(real_df, syn_good_df, metadata).scalars
     )
+
+
+def test_model_panel_non_positive_baseline_is_excluded(real_df, syn_good_df, metadata):
+    from unittest import mock
+
+    import syneva.utility.extended.model_panel as panel_mod
+
+    # per model: (trtr, tstr). linear has no real-data skill; the others are fine.
+    it = iter([-0.5, -2.0, 0.8, 0.4, 0.8, 0.4])
+    with mock.patch.object(panel_mod, "_score", lambda *a, **k: next(it)):
+        r = ModelPanelUtility(tasks=[UtilityTask(target="income", task_type="regression")]).compute(
+            real_df, syn_good_df, metadata
+        )
+    assert "ratio" not in r.per_column["income/linear"]
+    assert "ratio_linear" not in r.scalars
+    assert r.scalars["score"] == 0.5
+    assert any("income/linear" in n for n in r.notes)
+
+
+def test_model_panel_single_class_synthetic_is_scored_in_auc(real_df, syn_good_df, metadata):
+    syn = syn_good_df.copy()
+    syn["high_income"] = 0
+    r = ModelPanelUtility(
+        tasks=[UtilityTask(target="high_income", task_type="classification")]
+    ).compute(real_df, syn, metadata)
+    assert r.per_column["high_income/random_forest"]["tstr"] == 0.5
