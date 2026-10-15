@@ -52,6 +52,28 @@ def test_tstr_handles_target_missing_from_metadata(real_df, syn_good_df, metadat
     assert "utility_ratio_sex" in r.scalars
 
 
+def test_tstr_unstratified_split_when_a_class_has_one_row(real_df, syn_good_df, metadata):
+    real = real_df.copy()
+    real.loc[real.index[0], "sex"] = "Other"  # singleton class cannot be stratified
+    r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real, syn_good_df, metadata)
+    assert "utility_ratio_sex" in r.scalars
+    assert any("split without stratification" in n for n in r.notes)
+
+
+def test_tstr_unstratified_split_when_test_set_smaller_than_class_count(syn_good_df, metadata):
+    # 30 rows, 15 classes of 2: a 30% test split holds 9 rows, too few for one per class
+    real = syn_good_df.head(30).copy()
+    real["sex"] = [f"c{i // 2}" for i in range(30)]
+    r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real, syn_good_df, metadata)
+    assert "utility_ratio_sex" in r.scalars
+    assert any("split without stratification" in n for n in r.notes)
+
+
+def test_tstr_stratifies_when_classes_allow(real_df, syn_good_df, metadata):
+    r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real_df, syn_good_df, metadata)
+    assert not any("split without stratification" in n for n in r.notes)
+
+
 def test_tstr_infers_classification_for_int_coded_target(real_df, syn_good_df, metadata):
     # high_income is 0/1 int64 but declared categorical in the metadata
     inferred = TSTRSuite(tasks=[UtilityTask(target="high_income")])

@@ -11,7 +11,14 @@ from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.utility._models import build_panel_pipelines, select_features
 from syneva.utility.task import UtilityTask, resolve_task_type
-from syneva.utility.tstr import _no_baseline_note, _score, choose_scorer, utility_ratio
+from syneva.utility.tstr import (
+    _TEST_SIZE,
+    _no_baseline_note,
+    _score,
+    _stratify_labels,
+    choose_scorer,
+    utility_ratio,
+)
 
 _MODELS = ("linear", "random_forest", "hist_gbdt")
 
@@ -52,12 +59,13 @@ class ModelPanelUtility:
                 y_test = self.holdout[t.target]
                 X_real_tr, y_real_tr = real[features], real[t.target]
             else:
+                stratify = _stratify_labels(tt, real[t.target], _TEST_SIZE, t.target, notes)
                 X_real_tr, X_test, y_real_tr, y_test = train_test_split(
                     real[features],
                     real[t.target],
-                    test_size=0.3,
+                    test_size=_TEST_SIZE,
                     random_state=self.random_state,
-                    stratify=real[t.target] if tt == "classification" else None,
+                    stratify=stratify,
                 )
             scorer = choose_scorer(tt, y_real_tr, y_test)
             trtr_pipes = build_panel_pipelines(tt, meta, features, self.random_state)

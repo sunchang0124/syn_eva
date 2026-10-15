@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import ClassVar, Literal
 
@@ -12,6 +13,8 @@ from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.utility._models import build_pipeline, select_features
 from syneva.utility.task import UtilityTask, resolve_task_type
+
+_TEST_SIZE = 0.3
 
 
 @registry.register
@@ -50,12 +53,13 @@ class TSTRSuite:
                 y_test = self.holdout[t.target]
                 X_real_tr, y_real_tr = real[features], real[t.target]
             else:
+                stratify = _stratify_labels(tt, real[t.target], _TEST_SIZE, t.target, notes)
                 X_real_tr, X_test, y_real_tr, y_test = train_test_split(
                     real[features],
                     real[t.target],
-                    test_size=0.3,
+                    test_size=_TEST_SIZE,
                     random_state=self.random_state,
-                    stratify=real[t.target] if tt == "classification" else None,
+                    stratify=stratify,
                 )
             scorer = choose_scorer(tt, y_real_tr, y_test)
             trtr_score = _score(
@@ -93,6 +97,29 @@ class TSTRSuite:
             )
         scalars["score"] = float(np.mean(ratios))
         return MetricResult(spec=self.spec, scalars=scalars, per_column=per_task, notes=notes)
+
+
+def _stratify_labels(
+    task_type: str, y: pd.Series, test_size: float, target: str, notes: list[str]
+) -> pd.Series | None:
+    """Labels to stratify the train/test split on, or None when stratifying is impossible.
+
+    A stratified split needs at least 2 rows per class and at least one row per
+    class on each side. Rare categories break that, so fall back to a plain
+    random split and say so in the notes.
+    """
+    if task_type != "classification":
+        return None
+    counts = y.value_counts(dropna=False)
+    n_test = math.ceil(test_size * len(y))
+    n_train = len(y) - n_test
+    if counts.min() < 2 or len(counts) > min(n_train, n_test):
+        notes.append(
+            f"task '{target}': {len(counts)} classes, smallest has {counts.min()} row(s); "
+            "split without stratification"
+        )
+        return None
+    return y
 
 
 def utility_ratio(trtr: float, tstr: float) -> float | None:
