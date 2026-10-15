@@ -64,6 +64,9 @@ def test_tstr_unstratified_split_when_test_set_smaller_than_class_count(syn_good
     # 30 rows, 15 classes of 2: a 30% test split holds 9 rows, too few for one per class
     real = syn_good_df.head(30).copy()
     real["sex"] = [f"c{i // 2}" for i in range(30)]
+    # Make the class learnable from a feature, so the real-trained baseline has
+    # positive skill and the task is not excluded as "TRTR <= 0" (see #64).
+    real["age"] = [20 + i // 2 for i in range(30)]
     r = TSTRSuite(tasks=[UtilityTask(target="sex")]).compute(real, syn_good_df, metadata)
     assert "utility_ratio_sex" in r.scalars
     assert any("split without stratification" in n for n in r.notes)
