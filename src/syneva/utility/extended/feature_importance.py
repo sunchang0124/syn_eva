@@ -36,6 +36,36 @@ def _per_feature_importance(pipe, features: list[str]) -> np.ndarray:
     return np.array([totals[f] for f in features])
 
 
+def _informative_features(
+    target: str, features: list[str], real, synthetic, notes: list[str]
+) -> list[str]:
+    """Drop features with no variation on either side, and note one-sided cases.
+
+    A column that is constant or entirely missing becomes constant after imputation,
+    so no tree splits on it and its importance is 0 by construction. If that holds on
+    both sides, the tied zero pair says nothing about the data but still pulls rho
+    towards 1, so the feature is left out of the ranking.
+    """
+    kept: list[str] = []
+    for f in features:
+        flat_real = real[f].nunique(dropna=True) <= 1
+        flat_syn = synthetic[f].nunique(dropna=True) <= 1
+        if flat_real and flat_syn:
+            notes.append(
+                f"task '{target}': feature '{f}' is constant or missing on both sides; "
+                "left out of the ranking"
+            )
+            continue
+        for side, flat in (("real", flat_real), ("synthetic", flat_syn)):
+            if flat:
+                notes.append(
+                    f"task '{target}': feature '{f}' is constant or missing in {side}; "
+                    "its importance there is 0"
+                )
+        kept.append(f)
+    return kept
+
+
 @registry.register
 @dataclass
 class FeatureImportanceCorrelation:
@@ -59,18 +89,13 @@ class FeatureImportanceCorrelation:
             if t.target not in real.columns:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
-            tt = resolve_task_type(t, meta, real)
-            features = select_features(meta, t.target, t.features)
+            features = _informative_features(
+                t.target, select_features(meta, t.target, t.features, notes), real, synthetic, notes
+            )
             if len(features) < 2:
                 notes.append(f"task '{t.target}' has fewer than 2 usable features; skipped")
                 continue
-            for side, df in (("real", real), ("synthetic", synthetic)):
-                notes.extend(
-                    f"task '{t.target}': feature '{f}' entirely missing in {side}; "
-                    "its importance there is 0"
-                    for f in features
-                    if df[f].isna().all()
-                )
+            tt = resolve_task_type(t, meta, real)
             pipe_real = build_pipeline(tt, meta, features, self.random_state)
             pipe_syn = build_pipeline(tt, meta, features, self.random_state)
             pipe_real.fit(real[features], real[t.target])

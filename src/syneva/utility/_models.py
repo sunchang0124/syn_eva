@@ -133,9 +133,23 @@ def build_panel_pipelines(
     }
 
 
-def select_features(meta: Metadata, target: str, override: list[str] | None) -> list[str]:
+def select_features(
+    meta: Metadata, target: str, override: list[str] | None, notes: list[str] | None = None
+) -> list[str]:
     """Return the task's features that the preprocessor can encode, without
-    duplicates. Defaults to every column except the target."""
-    candidates = override if override is not None else [n for n in meta.columns if n != target]
+    duplicates or the target. Defaults to every other column in ``meta``.
+
+    Override features that are left out are named in a note appended to ``notes``.
+    """
+    candidates = override if override is not None else list(meta.columns)
     encoded = _NUMERIC + _CATEGORICAL
-    return [f for f in dict.fromkeys(candidates) if meta.columns[f].dtype in encoded]
+    unique = list(dict.fromkeys(candidates))
+    features = [f for f in unique if f != target and meta.columns[f].dtype in encoded]
+    ignored = [f for f in unique if f not in features]
+    if override is not None and ignored and notes is not None:
+        names = ", ".join(f"'{f}'" for f in ignored)
+        notes.append(
+            f"task '{target}': features {names} ignored "
+            "(the target, or not numeric, categorical or boolean)"
+        )
+    return features

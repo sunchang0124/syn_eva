@@ -131,6 +131,7 @@ def test_feature_importance_ignores_unencoded_features(real_df, syn_good_df, met
     assert set(r.per_column) == {"age"}
     assert r.per_column["age"]["n_features"] == 5  # signup is not counted
     assert any("high_income" in n and "usable" in n for n in r.notes)
+    assert any("'signup'" in n and "ignored" in n for n in r.notes)
 
 
 def test_feature_importance_dedupes_task_features(real_df, syn_good_df, metadata):
@@ -141,15 +142,16 @@ def test_feature_importance_dedupes_task_features(real_df, syn_good_df, metadata
 
 
 def test_feature_importance_notes_all_missing_synthetic_feature(real_df, metadata):
-    # Only age and income are ranked: income dominates on both sides, and age is
-    # all-missing in synthetic, so it scores 0 there and keeps second place in real.
+    # Real ranks income > age > hours_per_week. With age all-missing in synthetic it
+    # drops to 0 there, so synthetic ranks income > hours_per_week > age: rho = 0.5.
     syn = real_df.assign(age=np.nan)
-    task = UtilityTask("high_income", "classification", features=["age", "income"])
+    features = ["age", "hours_per_week", "income"]
+    task = UtilityTask("high_income", "classification", features=features)
     r = FeatureImportanceCorrelation(tasks=[task]).compute(real_df, syn, metadata)
     assert r.scalars is not None
     assert r.per_column is not None
-    assert r.scalars["spearman_rho"] == pytest.approx(1.0)
-    assert r.per_column["high_income"]["n_features"] == 2
+    assert r.scalars["spearman_rho"] == pytest.approx(0.5)
+    assert r.per_column["high_income"]["n_features"] == 3
     assert any("'age'" in n and "synthetic" in n and "missing" in n for n in r.notes)
 
 
@@ -157,14 +159,51 @@ def test_feature_importance_survives_every_numeric_feature_missing(real_df, meta
     syn = real_df.assign(age=np.nan, hours_per_week=np.nan, income=np.nan)
     tasks = [UtilityTask("high_income", "classification")]
     r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    assert r.scalars is not None
     assert r.per_column is not None
     assert r.per_column["high_income"]["n_features"] == 5
+    # income dominates real; synthetic can only use sex and education
+    assert r.scalars["spearman_rho"] < 0.5
+    for col in ("age", "hours_per_week", "income"):
+        assert any(f"'{col}'" in n and "synthetic" in n for n in r.notes)
 
 
-def test_feature_importance_handles_none_as_most_common_category(real_df, metadata):
-    syn = real_df.copy()
-    syn["education"] = syn["education"].astype(object).mask(syn.index % 3 != 0, None)
+def test_feature_importance_treats_none_like_nan(real_df, metadata):
+    # None as the most common category used to crash the one-hot mapping
+    mask = real_df.index % 3 != 0
+    with_none = real_df.copy()
+    with_none["education"] = with_none["education"].astype(object).mask(mask, None)
+    with_nan = real_df.assign(education=real_df["education"].mask(mask, np.nan))
     tasks = [UtilityTask("high_income", "classification")]
-    r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    r_none = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, with_none, metadata)
+    r_nan = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, with_nan, metadata)
+    assert r_none.per_column is not None
+    assert r_none.per_column == r_nan.per_column
+
+
+def test_feature_importance_drops_features_uninformative_on_both_sides(real_df, metadata):
+    # A feature with no variation on either side scores 0 in both vectors; that
+    # tied pair would pull rho towards 1 without saying anything about the data.
+    cols = {
+        **metadata.columns,
+        "blank": ColumnMetadata("blank", ColumnType.NUMERIC),
+        "const": ColumnMetadata("const", ColumnType.CATEGORICAL),
+    }
+    meta = Metadata(columns=cols, primary_key=metadata.primary_key)
+    real = real_df.assign(blank=np.nan, const="x")
+    task = UtilityTask(
+        "high_income", "classification", features=["blank", "const", "age", "income"]
+    )
+    r = FeatureImportanceCorrelation(tasks=[task]).compute(real, real.copy(), meta)
     assert r.per_column is not None
-    assert "high_income" in r.per_column
+    assert r.per_column["high_income"]["n_features"] == 2
+    for col in ("blank", "const"):
+        assert any(f"'{col}'" in n and "both" in n for n in r.notes)
+
+
+def test_feature_importance_excludes_target_from_override(real_df, syn_good_df, metadata):
+    task = UtilityTask("high_income", "classification", features=["age", "income", "high_income"])
+    r = FeatureImportanceCorrelation(tasks=[task]).compute(real_df, syn_good_df, metadata)
+    assert r.per_column is not None
+    assert r.per_column["high_income"]["n_features"] == 2
+    assert any("'high_income'" in n and "ignored" in n for n in r.notes)

@@ -13,9 +13,10 @@ through different features; this metric catches that.
 ## How it's computed
 
 For each task, the features are the task's `features` override, or every
-column except the target. Duplicates are removed, and only numeric,
-categorical and boolean features are kept, since those are the ones the model
-can use; ID and datetime columns are left out. Missing values (`NaN`, `None`
+column except the target. Duplicates and the target are removed, and only
+numeric, categorical and boolean features are kept, since those are the ones
+the model can use; ID and datetime columns are left out, and a note names any
+override feature dropped this way. Missing values (`NaN`, `None`
 and `pd.NA` alike) are imputed: numeric features with their mean, then
 standardized; categorical and boolean features with their most frequent value,
 then one-hot encoded. A feature that is entirely missing becomes a constant
@@ -34,9 +35,14 @@ $$
 
 A split on a one-hot column is a split on $X_j$, so this sum is the total
 impurity decrease from splits on $X_j$, which is the MDI definition applied to
-the original variable. Numeric features map to a single column. A feature that
-is entirely missing on one side is constant there, so the forest never splits
-on it and it scores 0; a note names the feature and the side.
+the original variable. Numeric features map to a single column.
+
+A feature that is constant or entirely missing on one side is constant there
+after imputation, so the forest never splits on it and it scores 0; a note
+names the feature and the side. If that is true on both sides, the feature is
+left out of the ranking with a note: its importance is 0 on both sides by
+construction, and that tied pair would pull $\rho$ towards 1 without saying
+anything about the data.
 
 With importance vectors $a$ (real) and $b$ (synthetic) over the same $p$
 features, the task's value is Spearman's rank correlation
@@ -48,7 +54,7 @@ $$
 $$
 
 A task is skipped, with a note, when its target is missing from the real data
-or when it has fewer than 2 usable features. If a side's importances are all
+or when fewer than 2 features are left after the steps above. If a side's importances are all
 equal (for example, a constant target leaves every importance at 0), $\rho$ is
 undefined; it is set to 0 and a note is added. The metric is skipped when no
 task can be evaluated.
