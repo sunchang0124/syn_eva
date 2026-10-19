@@ -1,7 +1,14 @@
+import numpy as np
+import pandas as pd
 import pytest
 
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+from syneva.utility._models import build_pipeline, select_features
 from syneva.utility.extended.discriminative import DiscriminativeScore
-from syneva.utility.extended.feature_importance import FeatureImportanceCorrelation
+from syneva.utility.extended.feature_importance import (
+    FeatureImportanceCorrelation,
+    _per_feature_importance,
+)
 from syneva.utility.extended.multi_target import MultiTargetUtility
 from syneva.utility.task import UtilityTask
 
@@ -78,3 +85,61 @@ def test_feature_importance_aligns_features_when_category_sets_differ(real_df, m
     tasks = [UtilityTask("high_income", "classification")]
     r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
     assert r.scalars["spearman_rho"] >= 0.8
+
+
+def test_per_feature_importance_sums_one_hot_columns_per_feature(real_df, metadata):
+    features = select_features(metadata, "high_income", None)
+    pipe = build_pipeline("classification", metadata, features, 42)
+    pipe.fit(real_df[features], real_df["high_income"])
+    raw = pipe.named_steps["model"].feature_importances_
+    names = pipe.named_steps["pre"].get_feature_names_out()
+    fi = _per_feature_importance(pipe, features)
+    assert fi.sum() == pytest.approx(1.0)
+    for col in ("sex", "education"):  # two categoricals, so a cross-wired mapping shows up
+        expected = raw[[n.startswith(f"cat__{col}_") for n in names]].sum()
+        assert fi[features.index(col)] == pytest.approx(expected)
+
+
+def test_per_feature_importance_scores_all_missing_feature_zero(real_df, metadata):
+    features = select_features(metadata, "high_income", None)
+    df = real_df.assign(age=np.nan)
+    pipe = build_pipeline("classification", metadata, features, 42)
+    pipe.fit(df[features], df["high_income"])
+    fi = _per_feature_importance(pipe, features)
+    assert fi[features.index("age")] == 0.0
+    assert fi.sum() == pytest.approx(1.0)
+
+
+def _with_datetime(df: pd.DataFrame, metadata: Metadata) -> tuple[pd.DataFrame, Metadata]:
+    df = df.assign(signup=pd.Timestamp("2020-01-01"))
+    cols = {**metadata.columns, "signup": ColumnMetadata("signup", ColumnType.DATETIME)}
+    return df, Metadata(columns=cols, primary_key=metadata.primary_key)
+
+
+def test_feature_importance_ignores_unencoded_features(real_df, syn_good_df, metadata):
+    # Datetime columns are dropped by the preprocessor; counting them added tied
+    # zeros to both vectors and let a one-feature task score rho = 1.
+    real, meta = _with_datetime(real_df, metadata)
+    syn, _ = _with_datetime(syn_good_df, metadata)
+    tasks = [
+        UtilityTask("high_income", "classification", features=["age", "signup"]),
+        UtilityTask("age", "regression"),
+    ]
+    r = FeatureImportanceCorrelation(tasks=tasks).compute(real, syn, meta)
+    assert set(r.per_column) == {"age"}
+    assert r.per_column["age"]["n_features"] == 5  # signup is not counted
+    assert any("high_income" in n and "usable" in n for n in r.notes)
+
+
+def test_feature_importance_dedupes_task_features(real_df, syn_good_df, metadata):
+    task = UtilityTask("high_income", "classification", features=["age", "age", "education"])
+    r = FeatureImportanceCorrelation(tasks=[task]).compute(real_df, syn_good_df, metadata)
+    assert r.per_column["high_income"]["n_features"] == 2
+
+
+def test_feature_importance_handles_all_missing_synthetic_feature(real_df, metadata):
+    syn = real_df.assign(age=np.nan)
+    tasks = [UtilityTask("high_income", "classification")]
+    r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    assert -1.0 <= r.scalars["spearman_rho"] <= 1.0
+    assert r.per_column["high_income"]["n_features"] == 5

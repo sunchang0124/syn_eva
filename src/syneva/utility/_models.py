@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
     HistGradientBoostingClassifier,
@@ -38,22 +39,40 @@ def _build_preprocessor(meta: Metadata, features: list[str]) -> ColumnTransforme
     )
 
 
+def encoded_features(meta: Metadata, features: list[str]) -> list[str]:
+    """Return ``features`` without duplicates, keeping only those `_build_preprocessor`
+    encodes. Other dtypes (e.g. datetime) fall to ``remainder="drop"``."""
+    encoded = (ColumnType.NUMERIC, ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
+    return [f for f in dict.fromkeys(features) if meta.columns[f].dtype in encoded]
+
+
 def source_columns(pre: ColumnTransformer) -> list[str]:
-    """Return the original feature behind each output column of a fitted preprocessor.
+    """Return the original feature behind each output column of a fitted
+    `_build_preprocessor`.
 
     A categorical feature yields one entry per one-hot category, so the result is as
-    long as the transformed matrix. Features the imputer drops (all missing) are absent.
+    long as the transformed matrix. Features the imputer drops (all missing at fit
+    time) are absent. Columns are matched by position, not by the names sklearn
+    reports, and each block is checked against the transformer's actual output width.
     """
     out: list[str] = []
     for name, trans, cols in pre.transformers_:
         if name == "remainder" or len(cols) == 0:
             continue
-        kept = list(trans.named_steps["imp"].get_feature_names_out())
+        stats = trans.named_steps["imp"].statistics_
+        kept = [c for c, s in zip(cols, pd.isna(stats), strict=True) if not s]
         if name == "cat":
-            for col, cats in zip(kept, trans.named_steps["oh"].categories_, strict=True):
-                out.extend([col] * len(cats))
+            cats = trans.named_steps["oh"].categories_
+            block = [c for c, cs in zip(kept, cats, strict=True) for _ in cs]
         else:
-            out.extend(kept)
+            block = kept
+        width = pre.output_indices_[name]
+        if len(block) != width.stop - width.start:
+            raise RuntimeError(
+                f"cannot map '{name}' outputs to features: expected "
+                f"{width.stop - width.start} columns, derived {len(block)}"
+            )
+        out.extend(block)
     return out
 
 

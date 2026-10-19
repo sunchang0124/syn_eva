@@ -8,7 +8,12 @@ from scipy.stats import spearmanr
 
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
-from syneva.utility._models import build_pipeline, select_features, source_columns
+from syneva.utility._models import (
+    build_pipeline,
+    encoded_features,
+    select_features,
+    source_columns,
+)
 from syneva.utility.task import UtilityTask, resolve_task_type
 
 
@@ -59,14 +64,15 @@ class FeatureImportanceCorrelation:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
             tt = resolve_task_type(t, meta, real)
-            features = select_features(meta, t.target, t.features)
+            # rank only features the model can use; dropped dtypes would add tied zeros
+            features = encoded_features(meta, select_features(meta, t.target, t.features))
+            if len(features) < 2:
+                notes.append(f"task '{t.target}' has fewer than 2 usable features; skipped")
+                continue
             pipe_real = build_pipeline(tt, meta, features, self.random_state)
             pipe_syn = build_pipeline(tt, meta, features, self.random_state)
             pipe_real.fit(real[features], real[t.target])
             pipe_syn.fit(synthetic[features], synthetic[t.target])
-            if len(features) < 2:
-                notes.append(f"task '{t.target}' has fewer than 2 features; skipped")
-                continue
             fi_real = _per_feature_importance(pipe_real, features)
             fi_syn = _per_feature_importance(pipe_syn, features)
             rho = float(spearmanr(fi_real, fi_syn).correlation)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
