@@ -13,11 +13,13 @@ through different features; this metric catches that.
 ## How it's computed
 
 For each task, the features are the task's `features` override, or every
-column except the target and ID columns. Duplicates are removed, and only
-numeric, categorical and boolean features are kept, since those are the ones
-the model can use. Numeric features are mean-imputed and standardized;
-categorical and boolean features are imputed with their most frequent value
-and one-hot encoded. A random forest (100 trees, fixed seed; classifier or
+column except the target. Duplicates are removed, and only numeric,
+categorical and boolean features are kept, since those are the ones the model
+can use; ID and datetime columns are left out. Missing values (`NaN`, `None`
+and `pd.NA` alike) are imputed: numeric features with their mean, then
+standardized; categorical and boolean features with their most frequent value,
+then one-hot encoded. A feature that is entirely missing becomes a constant
+column. A random forest (100 trees, fixed seed; classifier or
 regressor depending on the task type) is fitted separately on the real and the
 synthetic data.
 
@@ -33,7 +35,8 @@ $$
 A split on a one-hot column is a split on $X_j$, so this sum is the total
 impurity decrease from splits on $X_j$, which is the MDI definition applied to
 the original variable. Numeric features map to a single column. A feature that
-is entirely missing on one side is dropped by the imputer and scores 0 there.
+is entirely missing on one side is constant there, so the forest never splits
+on it and it scores 0; a note names the feature and the side.
 
 With importance vectors $a$ (real) and $b$ (synthetic) over the same $p$
 features, the task's value is Spearman's rank correlation

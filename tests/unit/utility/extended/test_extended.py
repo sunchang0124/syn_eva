@@ -84,6 +84,7 @@ def test_feature_importance_aligns_features_when_category_sets_differ(real_df, m
     syn = real_df[real_df["education"] != "MSc"]
     tasks = [UtilityTask("high_income", "classification")]
     r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    assert r.scalars is not None
     assert r.scalars["spearman_rho"] >= 0.8
 
 
@@ -126,6 +127,7 @@ def test_feature_importance_ignores_unencoded_features(real_df, syn_good_df, met
         UtilityTask("age", "regression"),
     ]
     r = FeatureImportanceCorrelation(tasks=tasks).compute(real, syn, meta)
+    assert r.per_column is not None
     assert set(r.per_column) == {"age"}
     assert r.per_column["age"]["n_features"] == 5  # signup is not counted
     assert any("high_income" in n and "usable" in n for n in r.notes)
@@ -134,12 +136,35 @@ def test_feature_importance_ignores_unencoded_features(real_df, syn_good_df, met
 def test_feature_importance_dedupes_task_features(real_df, syn_good_df, metadata):
     task = UtilityTask("high_income", "classification", features=["age", "age", "education"])
     r = FeatureImportanceCorrelation(tasks=[task]).compute(real_df, syn_good_df, metadata)
+    assert r.per_column is not None
     assert r.per_column["high_income"]["n_features"] == 2
 
 
-def test_feature_importance_handles_all_missing_synthetic_feature(real_df, metadata):
+def test_feature_importance_notes_all_missing_synthetic_feature(real_df, metadata):
+    # Only age and income are ranked: income dominates on both sides, and age is
+    # all-missing in synthetic, so it scores 0 there and keeps second place in real.
     syn = real_df.assign(age=np.nan)
+    task = UtilityTask("high_income", "classification", features=["age", "income"])
+    r = FeatureImportanceCorrelation(tasks=[task]).compute(real_df, syn, metadata)
+    assert r.scalars is not None
+    assert r.per_column is not None
+    assert r.scalars["spearman_rho"] == pytest.approx(1.0)
+    assert r.per_column["high_income"]["n_features"] == 2
+    assert any("'age'" in n and "synthetic" in n and "missing" in n for n in r.notes)
+
+
+def test_feature_importance_survives_every_numeric_feature_missing(real_df, metadata):
+    syn = real_df.assign(age=np.nan, hours_per_week=np.nan, income=np.nan)
     tasks = [UtilityTask("high_income", "classification")]
     r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
-    assert -1.0 <= r.scalars["spearman_rho"] <= 1.0
+    assert r.per_column is not None
     assert r.per_column["high_income"]["n_features"] == 5
+
+
+def test_feature_importance_handles_none_as_most_common_category(real_df, metadata):
+    syn = real_df.copy()
+    syn["education"] = syn["education"].astype(object).mask(syn.index % 3 != 0, None)
+    tasks = [UtilityTask("high_income", "classification")]
+    r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    assert r.per_column is not None
+    assert "high_income" in r.per_column

@@ -8,12 +8,7 @@ from scipy.stats import spearmanr
 
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
-from syneva.utility._models import (
-    build_pipeline,
-    encoded_features,
-    select_features,
-    source_columns,
-)
+from syneva.utility._models import build_pipeline, select_features, source_columns
 from syneva.utility.task import UtilityTask, resolve_task_type
 
 
@@ -24,7 +19,8 @@ def _per_feature_importance(pipe, features: list[str]) -> np.ndarray:
     up between real and synthetic. A split on a one-hot column is a split on its
     source feature, so summing those columns' importances gives the feature's total
     impurity decrease, which is the MDI definition applied to the original variable.
-    Features the model never saw (dropped as all-missing) score 0.
+    A feature that is entirely missing is imputed to a constant, which the forest
+    never splits on, so it scores 0.
 
     References
     ----------
@@ -64,11 +60,17 @@ class FeatureImportanceCorrelation:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
             tt = resolve_task_type(t, meta, real)
-            # rank only features the model can use; dropped dtypes would add tied zeros
-            features = encoded_features(meta, select_features(meta, t.target, t.features))
+            features = select_features(meta, t.target, t.features)
             if len(features) < 2:
                 notes.append(f"task '{t.target}' has fewer than 2 usable features; skipped")
                 continue
+            for side, df in (("real", real), ("synthetic", synthetic)):
+                notes.extend(
+                    f"task '{t.target}': feature '{f}' entirely missing in {side}; "
+                    "its importance there is 0"
+                    for f in features
+                    if df[f].isna().all()
+                )
             pipe_real = build_pipeline(tt, meta, features, self.random_state)
             pipe_syn = build_pipeline(tt, meta, features, self.random_state)
             pipe_real.fit(real[features], real[t.target])

@@ -1,5 +1,7 @@
 import numpy as np
+import pandas as pd
 
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.utility.extended.model_panel import ModelPanelUtility
 from syneva.utility.task import UtilityTask
 
@@ -95,3 +97,19 @@ def test_model_panel_single_class_synthetic_is_scored_in_auc(real_df, syn_good_d
         tasks=[UtilityTask(target="high_income", task_type="classification")]
     ).compute(real_df, syn, metadata)
     assert r.per_column["high_income/random_forest"]["tstr"] == 0.5
+
+
+def test_model_panel_skips_task_without_usable_features(real_df, syn_good_df, metadata):
+    real = real_df.assign(signup=pd.Timestamp("2020-01-01"))
+    syn = syn_good_df.assign(signup=pd.Timestamp("2020-01-01"))
+    meta = Metadata(
+        columns={**metadata.columns, "signup": ColumnMetadata("signup", ColumnType.DATETIME)}
+    )
+    tasks = [
+        UtilityTask("high_income", "classification", features=["signup"]),
+        UtilityTask("income", "regression"),
+    ]
+    r = ModelPanelUtility(tasks=tasks).compute(real, syn, meta)
+    assert r.per_column is not None
+    assert not any(k.startswith("high_income/") for k in r.per_column)
+    assert any("high_income" in n and "usable" in n for n in r.notes)

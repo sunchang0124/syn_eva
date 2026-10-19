@@ -43,6 +43,9 @@ class TSTRSuite:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
             features = select_features(meta, t.target, t.features)
+            if not features:
+                notes.append(f"task '{t.target}' has no usable features; skipped")
+                continue
             X_syn = synthetic[features]
             y_syn = synthetic[t.target]
             tt = resolve_task_type(t, meta, real)

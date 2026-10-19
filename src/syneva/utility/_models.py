@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
@@ -11,24 +12,53 @@ from sklearn.ensemble import (
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
 
 from syneva.core.metadata import ColumnType, Metadata
 
+# dtypes _build_preprocessor encodes; every other dtype falls to remainder="drop"
+_NUMERIC = (ColumnType.NUMERIC,)
+_CATEGORICAL = (ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
+
+
+def _as_float(X: pd.DataFrame) -> pd.DataFrame:
+    # nullable dtypes (Int64, Float64) carry pd.NA, which SimpleImputer can't compare
+    return X.astype("float64")
+
+
+def _as_object(X: pd.DataFrame) -> pd.DataFrame:
+    # SimpleImputer only treats NaN as missing: None and pd.NA would become categories
+    # (or crash on comparison), so map every null to NaN first
+    return X.astype(object).where(X.notna(), np.nan)
+
 
 def _build_preprocessor(meta: Metadata, features: list[str]) -> ColumnTransformer:
-    num = [f for f in features if meta.columns[f].dtype is ColumnType.NUMERIC]
-    cat = [
-        f for f in features if meta.columns[f].dtype in (ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
-    ]
+    num = [f for f in features if meta.columns[f].dtype in _NUMERIC]
+    cat = [f for f in features if meta.columns[f].dtype in _CATEGORICAL]
+    # keep_empty_features keeps an all-missing column as a constant one, so every
+    # input feature always maps to a fixed output block (see source_columns)
     return ColumnTransformer(
         [
-            ("num", Pipeline([("imp", SimpleImputer()), ("sc", StandardScaler())]), num),
+            (
+                "num",
+                Pipeline(
+                    [
+                        ("na", FunctionTransformer(_as_float, feature_names_out="one-to-one")),
+                        ("imp", SimpleImputer(keep_empty_features=True)),
+                        ("sc", StandardScaler()),
+                    ]
+                ),
+                num,
+            ),
             (
                 "cat",
                 Pipeline(
                     [
-                        ("imp", SimpleImputer(strategy="most_frequent")),
+                        ("na", FunctionTransformer(_as_object, feature_names_out="one-to-one")),
+                        (
+                            "imp",
+                            SimpleImputer(strategy="most_frequent", keep_empty_features=True),
+                        ),
                         ("oh", OneHotEncoder(handle_unknown="ignore")),
                     ]
                 ),
@@ -39,33 +69,24 @@ def _build_preprocessor(meta: Metadata, features: list[str]) -> ColumnTransforme
     )
 
 
-def encoded_features(meta: Metadata, features: list[str]) -> list[str]:
-    """Return ``features`` without duplicates, keeping only those `_build_preprocessor`
-    encodes. Other dtypes (e.g. datetime) fall to ``remainder="drop"``."""
-    encoded = (ColumnType.NUMERIC, ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
-    return [f for f in dict.fromkeys(features) if meta.columns[f].dtype in encoded]
-
-
 def source_columns(pre: ColumnTransformer) -> list[str]:
     """Return the original feature behind each output column of a fitted
     `_build_preprocessor`.
 
-    A categorical feature yields one entry per one-hot category, so the result is as
-    long as the transformed matrix. Features the imputer drops (all missing at fit
-    time) are absent. Columns are matched by position, not by the names sklearn
-    reports, and each block is checked against the transformer's actual output width.
+    A numeric feature yields one entry and a categorical feature one per one-hot
+    category, so the result is as long as the transformed matrix. Columns are matched
+    by position, not by the names sklearn reports, and each block is checked against
+    the transformer's actual output width.
     """
     out: list[str] = []
     for name, trans, cols in pre.transformers_:
         if name == "remainder" or len(cols) == 0:
             continue
-        stats = trans.named_steps["imp"].statistics_
-        kept = [c for c, s in zip(cols, pd.isna(stats), strict=True) if not s]
         if name == "cat":
             cats = trans.named_steps["oh"].categories_
-            block = [c for c, cs in zip(kept, cats, strict=True) for _ in cs]
+            block = [c for c, cs in zip(cols, cats, strict=True) for _ in cs]
         else:
-            block = kept
+            block = list(cols)
         width = pre.output_indices_[name]
         if len(block) != width.stop - width.start:
             raise RuntimeError(
@@ -113,6 +134,8 @@ def build_panel_pipelines(
 
 
 def select_features(meta: Metadata, target: str, override: list[str] | None) -> list[str]:
-    if override is not None:
-        return override
-    return [n for n, cm in meta.columns.items() if n != target and cm.dtype is not ColumnType.ID]
+    """Return the task's features that the preprocessor can encode, without
+    duplicates. Defaults to every column except the target."""
+    candidates = override if override is not None else [n for n in meta.columns if n != target]
+    encoded = _NUMERIC + _CATEGORICAL
+    return [f for f in dict.fromkeys(candidates) if meta.columns[f].dtype in encoded]

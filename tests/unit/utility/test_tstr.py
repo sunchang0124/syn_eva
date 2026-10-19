@@ -1,9 +1,10 @@
 from unittest import mock
 
+import pandas as pd
 import pytest
 
 import syneva.utility.tstr as tstr_mod
-from syneva.core.metadata import Metadata
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.utility.task import UtilityTask
 from syneva.utility.tstr import TSTRSuite, utility_ratio
 
@@ -145,3 +146,20 @@ def test_tstr_single_class_synthetic_is_scored_in_auc(real_df, syn_good_df, meta
     # a constant predictor has AUC 0.5, not the majority-class accuracy
     assert r.scalars["tstr_high_income"] == pytest.approx(0.5)
     assert r.scalars["utility_ratio_high_income"] < 0.6
+
+
+def test_tstr_skips_task_without_usable_features(real_df, syn_good_df, metadata):
+    # A datetime-only feature list used to reach the model as a 0-column matrix
+    real = real_df.assign(signup=pd.Timestamp("2020-01-01"))
+    syn = syn_good_df.assign(signup=pd.Timestamp("2020-01-01"))
+    meta = Metadata(
+        columns={**metadata.columns, "signup": ColumnMetadata("signup", ColumnType.DATETIME)}
+    )
+    tasks = [
+        UtilityTask("high_income", "classification", features=["signup"]),
+        UtilityTask("income", "regression"),
+    ]
+    r = TSTRSuite(tasks=tasks).compute(real, syn, meta)
+    assert r.per_column is not None
+    assert set(r.per_column) == {"income"}
+    assert any("high_income" in n and "usable" in n for n in r.notes)
