@@ -68,3 +68,13 @@ def test_feature_importance_undefined_rho_falls_back_to_zero(real_df, syn_shifte
     assert r.scalars["spearman_rho"] == 0.0
     assert r.scalars["score"] == 0.5
     assert any("undefined" in n for n in r.notes)
+
+
+def test_feature_importance_aligns_features_when_category_sets_differ(real_df, metadata):
+    # Synthetic = real without one education level, so the encoders emit different
+    # one-hot widths. Importances used to be compared by encoder column index,
+    # pairing unrelated features and pulling rho down to ~0.5 for near-identical data.
+    syn = real_df[real_df["education"] != "MSc"]
+    tasks = [UtilityTask("high_income", "classification")]
+    r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    assert r.scalars["spearman_rho"] >= 0.8

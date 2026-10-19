@@ -8,8 +8,31 @@ from scipy.stats import spearmanr
 
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
-from syneva.utility._models import build_pipeline, select_features
+from syneva.utility._models import build_pipeline, select_features, source_columns
 from syneva.utility.task import UtilityTask, resolve_task_type
+
+
+def _per_feature_importance(pipe, features: list[str]) -> np.ndarray:
+    """Mean decrease in impurity per original feature, in ``features`` order.
+
+    Each side's encoder learns its own category set, so one-hot columns do not line
+    up between real and synthetic. A split on a one-hot column is a split on its
+    source feature, so summing those columns' importances gives the feature's total
+    impurity decrease, which is the MDI definition applied to the original variable.
+    Features the model never saw (dropped as all-missing) score 0.
+
+    References
+    ----------
+    Breiman, L. (2001). Random forests. Machine Learning, 45(1), 5-32.
+    Louppe, G., Wehenkel, L., Sutera, A., & Geurts, P. (2013). Understanding variable
+    importances in forests of randomized trees. Advances in Neural Information
+    Processing Systems 26, 431-439.
+    """
+    totals = dict.fromkeys(features, 0.0)
+    src = source_columns(pipe.named_steps["pre"])
+    for col, imp in zip(src, pipe.named_steps["model"].feature_importances_, strict=True):
+        totals[col] += float(imp)
+    return np.array([totals[f] for f in features])
 
 
 @registry.register
@@ -41,13 +64,12 @@ class FeatureImportanceCorrelation:
             pipe_syn = build_pipeline(tt, meta, features, self.random_state)
             pipe_real.fit(real[features], real[t.target])
             pipe_syn.fit(synthetic[features], synthetic[t.target])
-            fi_real = pipe_real.named_steps["model"].feature_importances_
-            fi_syn = pipe_syn.named_steps["model"].feature_importances_
-            n = min(len(fi_real), len(fi_syn))
-            if n < 2:
+            if len(features) < 2:
                 notes.append(f"task '{t.target}' has fewer than 2 features; skipped")
                 continue
-            rho = float(spearmanr(fi_real[:n], fi_syn[:n]).correlation)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
+            fi_real = _per_feature_importance(pipe_real, features)
+            fi_syn = _per_feature_importance(pipe_syn, features)
+            rho = float(spearmanr(fi_real, fi_syn).correlation)  # pyright: ignore[reportAttributeAccessIssue]  # scipy result types are untyped
             if np.isnan(rho):
                 # a constant importance vector (e.g. a constant target) has no ranking
                 notes.append(f"task '{t.target}': importance ranking undefined; rho set to 0")

@@ -8,7 +8,12 @@ from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.pipeline import Pipeline
 
 from syneva.core.metadata import Metadata
-from syneva.utility._models import build_panel_pipelines, select_features
+from syneva.utility._models import (
+    build_panel_pipelines,
+    build_pipeline,
+    select_features,
+    source_columns,
+)
 
 _DF = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0], "b": ["x", "y", "x", "y"], "y": [0, 1, 0, 1]})
 
@@ -41,3 +46,13 @@ def test_panel_regression_estimator_types():
     pipes = build_panel_pipelines("regression", meta, features, 42)
     assert isinstance(pipes["linear"].named_steps["model"], Ridge)
     assert isinstance(pipes["hist_gbdt"].named_steps["model"], HistGradientBoostingRegressor)
+
+
+def test_source_columns_maps_one_hot_outputs_to_features(real_df, metadata):
+    features = select_features(metadata, "high_income", None)
+    pipe = build_pipeline("classification", metadata, features, 0)
+    pipe.fit(real_df[features], real_df["high_income"])
+    src = source_columns(pipe.named_steps["pre"])
+    assert len(src) == len(pipe.named_steps["model"].feature_importances_)
+    assert src.count("education") == real_df["education"].nunique()
+    assert set(src) == set(features)

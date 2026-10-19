@@ -38,6 +38,25 @@ def _build_preprocessor(meta: Metadata, features: list[str]) -> ColumnTransforme
     )
 
 
+def source_columns(pre: ColumnTransformer) -> list[str]:
+    """Return the original feature behind each output column of a fitted preprocessor.
+
+    A categorical feature yields one entry per one-hot category, so the result is as
+    long as the transformed matrix. Features the imputer drops (all missing) are absent.
+    """
+    out: list[str] = []
+    for name, trans, cols in pre.transformers_:
+        if name == "remainder" or len(cols) == 0:
+            continue
+        kept = list(trans.named_steps["imp"].get_feature_names_out())
+        if name == "cat":
+            for col, cats in zip(kept, trans.named_steps["oh"].categories_, strict=True):
+                out.extend([col] * len(cats))
+        else:
+            out.extend(kept)
+    return out
+
+
 def build_pipeline(task_type: str, meta: Metadata, features: list[str], random_state: int):
     pre = _build_preprocessor(meta, features)
     if task_type == "classification":
