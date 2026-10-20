@@ -89,3 +89,39 @@ def test_holdout_used_as_eval_frame():
     m = MinorityUtilityGap(subgroup_specs=[_SPEC], tasks=[_TASK], holdout=holdout)
     res = m.compute(real, real.copy(), _meta())
     assert res.scalars["score"] > 0.95
+
+
+def test_int_real_float_synthetic_labels_still_compared():
+    # a generator CSV turns int64 {0,1} into float64 {0.0,1.0}: the labels must still
+    # match the real ones, or both gaps collapse to 0 and a distorted set scores 1.0
+    real = _real()
+    real["y"] = real["y"].astype(int)
+    syn = real.copy()
+    b = syn.g == "B"
+    syn.loc[b, "x"] = syn.loc[b, "x"] - 4.0
+    syn["y"] = syn["y"].astype(float)
+    m = MinorityUtilityGap(subgroup_specs=[_SPEC], tasks=[_TASK])
+    res = m.compute(real, syn, _meta())
+    assert res.scalars["score"] < 0.85
+    assert res.per_column["b-group|y"]["excess_gap"] > 0.1
+
+
+def test_nan_in_numeric_feature_is_imputed():
+    real = _real()
+    syn = real.copy()
+    syn.loc[::7, "x"] = np.nan
+    m = MinorityUtilityGap(subgroup_specs=[_SPEC], tasks=[_TASK])
+    res = m.compute(real, syn, _meta())
+    assert res.scalars["score"] > 0.95
+
+
+def test_null_in_categorical_feature_is_imputed():
+    meta = _meta()
+    meta.columns["c"] = ColumnMetadata(name="c", dtype=ColumnType.CATEGORICAL)
+    real = _real()
+    real["c"] = pd.array(np.tile(["p", "q"], len(real) // 2), dtype="string")
+    syn = real.copy()
+    syn.loc[::3, "c"] = pd.NA
+    m = MinorityUtilityGap(subgroup_specs=[_SPEC], tasks=[_TASK])
+    res = m.compute(real, syn, meta)
+    assert res.scalars["score"] > 0.95
