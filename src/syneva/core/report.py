@@ -51,12 +51,12 @@ class Report:
         )
 
     def to_json(self, path: str | Path) -> None:
-        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str))
+        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
 
     def to_html(self, path: str | Path, *, interactive: bool = False) -> None:
         from syneva.render.html.renderer import render_html
 
-        Path(path).write_text(render_html(self, interactive=interactive))
+        Path(path).write_text(render_html(self, interactive=interactive), encoding="utf-8")
 
     def to_pdf(self, path: str | Path) -> None:
         from syneva.render.pdf import render_pdf

@@ -1,3 +1,4 @@
+import json
 import math
 
 import pytest
@@ -83,6 +84,21 @@ def test_roundtrip_dict_preserves_ranking(real_df, syn_good_df, syn_shifted_df, 
     res2 = BenchmarkResult.from_dict(res.to_dict())
     assert res2.ranking() == res.ranking()
     assert res2.overall == res.overall
+
+
+def test_json_and_html_files_are_utf8(
+    tmp_path, cp1252_locale, real_df, syn_good_df, syn_shifted_df, metadata
+):
+    from syneva.render.html.benchmark_renderer import render_leaderboard
+
+    res = benchmark(real_df, {"候选 ≥50K": syn_good_df, "shifted": syn_shifted_df}, metadata)
+    # a UTF-8 file with raw non-ASCII text, as another tool may write it
+    path = tmp_path / "benchmark.json"
+    path.write_bytes(json.dumps(res.to_dict(), ensure_ascii=False, default=str).encode("utf-8"))
+    assert set(BenchmarkResult.from_json(path).reports) == {"候选 ≥50K", "shifted"}
+    html = tmp_path / "lb.html"
+    res.to_html(html)
+    assert html.read_text(encoding="utf-8") == render_leaderboard(res)
 
 
 def test_all_errored_candidate_ranks_last_under_relative_norm():

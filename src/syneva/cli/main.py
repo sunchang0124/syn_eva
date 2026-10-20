@@ -30,7 +30,7 @@ def _load_df(path: Path) -> pd.DataFrame:
 def _load_metadata(path: Path | None) -> Metadata | None:
     if path is None:
         return None
-    raw = json.loads(path.read_text())
+    raw = json.loads(path.read_text(encoding="utf-8"))
     cols = {
         n: ColumnMetadata(
             name=n,

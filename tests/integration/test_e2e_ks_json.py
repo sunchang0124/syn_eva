@@ -13,7 +13,7 @@ def test_evaluate_with_ks_and_round_trip_json(real_df, syn_good_df, metadata, tm
 
     out = tmp_path / "scorecard.json"
     rep.to_json(out)
-    loaded = json.loads(out.read_text())
+    loaded = json.loads(out.read_text(encoding="utf-8"))
     assert any(r["spec"]["name"] == "ks_statistic" for r in loaded["results"])
     assert "library_versions" in loaded["run_info"]
 
