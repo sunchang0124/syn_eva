@@ -1,37 +1,34 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass, field
 from typing import ClassVar
 
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from syneva.core.metadata import ColumnType
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.preservation._util import runnable_specs
 from syneva.preservation.spec import SubgroupSpec
+from syneva.utility._models import _build_preprocessor
 from syneva.utility.task import UtilityTask, resolve_task_type
 
 
 def _make_model(meta, features: list[str]) -> Pipeline:
-    num = [f for f in features if meta.columns[f].dtype is ColumnType.NUMERIC]
-    cat = [
-        f for f in features if meta.columns[f].dtype in (ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
-    ]
-    pre = ColumnTransformer(
-        [
-            ("num", StandardScaler(), num),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), cat),
-        ],
-        remainder="drop",
-    )
+    pre = _build_preprocessor(meta, features)
     return Pipeline([("pre", pre), ("clf", LogisticRegression(max_iter=1000))])
+
+
+def _labels(y: pd.Series, dtype) -> pd.Series:
+    # cast to the real target's dtype first, so int 1 and float 1.0 both become "1"
+    with contextlib.suppress(TypeError, ValueError):
+        y = y.astype(dtype)
+    return y.astype(str)
 
 
 @registry.register
@@ -95,9 +92,10 @@ class MinorityUtilityGap:
                 for n, cm in meta.columns.items()
                 if n != t.target and cm.dtype is not ColumnType.ID
             ]
-            y_syn = synthetic[t.target].astype(str)
-            y_train_real = train_real[t.target].astype(str)
-            y_eval = eval_real[t.target].astype(str)
+            target_dtype = train_real[t.target].dtype
+            y_syn = _labels(synthetic[t.target], target_dtype)
+            y_train_real = _labels(train_real[t.target], target_dtype)
+            y_eval = _labels(eval_real[t.target], target_dtype)
             if y_syn.nunique() < 2 or y_train_real.nunique() < 2:
                 notes.append(f"task '{t.target}' skipped (constant target in training data)")
                 continue
