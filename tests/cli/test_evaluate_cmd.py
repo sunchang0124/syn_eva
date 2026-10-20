@@ -32,7 +32,7 @@ def test_evaluate_cli_writes_outputs(tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert (out / "scorecard.json").exists()
     assert (out / "scorecard.html").exists()
-    loaded = json.loads((out / "scorecard.json").read_text())
+    loaded = json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
     assert loaded["results"]
 
 
@@ -68,7 +68,7 @@ def test_evaluate_cli_accepts_holdout(tmp_path):
         text=True,
     )
     assert proc.returncode == 0, proc.stderr
-    loaded = json.loads((out / "scorecard.json").read_text())
+    loaded = json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
     by = {r["spec"]["name"]: r for r in loaded["results"]}
     assert by["mia_auc"]["scalars"] is not None
     assert "mia_auc" in by["mia_auc"]["scalars"]
@@ -145,3 +145,14 @@ def test_cli_unknown_preset_exits_nonzero(tmp_path):
         text=True,
     )
     assert proc.returncode != 0
+
+
+def test_load_metadata_reads_utf8(tmp_path, cp1252_locale):
+    from syneva.cli.main import _load_metadata
+
+    path = tmp_path / "metadata.json"
+    raw = {"columns": {"年龄": {"dtype": "numeric"}, "≥50K": {"dtype": "categorical"}}}
+    path.write_bytes(json.dumps(raw, ensure_ascii=False).encode("utf-8"))
+    meta = _load_metadata(path)
+    assert meta is not None
+    assert set(meta.columns) == {"年龄", "≥50K"}

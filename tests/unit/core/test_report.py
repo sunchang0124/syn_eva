@@ -65,5 +65,15 @@ def test_to_json_writes_valid_file():
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "out.json"
         r.to_json(path)
-        loaded = json.loads(path.read_text())
+        loaded = json.loads(path.read_text(encoding="utf-8"))
     assert loaded["results"][0]["spec"]["name"] == "ks"
+
+
+def test_to_html_writes_utf8(tmp_path, cp1252_locale):
+    from syneva.render.html.renderer import render_html
+
+    r = _example_report()
+    r.results[0].notes.append("年龄 ≥50K")
+    path = tmp_path / "out.html"
+    r.to_html(path)
+    assert path.read_text(encoding="utf-8") == render_html(r)

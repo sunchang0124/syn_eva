@@ -174,7 +174,7 @@ class BenchmarkResult:
         import json
         from pathlib import Path
 
-        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str))
+        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
 
     def to_html(self, path, *, normalization: str = "absolute", interactive: bool = False) -> None:
         from pathlib import Path
@@ -182,7 +182,8 @@ class BenchmarkResult:
         from syneva.render.html.benchmark_renderer import render_leaderboard
 
         Path(path).write_text(
-            render_leaderboard(self, normalization=normalization, interactive=interactive)
+            render_leaderboard(self, normalization=normalization, interactive=interactive),
+            encoding="utf-8",
         )
 
     @classmethod
@@ -190,4 +191,4 @@ class BenchmarkResult:
         import json
         from pathlib import Path
 
-        return cls.from_dict(json.loads(Path(path).read_text()))
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))

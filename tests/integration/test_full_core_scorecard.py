@@ -21,7 +21,7 @@ def test_core_scorecard_on_good_synth(real_df, syn_good_df, metadata, tmp_path):
     rep.to_html(tmp_path / "scorecard.html")
     rep.to_json(tmp_path / "scorecard.json")
     assert (tmp_path / "scorecard.html").stat().st_size > 1000
-    json.loads((tmp_path / "scorecard.json").read_text())
+    json.loads((tmp_path / "scorecard.json").read_text(encoding="utf-8"))
 
 
 def test_core_scorecard_on_leaky_synth_fires_privacy(real_df, syn_leaky_df, metadata):

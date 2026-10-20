@@ -36,7 +36,7 @@ def test_benchmark_writes_outputs_and_ranks_good_first(tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert (out / "leaderboard.html").exists()
     assert (out / "benchmark.json").exists()
-    loaded = json.loads((out / "benchmark.json").read_text())
+    loaded = json.loads((out / "benchmark.json").read_text(encoding="utf-8"))
     assert set(loaded["reports"]) == {"good", "shifted"}
     assert proc.stdout.index("good") < proc.stdout.index("shifted")
 

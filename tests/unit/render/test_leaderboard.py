@@ -38,7 +38,7 @@ def test_to_html_writes_file(tmp_path):
     res = _result()
     p = tmp_path / "lb.html"
     res.to_html(p)
-    assert p.read_text() == render_leaderboard(res)
+    assert p.read_text(encoding="utf-8") == render_leaderboard(res)
 
 
 def test_leaderboard_styles_embedded_scorecards():
