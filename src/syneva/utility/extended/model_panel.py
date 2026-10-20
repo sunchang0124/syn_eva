@@ -48,7 +48,10 @@ class ModelPanelUtility:
             if t.target not in real.columns:
                 notes.append(f"task '{t.target}' missing from real; skipped")
                 continue
-            features = select_features(meta, t.target, t.features)
+            features = select_features(meta, t.target, t.features, notes)
+            if not features:
+                notes.append(f"task '{t.target}' has no usable features; skipped")
+                continue
             tt = resolve_task_type(t, meta, real)
             if t.task_type is None:
                 notes.append(f"task '{t.target}': task_type inferred as {tt}")
