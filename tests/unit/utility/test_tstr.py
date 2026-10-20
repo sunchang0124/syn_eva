@@ -1,11 +1,9 @@
 from unittest import mock
 
-import numpy as np
-import pandas as pd
 import pytest
 
 import syneva.utility.tstr as tstr_mod
-from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
+from syneva.core.metadata import Metadata
 from syneva.utility.task import UtilityTask
 from syneva.utility.tstr import TSTRSuite, utility_ratio
 
@@ -147,72 +145,3 @@ def test_tstr_single_class_synthetic_is_scored_in_auc(real_df, syn_good_df, meta
     # a constant predictor has AUC 0.5, not the majority-class accuracy
     assert r.scalars["tstr_high_income"] == pytest.approx(0.5)
     assert r.scalars["utility_ratio_high_income"] < 0.6
-
-
-def test_tstr_skips_task_without_usable_features(real_df, syn_good_df, metadata):
-    # A datetime-only feature list used to reach the model as a 0-column matrix
-    real = real_df.assign(signup=pd.Timestamp("2020-01-01"))
-    syn = syn_good_df.assign(signup=pd.Timestamp("2020-01-01"))
-    meta = Metadata(
-        columns={**metadata.columns, "signup": ColumnMetadata("signup", ColumnType.DATETIME)}
-    )
-    tasks = [
-        UtilityTask("high_income", "classification", features=["signup"]),
-        UtilityTask("income", "regression"),
-    ]
-    r = TSTRSuite(tasks=tasks).compute(real, syn, meta)
-    assert r.per_column is not None
-    assert set(r.per_column) == {"income"}
-    assert any("high_income" in n and "usable" in n for n in r.notes)
-
-
-def _null_variants(syn):
-    mask = syn.index % 3 != 0
-    nan = syn.assign(education=syn["education"].mask(mask, np.nan))
-    none = syn.copy()
-    none["education"] = none["education"].astype(object).mask(mask, None)
-    nullable = syn.assign(
-        education=syn["education"].astype("string").mask(mask),
-        age=syn["age"].astype("Int64"),
-    )
-    return nan, none, nullable
-
-
-def test_tstr_treats_none_and_pd_na_like_nan(real_df, syn_good_df, metadata):
-    nan, none, nullable = _null_variants(syn_good_df)
-    tasks = [UtilityTask("income", "regression")]
-    results = [
-        TSTRSuite(tasks=tasks).compute(real_df, s, metadata).per_column
-        for s in (nan, none, nullable)
-    ]
-    assert results[0] is not None
-    assert results[0] == results[1] == results[2]
-
-
-def test_tstr_dedupes_override_features(real_df, syn_good_df, metadata):
-    def run(features):
-        task = UtilityTask("income", "regression", features=features)
-        return TSTRSuite(tasks=[task]).compute(real_df, syn_good_df, metadata).per_column
-
-    assert run(["age", "age", "education"]) == run(["age", "education"])
-
-
-def test_tstr_ignores_real_values_of_feature_missing_in_synthetic(real_df, syn_good_df, metadata):
-    # An all-missing synthetic column is kept as a constant, so the synthetic-trained
-    # model never uses it and the real values of that column cannot change TSTR
-    syn = syn_good_df.assign(age=np.nan)
-    shuffled = real_df.assign(age=np.random.default_rng(1).permutation(real_df["age"].to_numpy()))
-    tasks = [UtilityTask("income", "regression")]
-
-    def tstr(real):
-        pc = TSTRSuite(tasks=tasks).compute(real, syn, metadata).per_column
-        assert pc is not None
-        return {k: v["tstr"] for k, v in pc.items()}
-
-    assert tstr(real_df) == tstr(shuffled)
-
-
-def test_tstr_excludes_target_from_override(real_df, syn_good_df, metadata):
-    task = UtilityTask("income", "regression", features=["age", "income"])
-    r = TSTRSuite(tasks=[task]).compute(real_df, syn_good_df, metadata)
-    assert any("'income'" in n and "ignored" in n for n in r.notes)

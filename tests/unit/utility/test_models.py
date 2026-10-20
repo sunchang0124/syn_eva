@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
-from syneva.utility._models import build_pipeline, select_features, source_columns
+from syneva.utility._models import _as_object, build_pipeline, select_features, source_columns
 
 
 def _fit(df: pd.DataFrame, meta: Metadata, target, features=None):
@@ -109,3 +109,53 @@ def test_select_features_keeps_only_encoded_dtypes():
 
 def test_select_features_filters_and_dedupes_override():
     assert select_features(_MIXED, "y", ["b", "a", "d", "b", "e", "c"]) == ["b", "a", "c"]
+
+
+def test_select_features_notes_only_what_an_override_drops():
+    notes: list[str] = []
+    select_features(_MIXED, "y", None, notes)
+    select_features(_MIXED, "y", ["a", "a", "b"], notes)
+    assert notes == []  # the default path and duplicates add nothing
+
+
+def test_select_features_names_each_cause_separately():
+    notes: list[str] = []
+    assert select_features(_MIXED, "y", ["a", "d", "y", "e"], notes) == ["a"]
+    assert len(notes) == 2
+    assert "target" in notes[0]
+    assert "features 'd', 'e' ignored" in notes[1]  # the target is not listed again
+
+
+def test_nullable_boolean_and_category_are_imputed_like_object(real_df):
+    # Both reach _as_object; NA must be imputed, not kept as a category
+    meta = Metadata(
+        columns={
+            "flag": ColumnMetadata(name="flag", dtype=ColumnType.BOOLEAN),
+            "level": ColumnMetadata(name="level", dtype=ColumnType.CATEGORICAL),
+            "y": ColumnMetadata(name="y", dtype=ColumnType.CATEGORICAL),
+        }
+    )
+    mask = real_df.index % 4 == 0
+    flag = (real_df["age"] > 40).mask(mask)
+    level = real_df["education"].mask(mask)
+    typed = pd.DataFrame(
+        {
+            "flag": flag.astype("boolean"),
+            "level": level.astype("category"),
+            "y": real_df["high_income"],
+        }
+    )
+    plain = pd.DataFrame({"flag": flag.astype(object), "level": level, "y": typed["y"]})
+    features = ["flag", "level"]
+    pipe = _fit(typed, meta, "y", features=features)
+    _assert_maps_every_feature(pipe, features)
+    np.testing.assert_array_equal(
+        pipe.named_steps["pre"].transform(typed[features]),
+        _fit(plain, meta, "y", features=features).named_steps["pre"].transform(plain[features]),
+    )
+
+
+def test_as_object_accepts_ndarray():
+    # ColumnTransformer passes arrays through when selecting by column position
+    out = _as_object(np.array([["a", None], ["b", "c"]], dtype=object))
+    assert out.isna().to_numpy().tolist() == [[False, True], [False, False]]

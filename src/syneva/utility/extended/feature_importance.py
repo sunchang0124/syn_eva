@@ -51,10 +51,13 @@ def _informative_features(
         flat_real = real[f].nunique(dropna=True) <= 1
         flat_syn = synthetic[f].nunique(dropna=True) <= 1
         if flat_real and flat_syn:
-            notes.append(
-                f"task '{target}': feature '{f}' is constant or missing on both sides; "
-                "left out of the ranking"
-            )
+            values_real = set(real[f].dropna().unique())
+            values_syn = set(synthetic[f].dropna().unique())
+            if values_real and values_syn and values_real != values_syn:
+                state = "constant on both sides, but with a different value on each"
+            else:
+                state = "constant or missing on both sides"
+            notes.append(f"task '{target}': feature '{f}' is {state}; left out of the ranking")
             continue
         for side, flat in (("real", flat_real), ("synthetic", flat_syn)):
             if flat:

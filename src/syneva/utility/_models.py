@@ -21,14 +21,15 @@ _NUMERIC = (ColumnType.NUMERIC,)
 _CATEGORICAL = (ColumnType.CATEGORICAL, ColumnType.BOOLEAN)
 
 
-def _as_float(X: pd.DataFrame) -> pd.DataFrame:
+def _as_float(X: pd.DataFrame | np.ndarray) -> pd.DataFrame | np.ndarray:
     # nullable dtypes (Int64, Float64) carry pd.NA, which SimpleImputer can't compare
     return X.astype("float64")
 
 
-def _as_object(X: pd.DataFrame) -> pd.DataFrame:
+def _as_object(X: pd.DataFrame | np.ndarray) -> pd.DataFrame:
     # SimpleImputer only treats NaN as missing: None and pd.NA would become categories
     # (or crash on comparison), so map every null to NaN first
+    X = pd.DataFrame(X)
     return X.astype(object).where(X.notna(), np.nan)
 
 
@@ -139,17 +140,20 @@ def select_features(
     """Return the task's features that the preprocessor can encode, without
     duplicates or the target. Defaults to every other column in ``meta``.
 
-    Override features that are left out are named in a note appended to ``notes``.
+    When an override lists the target or features of another dtype, a note appended
+    to ``notes`` says which were left out and why. Duplicates are dropped silently.
     """
     candidates = override if override is not None else list(meta.columns)
     encoded = _NUMERIC + _CATEGORICAL
     unique = list(dict.fromkeys(candidates))
     features = [f for f in unique if f != target and meta.columns[f].dtype in encoded]
-    ignored = [f for f in unique if f not in features]
-    if override is not None and ignored and notes is not None:
-        names = ", ".join(f"'{f}'" for f in ignored)
-        notes.append(
-            f"task '{target}': features {names} ignored "
-            "(the target, or not numeric, categorical or boolean)"
-        )
+    if override is not None and notes is not None:
+        if target in unique:
+            notes.append(f"task '{target}': the target is listed as a feature; ignored")
+        unsupported = [f for f in unique if f != target and f not in features]
+        if unsupported:
+            names = ", ".join(f"'{f}'" for f in unsupported)
+            notes.append(
+                f"task '{target}': features {names} ignored (not numeric, categorical or boolean)"
+            )
     return features

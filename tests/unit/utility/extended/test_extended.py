@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import pytest
 
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
@@ -111,17 +110,10 @@ def test_per_feature_importance_scores_all_missing_feature_zero(real_df, metadat
     assert fi.sum() == pytest.approx(1.0)
 
 
-def _with_datetime(df: pd.DataFrame, metadata: Metadata) -> tuple[pd.DataFrame, Metadata]:
-    df = df.assign(signup=pd.Timestamp("2020-01-01"))
-    cols = {**metadata.columns, "signup": ColumnMetadata("signup", ColumnType.DATETIME)}
-    return df, Metadata(columns=cols, primary_key=metadata.primary_key)
-
-
-def test_feature_importance_ignores_unencoded_features(real_df, syn_good_df, metadata):
+def test_feature_importance_ignores_unencoded_features(with_datetime):
     # Datetime columns are dropped by the preprocessor; counting them added tied
     # zeros to both vectors and let a one-feature task score rho = 1.
-    real, meta = _with_datetime(real_df, metadata)
-    syn, _ = _with_datetime(syn_good_df, metadata)
+    real, syn, meta = with_datetime
     tasks = [
         UtilityTask("high_income", "classification", features=["age", "signup"]),
         UtilityTask("age", "regression"),
@@ -207,3 +199,28 @@ def test_feature_importance_excludes_target_from_override(real_df, syn_good_df, 
     assert r.per_column is not None
     assert r.per_column["high_income"]["n_features"] == 2
     assert any("'high_income'" in n and "ignored" in n for n in r.notes)
+
+
+def test_feature_importance_keeps_feature_constant_on_one_side(real_df, metadata):
+    # A constant synthetic column is a real difference: it scores 0 there but stays ranked
+    syn = real_df.assign(sex="Male")
+    tasks = [UtilityTask("high_income", "classification")]
+    r = FeatureImportanceCorrelation(tasks=tasks).compute(real_df, syn, metadata)
+    assert r.per_column is not None
+    assert r.per_column["high_income"]["n_features"] == 5
+    assert any("'sex'" in n and "missing in synthetic" in n for n in r.notes)
+    assert not any("'sex'" in n and "real" in n for n in r.notes)
+
+
+def test_feature_importance_notes_different_constants(real_df, metadata):
+    # Constant on both sides is uninformative for ranking even when the values
+    # differ, but the note should not hide that mismatch.
+    cols = {**metadata.columns, "region": ColumnMetadata("region", ColumnType.CATEGORICAL)}
+    meta = Metadata(columns=cols, primary_key=metadata.primary_key)
+    real = real_df.assign(region="EU")
+    syn = real_df.assign(region="US")
+    task = UtilityTask("high_income", "classification", features=["region", "age", "income"])
+    r = FeatureImportanceCorrelation(tasks=[task]).compute(real, syn, meta)
+    assert r.per_column is not None
+    assert r.per_column["high_income"]["n_features"] == 2
+    assert any("'region'" in n and "different value" in n for n in r.notes)
