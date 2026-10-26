@@ -30,6 +30,11 @@ class PMSE:
                 skip_reason="A dataset is empty, so there are no rows to classify.",
             )
         X_real, X_syn = encode_pair(real, synthetic, meta)
+        if X_real.shape[1] == 0:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason="There are no numeric or categorical columns to classify on.",
+            )
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
         # encode_pair scales only the numeric columns; scale the one-hot columns too
