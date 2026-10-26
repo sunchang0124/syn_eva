@@ -37,6 +37,8 @@ def benchmark(
     for name, df in candidates.items():
         if set(df.columns) != ref_cols:
             raise SynevaError(f"candidate '{name}' columns must match real")
+        if len(df) == 0:
+            raise SynevaError(f"candidate '{name}' has no rows")
     reports: dict[str, Report] = {}
     for name, df in candidates.items():
         reports[name] = evaluate(

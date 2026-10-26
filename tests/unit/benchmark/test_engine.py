@@ -1,5 +1,6 @@
 import json
 import math
+import sys
 
 import pytest
 
@@ -40,6 +41,16 @@ def test_schema_mismatch_candidate_raises(real_df, syn_good_df, metadata):
     bad = syn_good_df.drop(columns=[syn_good_df.columns[0]])
     with pytest.raises(SynevaError, match="bad_cand"):
         benchmark(real_df, {"ok": syn_good_df, "bad_cand": bad}, metadata)
+
+
+def test_empty_candidate_raises_before_any_evaluation(monkeypatch, real_df, syn_good_df, metadata):
+    calls = []
+    # syneva.benchmark is the function, so patch the engine module object itself
+    engine = sys.modules[BenchmarkResult.__module__]
+    monkeypatch.setattr(engine, "evaluate", lambda *a, **k: calls.append(a))
+    with pytest.raises(SynevaError, match="candidate 'empty_cand' has no rows"):
+        benchmark(real_df, {"ok": syn_good_df, "empty_cand": syn_good_df.iloc[:0]}, metadata)
+    assert calls == []
 
 
 def test_preset_forwarded_to_all(real_df, syn_good_df, syn_shifted_df, metadata):
