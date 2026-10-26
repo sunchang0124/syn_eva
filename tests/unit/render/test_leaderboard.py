@@ -46,7 +46,7 @@ def test_leaderboard_styles_embedded_scorecards():
     # drill-down scorecards are styled, not bare HTML
     html = render_leaderboard(_result())
     head = html.split("</head>")[0]
-    for cls in (".metric", ".metric-header", ".metric-desc"):
+    for cls in (".metric", ".metric-header", ".metric-desc", ".breakdown-scroll"):
         assert cls in head, f"{cls} missing from leaderboard <head> styles"
 
 

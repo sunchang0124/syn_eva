@@ -165,13 +165,13 @@ def _card(soup, name=None) -> Tag:
     return card
 
 
-def _breakdown(card: Tag) -> Tag | None:
+def _breakdown_section(card: Tag) -> Tag | None:
     section = card.find("details", class_="breakdown")
     return section if isinstance(section, Tag) else None
 
 
 def _only_breakdown(rep, **render_kwargs) -> Tag | None:
-    return _breakdown(_card(_soup(rep, **render_kwargs)))
+    return _breakdown_section(_card(_soup(rep, **render_kwargs)))
 
 
 def _cells(section: Tag, selector: str) -> list[str]:
@@ -186,14 +186,14 @@ def test_breakdown_lists_every_per_column_key_in_order(mode):
     assert with_breakdown
     for r in with_breakdown:
         assert r.per_column is not None
-        section = _breakdown(_card(soup, r.spec.name))
+        section = _breakdown_section(_card(soup, r.spec.name))
         assert section is not None, r.spec.name
         assert not section.has_attr("open")
         assert _cells(section, "tbody th") == list(r.per_column)
 
 
 def test_breakdown_headers_use_scalar_labels():
-    section = _breakdown(_card(_soup(_golden_report()), "ks_statistic"))
+    section = _breakdown_section(_card(_soup(_golden_report()), "ks_statistic"))
     assert section is not None
     assert _cells(section, "thead th") == ["", "KS statistic", "p-value"]
 
@@ -254,7 +254,7 @@ def test_breakdown_escapes_keys():
 
 def test_breakdown_scrolls_on_screen_but_prints_in_full():
     soup = _soup(_one_metric_report(scalars={"score": 0.5}, per_column={"a": {"first": 0.1}}))
-    section = _breakdown(_card(soup))
+    section = _breakdown_section(_card(soup))
     assert section is not None
     assert section.select_one(".breakdown-scroll > table") is not None
     css = " ".join(style.get_text() for style in soup.select("style"))
