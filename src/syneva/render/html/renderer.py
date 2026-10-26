@@ -18,8 +18,25 @@ from syneva.core.report import Report
 _TEMPLATES = Path(__file__).parent / "templates"
 _ENV = jinja2.Environment(
     loader=jinja2.FileSystemLoader(_TEMPLATES),
-    autoescape=jinja2.select_autoescape(["html"]),
+    # Templates are *.html.j2; select_autoescape matches on the full suffix.
+    autoescape=jinja2.select_autoescape(["html", "html.j2"]),
 )
+
+
+def _breakdown(per_column: dict[str, dict[str, float]] | None) -> dict | None:
+    """Table view of a metric's per-column values: one row per key, in order.
+
+    Columns are the value names in first-seen order; a row missing one gets an
+    empty cell. NaN/inf format as text.
+    """
+    if not per_column:
+        return None
+    names = list(dict.fromkeys(n for values in per_column.values() for n in values))
+    rows = [
+        (key, [f"{values[n]:.4f}" if n in values else "" for n in names])
+        for key, values in per_column.items()
+    ]
+    return {"headers": [humanize_scalar(n) for n in names], "rows": rows}
 
 
 def render_html(
@@ -56,6 +73,7 @@ def render_html(
                 "skip_reason": r.skip_reason,
                 "info": describe_metric(r.spec.name),
                 "raw_hint": raw_hint(r.spec.name),
+                "breakdown": _breakdown(r.per_column),
                 "plot_b64": None,
                 "plot_html": None,
             }

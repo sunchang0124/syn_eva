@@ -46,5 +46,19 @@ def test_leaderboard_styles_embedded_scorecards():
     # drill-down scorecards are styled, not bare HTML
     html = render_leaderboard(_result())
     head = html.split("</head>")[0]
-    for cls in (".metric", ".metric-header", ".metric-desc"):
+    for cls in (".metric", ".metric-header", ".metric-desc", ".breakdown-scroll"):
         assert cls in head, f"{cls} missing from leaderboard <head> styles"
+
+
+def test_leaderboard_escapes_candidate_names_but_embeds_scorecards():
+    from bs4 import BeautifulSoup
+
+    real = pd.read_parquet("tests/fixtures/adult_income_real_500.parquet")
+    good = pd.read_parquet("tests/fixtures/adult_income_syn_good_500.parquet")
+    meta = syneva.Metadata.infer(real)
+    res = syneva.benchmark(real, {"<i>evil</i>": good}, meta, preset="fast")
+    soup = BeautifulSoup(render_leaderboard(res), "html.parser")
+    assert soup.find("i") is None
+    assert "<i>evil</i>" in soup.get_text()
+    # the embedded per-candidate scorecard is trusted HTML and must still render
+    assert soup.select_one("details.drill div.metric") is not None
