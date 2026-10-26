@@ -161,7 +161,7 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
 
 ### 6. `minority_privacy_risk` (needs `SubgroupSpec`)
 - **Measures:** whether disclosure risk concentrates on the subgroup — are its members closer to
-  synthetic records than the average real record is?
+  synthetic records than the real rows outside the subgroup are?
 - **Config:** `subgroup_specs`, `distance: str = "euclidean"` (runner-injected; `"gower"`
   supported), `min_rows: int = 10`, `cap: int = 2000`, `random_state: int = 42`.
 - **Compute:** encode real + synthetic in the shared space (`encode_pair`, or the Gower matrix
@@ -171,15 +171,23 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
   when capped. If there are no non-member rows left to fill with, the split baseline can't be
   computed — note "subgroup '<name>' risk not measurable (subgroup spans all kept rows)" per spec
   and skip affected specs (score contribution omitted). DCR = distance from each kept real row to
-  its nearest synthetic row. Per spec:
-  `risk_ratio = median DCR(subgroup members) / (median DCR(all kept rows) + _EPS)`;
-  `score_spec = 1.0 if risk_ratio >= 1 else risk_ratio`.
+  its nearest synthetic row. Per spec, the baseline is the spec's complement (kept rows not
+  matching that spec, so specs that together cover every row each still get one):
+  `risk_ratio = median DCR(subgroup members) / (median DCR(complement) + _EPS)`;
+  `score_spec = 1.0 if risk_ratio >= 1 else risk_ratio`. The complement excludes the subgroup so
+  a majority subgroup can't drag the baseline into itself. When the real rows are capped, the
+  complement median is a weighted median: each kept row is weighted by the inverse of its
+  stratum's sampling rate (`n_members / kept_members` for members of the spec union,
+  `n_others / kept_others` otherwise; inverse-inclusion weighting, Horvitz & Thompson 1952), so
+  the oversampled members don't bias it. Uncapped, every weight is 1 and it is a plain median.
+  Complement median `<= _EPS` (global copying) → `risk_ratio = 1.0` + note.
 - **Aggregation:** `score = min over runnable specs` (worst subgroup — conservative, the privacy
   convention). Mean reported as a scalar.
-- **Skips:** subgroup members among kept rows `< min_rows` → skip spec + note; no runnable specs →
+- **Skips:** subgroup members, or kept rows outside the subgroup, `< min_rows` → skip spec +
+  note; no runnable specs →
   `score = 1.0` + note.
 - **Scalars:** `{score, mean_risk_ratio, worst_risk_ratio}`.
-  `per_column[spec.name] = {risk_ratio, median_dcr_subgroup, median_dcr_overall}`.
+  `per_column[spec.name] = {risk_ratio, median_dcr_subgroup, median_dcr_rest}`.
 
 ## metric-info entries (required; guard tests enforce)
 

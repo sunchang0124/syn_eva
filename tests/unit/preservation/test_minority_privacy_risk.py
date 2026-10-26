@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from syneva import SubgroupSpec
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
@@ -62,6 +63,18 @@ def test_tiny_subgroup_skipped():
     assert any("tiny" in n for n in res.notes)
 
 
+def test_tiny_rest_of_data_skipped():
+    # 94 of 100 rows match, leaving 6 rows outside the subgroup: too few to
+    # give a baseline.
+    spec = SubgroupSpec(name="nearly-all", conditions={"x": (-1.5, None)})
+    real = _real()
+    assert int((real.x < -1.5).sum()) == 6
+    res = MinorityPrivacyRisk(subgroup_specs=[spec]).compute(real, real.copy(), _meta())
+    assert res.scalars is None
+    assert res.skip_reason
+    assert any("nearly-all" in n and "outside" in n for n in res.notes)
+
+
 def test_no_specs_is_skipped():
     real = _real()
     res = MinorityPrivacyRisk().compute(real, real.copy(), _meta())
@@ -85,6 +98,36 @@ def test_capped_subgroup_majority_still_scores_low():
     syn = pd.concat([far, real[real.g == "B"].copy()], ignore_index=True)
     res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], cap=50).compute(real, syn, _meta())
     assert res.scalars["score"] < 0.1
+
+
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_capped_baseline_matches_uncapped_baseline(distance):
+    # A 2% subgroup the synthetic data copies with noise. Capping keeps every
+    # member but only ~2% of the others, so an unweighted baseline is half
+    # subgroup and the concentrated risk would read as smaller than it is.
+    rng = np.random.default_rng(0)
+    cols = [f"x{i}" for i in range(5)]
+    meta = Metadata(
+        columns={
+            "g": ColumnMetadata(name="g", dtype=ColumnType.CATEGORICAL),
+            **{c: ColumnMetadata(name=c, dtype=ColumnType.NUMERIC) for c in cols},
+        }
+    )
+    real = pd.DataFrame(rng.normal(0, 1, (10_000, 5)), columns=cols)
+    real.insert(0, "g", ["B"] * 200 + ["A"] * 9_800)
+    copied = real[real.g == "B"].copy()
+    copied[cols] += rng.normal(0, 0.3, (200, 5))
+    fresh = pd.DataFrame(rng.normal(0, 1, (200, 5)), columns=cols)
+    fresh.insert(0, "g", "A")
+    syn = pd.concat([copied, fresh], ignore_index=True)  # 400 rows: never capped
+
+    def ratio(cap):
+        res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance=distance, cap=cap).compute(
+            real, syn, meta
+        )
+        return res.per_column["b-group"]["risk_ratio"]
+
+    assert ratio(cap=400) == pytest.approx(ratio(cap=10_000), abs=0.05)
 
 
 def test_gower_backend_runs():

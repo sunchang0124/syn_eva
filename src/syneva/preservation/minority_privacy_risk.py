@@ -14,6 +14,21 @@ from syneva.preservation._util import _EPS, runnable_specs
 from syneva.preservation.spec import SubgroupSpec
 
 
+def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
+    """Median of `values` where each one stands for `weights` rows.
+
+    Averages the two middle values when the cumulative weight hits exactly half,
+    so equal weights reproduce ``np.median``.
+    """
+    order = np.argsort(values, kind="stable")
+    v, cum = values[order], np.cumsum(weights[order])
+    half = cum[-1] / 2.0
+    i = int(np.searchsorted(cum, half))
+    if cum[i] == half and i + 1 < len(v):
+        return float((v[i] + v[i + 1]) / 2.0)
+    return float(v[i])
+
+
 @registry.register
 @dataclass
 class MinorityPrivacyRisk:
@@ -56,6 +71,7 @@ class MinorityPrivacyRisk:
         member_idx = np.flatnonzero(member_mask)
         other_idx = np.flatnonzero(~member_mask)
         not_measurable = False
+        weights = np.ones(len(real))
         if len(real) > self.cap or len(member_idx) >= self.cap:
             member_budget = self.cap // 2
             if len(member_idx) > member_budget:
@@ -76,9 +92,19 @@ class MinorityPrivacyRisk:
                     )
             else:
                 kept_idx = np.concatenate([kept_members, kept_others])
+                # Members are oversampled, so each kept row is weighted by the inverse of
+                # its stratum's sampling rate to keep the baseline a full-data median
+                # (inverse-inclusion weighting; Horvitz & Thompson, 1952, JASA 47(260)).
+                weights = np.concatenate(
+                    [
+                        np.full(len(kept_members), len(member_idx) / max(len(kept_members), 1)),
+                        np.full(len(kept_others), len(other_idx) / len(kept_others)),
+                    ]
+                )
                 notes.append(
                     f"real rows capped at {self.cap} "
-                    f"({len(kept_members)} subgroup members + {len(kept_others)} others kept)"
+                    f"({len(kept_members)} subgroup members + {len(kept_others)} others kept; "
+                    "baseline reweighted to the full real data)"
                 )
         else:
             kept_idx = np.arange(len(real))
@@ -101,7 +127,7 @@ class MinorityPrivacyRisk:
             nn = NearestNeighbors(n_neighbors=1).fit(x_syn)
             dcr = nn.kneighbors(x_real)[0][:, 0]
 
-        overall_med = float(np.median(dcr))
+        dcr = np.asarray(dcr)
         per_column: dict[str, dict[str, float]] = {}
         ratios: list[float] = []
         for sp in specs:
@@ -109,20 +135,24 @@ class MinorityPrivacyRisk:
             if int(smask.sum()) < self.min_rows:
                 notes.append(f"subgroup '{sp.name}' skipped (<{self.min_rows} rows)")
                 continue
+            if int((~smask).sum()) < self.min_rows:
+                notes.append(f"subgroup '{sp.name}' skipped (<{self.min_rows} rows outside it)")
+                continue
             sub_med = float(np.median(dcr[smask]))
-            if overall_med <= _EPS:
+            rest_med = _weighted_median(dcr[~smask], weights[~smask])
+            if rest_med <= _EPS:
                 ratio = 1.0
                 notes.append(
-                    f"subgroup '{sp.name}': overall distances ~0 (global copying); "
+                    f"subgroup '{sp.name}': distances outside it ~0 (global copying); "
                     "no concentration measurable"
                 )
             else:
-                ratio = sub_med / (overall_med + _EPS)
+                ratio = sub_med / (rest_med + _EPS)
             ratios.append(ratio)
             per_column[sp.name] = {
                 "risk_ratio": ratio,
                 "median_dcr_subgroup": sub_med,
-                "median_dcr_overall": overall_med,
+                "median_dcr_rest": rest_med,
             }
         if not ratios:
             return MetricResult(

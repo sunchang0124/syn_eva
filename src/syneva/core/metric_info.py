@@ -122,7 +122,7 @@ RAW_HINT: dict[str, str] = {
     "minority_class_density": "Symmetric density ratio of each column's least-frequent class, 0 to 1: 1 = share preserved, 0 = class vanished; over-representation is penalized the same as under-representation. Higher is better.",
     "subgroup_fidelity": "Even blend of subgroup-size preservation and within-subgroup distribution match, 0 to 1: 1 = subgroup fully preserved, 0 = subgroup erased. Higher is better.",
     "minority_utility_gap": "Excess gap = synthetic-trained performance gap minus real-trained gap, floored at 0. 0 means training on synthetic data costs the subgroup nothing beyond what real data already would. Lower is better.",
-    "minority_privacy_risk": "Ratio of the subgroup's median distance-to-nearest-synthetic-record to the overall median, capped at 1: 1 = no concentrated risk, near 0 = subgroup members are much closer to synthetic records than average. Higher is better.",
+    "minority_privacy_risk": "Ratio of the subgroup's median distance-to-nearest-synthetic-record to the median for real rows outside the subgroup, capped at 1: 1 = no concentrated risk, near 0 = subgroup members are much closer to synthetic records than average. Higher is better.",
 }
 
 
@@ -236,7 +236,7 @@ _SCALAR_LABELS: dict[str, str] = {
     "worst_risk_ratio": "Worst risk ratio",
     "risk_ratio": "Risk ratio",
     "median_dcr_subgroup": "Median distance (subgroup)",
-    "median_dcr_overall": "Median distance (overall)",
+    "median_dcr_rest": "Median distance (rest of data)",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
