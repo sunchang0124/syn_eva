@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from syneva.congruence.extended.c2st import C2ST
 from syneva.core.metadata import Metadata
@@ -49,3 +50,19 @@ def test_no_encodable_columns_is_skipped():
     r = C2ST().compute(data, data.copy(), Metadata.infer(data))
     assert r.scalars is None
     assert "numeric or categorical" in r.skip_reason
+
+
+# stratified 5-fold CV needs at least 5 rows on each side
+@pytest.mark.parametrize(("n_real", "n_syn"), [(40, 0), (0, 40), (40, 1), (40, 4), (1, 1)])
+def test_too_few_rows_is_skipped(n_real, n_syn):
+    data = pd.DataFrame({"x": np.arange(40.0)})
+    r = C2ST().compute(data.iloc[:n_real], data.iloc[:n_syn], Metadata.infer(data))
+    assert r.scalars is None
+    assert "at least 5 rows" in r.skip_reason
+
+
+def test_five_rows_each_is_scored():
+    data = pd.DataFrame({"x": np.arange(40.0)})
+    r = C2ST().compute(data, data.iloc[:5], Metadata.infer(data))
+    assert r.skip_reason is None
+    assert 0.0 <= r.scalars["score"] <= 1.0

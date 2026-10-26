@@ -25,6 +25,12 @@ class DiscriminativeScore:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
+        # the stratified train/test split needs both classes on each side of it
+        if min(len(real), len(synthetic)) < 2:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason="Each dataset needs at least 2 rows for a stratified train/test split.",
+            )
         X_real, X_syn = encode_pair(real, synthetic, meta)
         if X_real.shape[1] == 0:
             return MetricResult(

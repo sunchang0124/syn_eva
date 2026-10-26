@@ -11,6 +11,8 @@ from syneva.compliance._encode import encode_pair
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
+_N_SPLITS = 5
+
 
 @registry.register
 class C2ST:
@@ -25,6 +27,15 @@ class C2ST:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
+        # StratifiedKFold needs n_splits members of each class to fill every fold
+        if min(len(real), len(synthetic)) < _N_SPLITS:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason=(
+                    f"Each dataset needs at least {_N_SPLITS} rows for {_N_SPLITS}-fold "
+                    "cross-validation."
+                ),
+            )
         # Encode jointly so one-hot columns align by category, not by position.
         X_real, X_syn = encode_pair(real, synthetic, meta)
         if X_real.shape[1] == 0:
@@ -35,7 +46,8 @@ class C2ST:
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
         aucs: list[float] = []
-        for train, test in StratifiedKFold(n_splits=5, shuffle=True, random_state=42).split(X, y):
+        cv = StratifiedKFold(n_splits=_N_SPLITS, shuffle=True, random_state=42)
+        for train, test in cv.split(X, y):
             clf = LogisticRegression(max_iter=1000, random_state=42).fit(X[train], y[train])
             aucs.append(float(roc_auc_score(y[test], clf.predict_proba(X[test])[:, 1])))
         auc = float(np.mean(aucs))

@@ -74,6 +74,22 @@ def test_discriminative_score_without_encodable_columns_is_skipped():
     assert "numeric or categorical" in r.skip_reason
 
 
+# a stratified train/test split needs at least 2 rows on each side
+@pytest.mark.parametrize(("n_real", "n_syn"), [(40, 0), (0, 40), (40, 1), (1, 1)])
+def test_discriminative_score_with_too_few_rows_is_skipped(n_real, n_syn):
+    data = pd.DataFrame({"x": np.arange(40.0)})
+    r = DiscriminativeScore().compute(data.iloc[:n_real], data.iloc[:n_syn], Metadata.infer(data))
+    assert r.scalars is None
+    assert "at least 2 rows" in r.skip_reason
+
+
+def test_discriminative_score_with_two_rows_each_is_scored():
+    data = pd.DataFrame({"x": np.arange(40.0)})
+    r = DiscriminativeScore().compute(data, data.iloc[:2], Metadata.infer(data))
+    assert r.skip_reason is None
+    assert 0.0 <= r.scalars["score"] <= 1.0
+
+
 def test_feature_importance_undefined_rho_falls_back_to_zero(real_df, syn_shifted_df, metadata):
     # The shifted fixture's synthetic high_income is constant, so its model has
     # all-zero importances and Spearman rho is undefined (NaN).
