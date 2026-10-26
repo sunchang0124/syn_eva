@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -46,6 +47,20 @@ def syn_leaky_df() -> pd.DataFrame:
 @pytest.fixture
 def metadata() -> Metadata:
     return _load_metadata()
+
+
+@pytest.fixture
+def same_distribution_with_outlier():
+    """Independent N(0, 1) draws for real and synthetic (nothing copied), plus the
+    synthetic data with one row moved far outside the real range."""
+    cols = [f"x{i}" for i in range(3)]
+    meta = Metadata(columns={c: ColumnMetadata(name=c, dtype=ColumnType.NUMERIC) for c in cols})
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame(rng.normal(0, 1, (500, 3)), columns=cols)
+    syn = pd.DataFrame(rng.normal(0, 1, (500, 3)), columns=cols)
+    outlier = syn.copy()
+    outlier.iloc[0] = [1000.0, 1000.0, 1000.0]
+    return real, syn, outlier, meta
 
 
 @pytest.fixture

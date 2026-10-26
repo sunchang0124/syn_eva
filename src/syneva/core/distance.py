@@ -8,7 +8,7 @@ import pandas as pd
 from syneva.core.metadata import ColumnType, Metadata
 
 
-def _finite(values: pd.Series) -> np.ndarray:
+def _finite_numeric(values: pd.Series) -> np.ndarray:
     v = pd.to_numeric(values, errors="coerce").to_numpy(dtype=float)
     return v[np.isfinite(v)]
 
@@ -22,7 +22,7 @@ def numeric_ranges(df: pd.DataFrame, meta: Metadata) -> dict[str, float]:
     out: dict[str, float] = {}
     for name, cm in meta.columns.items():
         if cm.dtype is ColumnType.NUMERIC:
-            finite = _finite(df[name])
+            finite = _finite_numeric(df[name])
             if finite.size:
                 out[name] = float(finite.max() - finite.min())
     return out
@@ -55,7 +55,7 @@ def gower_matrix(
             bv = pd.to_numeric(b[name], errors="coerce").to_numpy(dtype=float)
             diff = np.abs(av[:, None] - bv[None, :])
             if ranges is None:
-                finite = np.concatenate([_finite(a[name]), _finite(b[name])])
+                finite = np.concatenate([_finite_numeric(a[name]), _finite_numeric(b[name])])
                 if finite.size == 0:
                     continue
                 rng = float(finite.max() - finite.min())
