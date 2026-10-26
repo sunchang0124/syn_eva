@@ -161,11 +161,10 @@ def test_capped_baseline_matches_uncapped_baseline(distance):
     assert capped == pytest.approx(uncapped, abs=0.05)
 
 
-def test_capped_overall_median_matches_uncapped():
-    # Euclidean only: Gower scales by column ranges over the rows it is given, so
-    # absolute Gower distances differ between capped and uncapped runs.
-    capped = _b_group_stats("euclidean", cap=400)["median_dcr_overall"]
-    uncapped = _b_group_stats("euclidean", cap=10_000)["median_dcr_overall"]
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_capped_overall_median_matches_uncapped(distance):
+    capped = _b_group_stats(distance, cap=400)["median_dcr_overall"]
+    uncapped = _b_group_stats(distance, cap=10_000)["median_dcr_overall"]
     assert capped == pytest.approx(uncapped, rel=0.05)
 
 

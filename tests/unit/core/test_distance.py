@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from syneva.core.distance import gower_matrix
+from syneva.core.distance import gower_matrix, numeric_ranges
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 
 
@@ -54,3 +54,39 @@ def test_gower_constant_numeric_column_zero_contribution():
     df = pd.DataFrame({"num": [7.0, 7.0, 7.0]})
     d = gower_matrix(df, df, meta)
     assert np.allclose(d, 0.0)
+
+
+def _num_meta():
+    return Metadata(columns={"num": ColumnMetadata(name="num", dtype=ColumnType.NUMERIC)})
+
+
+def test_explicit_ranges_fix_the_scale():
+    a = pd.DataFrame({"num": [0.0]})
+    b = pd.DataFrame({"num": [2.0, 100.0]})
+    d = gower_matrix(a, b, _num_meta(), ranges={"num": 4.0})
+    # 2/4 inside the range; 100/4 is clipped to 1.
+    assert np.allclose(d, [[0.5, 1.0]])
+
+
+def test_explicit_zero_range_is_zero_if_equal_else_one():
+    a = pd.DataFrame({"num": [7.0]})
+    b = pd.DataFrame({"num": [7.0, 7.5, float("nan")]})
+    d = gower_matrix(a, b, _num_meta(), ranges={"num": 0.0})
+    assert np.allclose(d, [[0.0, 1.0, 0.0]])
+
+
+def test_numeric_ranges_from_finite_values_only():
+    df = pd.DataFrame({"num": [1.0, 4.0, float("nan"), float("inf")], "cat": ["x", "y", "x", "y"]})
+    assert numeric_ranges(df, _meta()) == {"num": 3.0}
+
+
+def test_numeric_ranges_skips_columns_without_finite_values():
+    df = pd.DataFrame({"num": [float("nan"), float("nan")]})
+    assert numeric_ranges(df, _num_meta()) == {}
+
+
+def test_column_missing_from_ranges_is_skipped():
+    a = pd.DataFrame({"num": [0.0], "cat": ["x"]})
+    b = pd.DataFrame({"num": [5.0], "cat": ["y"]})
+    d = gower_matrix(a, b, _meta(), ranges={})
+    assert np.allclose(d, [[1.0]])

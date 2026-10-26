@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 
 from syneva.compliance._encode import encode_frames, encode_pair
-from syneva.core.distance import gower_matrix
+from syneva.core.distance import gower_matrix, numeric_ranges
 from syneva.core.metadata import ColumnType, Metadata
 
 _VALID = ("euclidean", "gower")
@@ -39,6 +39,8 @@ class Neighbors:
         self.distance = distance
         self.capped = False
         if distance == "gower":
+            # One scale for every matrix: ranges over the full real data, before capping.
+            ranges = numeric_ranges(real, meta)
             rng = np.random.default_rng(random_state)
             r, s = real, synthetic
             h = holdout
@@ -51,11 +53,11 @@ class Neighbors:
             if h is not None and len(h) > cap:
                 h = h.iloc[rng.choice(len(h), cap, replace=False)]
                 self.capped = True
-            self._d_rr = gower_matrix(r, r, meta)
-            self._d_rs = gower_matrix(r, s, meta)
-            self._d_ss = gower_matrix(s, s, meta)
-            self._d_hr = gower_matrix(h, r, meta) if h is not None else None
-            self._d_hh = gower_matrix(h, h, meta) if h is not None else None
+            self._d_rr = gower_matrix(r, r, meta, ranges)
+            self._d_rs = gower_matrix(r, s, meta, ranges)
+            self._d_ss = gower_matrix(s, s, meta, ranges)
+            self._d_hr = gower_matrix(h, r, meta, ranges) if h is not None else None
+            self._d_hh = gower_matrix(h, h, meta, ranges) if h is not None else None
             self._n_features = _usable_feature_count(meta)
             self._nr, self._ns = len(r), len(s)
         else:
