@@ -123,11 +123,10 @@ def test_capped_subgroup_spanning_all_rows_not_measurable():
     assert any("every" in n and "spans all kept rows" in n for n in res.notes)
 
 
-@pytest.mark.parametrize("distance", ["euclidean", "gower"])
-def test_capped_baseline_matches_uncapped_baseline(distance):
+def _copied_minority():
     # A 2% subgroup the synthetic data copies with noise. Capping keeps every
-    # member but only ~2% of the others, so an unweighted baseline is half
-    # subgroup and the concentrated risk would read as smaller than it is.
+    # member but only ~2% of the others, so an unweighted median over the kept
+    # rows is half subgroup.
     rng = np.random.default_rng(0)
     cols = [f"x{i}" for i in range(5)]
     meta = Metadata(
@@ -143,14 +142,31 @@ def test_capped_baseline_matches_uncapped_baseline(distance):
     fresh = pd.DataFrame(rng.normal(0, 1, (200, 5)), columns=cols)
     fresh.insert(0, "g", "A")
     syn = pd.concat([copied, fresh], ignore_index=True)  # 400 rows: never capped
+    return real, syn, meta
 
-    def ratio(cap):
-        res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance=distance, cap=cap).compute(
-            real, syn, meta
-        )
-        return res.per_column["b-group"]["risk_ratio"]
 
-    assert ratio(cap=400) == pytest.approx(ratio(cap=10_000), abs=0.05)
+def _b_group_stats(distance, cap):
+    real, syn, meta = _copied_minority()
+    res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance=distance, cap=cap).compute(
+        real, syn, meta
+    )
+    return res.per_column["b-group"]
+
+
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_capped_baseline_matches_uncapped_baseline(distance):
+    # Without reweighting the concentrated risk would read as smaller than it is.
+    capped = _b_group_stats(distance, cap=400)["risk_ratio"]
+    uncapped = _b_group_stats(distance, cap=10_000)["risk_ratio"]
+    assert capped == pytest.approx(uncapped, abs=0.05)
+
+
+def test_capped_overall_median_matches_uncapped():
+    # Euclidean only: Gower scales by column ranges over the rows it is given, so
+    # absolute Gower distances differ between capped and uncapped runs.
+    capped = _b_group_stats("euclidean", cap=400)["median_dcr_overall"]
+    uncapped = _b_group_stats("euclidean", cap=10_000)["median_dcr_overall"]
+    assert capped == pytest.approx(uncapped, rel=0.05)
 
 
 def test_gower_backend_runs():

@@ -110,6 +110,8 @@ class MinorityPrivacyRisk:
             dcr = nn.kneighbors(x_real)[0][:, 0]
 
         dcr = np.asarray(dcr)
+        # Context only: risk_ratio compares against the rows outside each subgroup.
+        overall_med = _weighted_median(dcr, weights)
         per_column: dict[str, dict[str, float]] = {}
         ratios: list[float] = []
         spanning = 0
@@ -142,6 +144,7 @@ class MinorityPrivacyRisk:
                 "risk_ratio": ratio,
                 "median_dcr_subgroup": sub_med,
                 "median_dcr_rest": rest_med,
+                "median_dcr_overall": overall_med,
             }
         if not ratios:
             return MetricResult(

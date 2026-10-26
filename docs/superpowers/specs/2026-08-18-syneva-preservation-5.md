@@ -184,7 +184,9 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
   measurable (subgroup spans all kept rows)" and skip the spec; subgroup members, or kept rows
   outside the subgroup, `< min_rows` → skip spec + note; no runnable specs → `score = 1.0` + note.
 - **Scalars:** `{score, mean_risk_ratio, worst_risk_ratio}`.
-  `per_column[spec.name] = {risk_ratio, median_dcr_subgroup, median_dcr_rest}`.
+  `per_column[spec.name] = {risk_ratio, median_dcr_subgroup, median_dcr_rest, median_dcr_overall}`.
+  `median_dcr_overall` is the (weighted, when capped) median DCR of all real rows, reported for
+  context only; it is not part of `risk_ratio`.
 
 ## metric-info entries (required; guard tests enforce)
 

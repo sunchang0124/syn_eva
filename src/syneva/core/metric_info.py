@@ -237,6 +237,7 @@ _SCALAR_LABELS: dict[str, str] = {
     "risk_ratio": "Risk ratio",
     "median_dcr_subgroup": "Median distance (subgroup)",
     "median_dcr_rest": "Median distance (rest of data)",
+    "median_dcr_overall": "Median distance (all real rows)",
 }
 _SCALAR_ACRONYMS: dict[str, str] = {
     "ks": "KS",
