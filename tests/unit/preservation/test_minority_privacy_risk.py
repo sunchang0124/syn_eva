@@ -100,6 +100,29 @@ def test_capped_subgroup_majority_still_scores_low():
     assert res.scalars["score"] < 0.1
 
 
+def test_capped_specs_covering_all_rows_each_get_a_ratio():
+    # Together the two specs cover every row, so no row is outside both, but
+    # each spec still has the other as its baseline.
+    rng = np.random.default_rng(3)
+    real = pd.DataFrame({"g": ["A"] * 100 + ["B"] * 100, "x": rng.normal(0, 1, 200)})
+    far = real[real.g == "A"].copy()
+    far["x"] = far["x"] + 50
+    syn = pd.concat([far, real[real.g == "B"].copy()], ignore_index=True)
+    safe = SubgroupSpec(name="a-group", conditions={"g": ["A"]})
+    res = MinorityPrivacyRisk(subgroup_specs=[safe, _SPEC], cap=100).compute(real, syn, _meta())
+    assert set(res.per_column) == {"a-group", "b-group"}
+    assert res.per_column["b-group"]["risk_ratio"] < 0.1
+
+
+def test_capped_subgroup_spanning_all_rows_not_measurable():
+    real = _real()
+    every = SubgroupSpec(name="every", conditions={"g": ["A", "B"]})
+    res = MinorityPrivacyRisk(subgroup_specs=[every], cap=40).compute(real, real.copy(), _meta())
+    assert res.scalars is None
+    assert res.skip_reason and "measurable" in res.skip_reason
+    assert any("every" in n and "spans all kept rows" in n for n in res.notes)
+
+
 @pytest.mark.parametrize("distance", ["euclidean", "gower"])
 def test_capped_baseline_matches_uncapped_baseline(distance):
     # A 2% subgroup the synthetic data copies with noise. Capping keeps every

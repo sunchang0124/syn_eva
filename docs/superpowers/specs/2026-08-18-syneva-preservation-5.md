@@ -168,10 +168,7 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
   when `distance="gower"`). Synthetic index capped at `cap` seeded rows. Real query rows capped at
   `cap` by keeping at most `cap // 2` subgroup members (seeded random choice when there are more)
   and filling the remaining budget with non-members (all of them if fewer than the budget); note
-  when capped. If there are no non-member rows left to fill with, the split baseline can't be
-  computed — note "subgroup '<name>' risk not measurable (subgroup spans all kept rows)" per spec
-  and skip affected specs (score contribution omitted). DCR = distance from each kept real row to
-  its nearest synthetic row. Per spec, the baseline is the spec's complement (kept rows not
+  when capped. DCR = distance from each kept real row to its nearest synthetic row. Per spec, the baseline is the spec's complement (kept rows not
   matching that spec, so specs that together cover every row each still get one):
   `risk_ratio = median DCR(subgroup members) / (median DCR(complement) + _EPS)`;
   `score_spec = 1.0 if risk_ratio >= 1 else risk_ratio`. The complement excludes the subgroup so
@@ -183,9 +180,9 @@ field with the stated default (tunable, seeded where sampling occurs, `random_st
   Complement median `<= _EPS` (global copying) → `risk_ratio = 1.0` + note.
 - **Aggregation:** `score = min over runnable specs` (worst subgroup — conservative, the privacy
   convention). Mean reported as a scalar.
-- **Skips:** subgroup members, or kept rows outside the subgroup, `< min_rows` → skip spec +
-  note; no runnable specs →
-  `score = 1.0` + note.
+- **Skips:** a spec matching every kept row has no baseline → note "subgroup '<name>' risk not
+  measurable (subgroup spans all kept rows)" and skip the spec; subgroup members, or kept rows
+  outside the subgroup, `< min_rows` → skip spec + note; no runnable specs → `score = 1.0` + note.
 - **Scalars:** `{score, mean_risk_ratio, worst_risk_ratio}`.
   `per_column[spec.name] = {risk_ratio, median_dcr_subgroup, median_dcr_rest}`.
 
