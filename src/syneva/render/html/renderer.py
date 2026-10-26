@@ -18,7 +18,8 @@ from syneva.core.report import Report
 _TEMPLATES = Path(__file__).parent / "templates"
 _ENV = jinja2.Environment(
     loader=jinja2.FileSystemLoader(_TEMPLATES),
-    autoescape=jinja2.select_autoescape(["html"]),
+    # Templates are *.html.j2; select_autoescape matches on the full suffix.
+    autoescape=jinja2.select_autoescape(["html", "html.j2"]),
 )
 
 

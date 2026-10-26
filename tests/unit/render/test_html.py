@@ -140,3 +140,14 @@ def test_skipped_metric_renders_in_actual_mode():
     card = soup.find("code", string="mia_auc").find_parent("div", class_="metric")
     assert card.find(class_="v-skipped") is not None
     assert "needs a holdout" in card.find(class_="skip-reason").get_text()
+
+
+def test_user_derived_text_is_escaped():
+    rep = _report_with_skipped()
+    skipped = rep.results[-1]
+    skipped.skip_reason = "column '<script>alert(1)</script>' has no values"
+    skipped.notes = ["subgroup '<i>x</i>' skipped"]
+    soup = BeautifulSoup(render_html(rep), "html.parser")
+    assert soup.find("script") is None
+    assert soup.find("i") is None
+    assert "<script>alert(1)</script>" in soup.get_text()
