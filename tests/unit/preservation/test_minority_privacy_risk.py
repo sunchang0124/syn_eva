@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from syneva import SubgroupSpec
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
@@ -62,6 +63,18 @@ def test_tiny_subgroup_skipped():
     assert any("tiny" in n for n in res.notes)
 
 
+def test_tiny_rest_of_data_skipped():
+    # 94 of 100 rows match, leaving 6 rows outside the subgroup: too few to
+    # give a baseline.
+    spec = SubgroupSpec(name="nearly-all", conditions={"x": (-1.5, None)})
+    real = _real()
+    assert int((real.x < -1.5).sum()) == 6
+    res = MinorityPrivacyRisk(subgroup_specs=[spec]).compute(real, real.copy(), _meta())
+    assert res.scalars is None
+    assert res.skip_reason
+    assert any("nearly-all" in n and "outside" in n for n in res.notes)
+
+
 def test_no_specs_is_skipped():
     real = _real()
     res = MinorityPrivacyRisk().compute(real, real.copy(), _meta())
@@ -85,6 +98,75 @@ def test_capped_subgroup_majority_still_scores_low():
     syn = pd.concat([far, real[real.g == "B"].copy()], ignore_index=True)
     res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], cap=50).compute(real, syn, _meta())
     assert res.scalars["score"] < 0.1
+
+
+def test_capped_specs_covering_all_rows_each_get_a_ratio():
+    # Together the two specs cover every row, so no row is outside both, but
+    # each spec still has the other as its baseline.
+    rng = np.random.default_rng(3)
+    real = pd.DataFrame({"g": ["A"] * 100 + ["B"] * 100, "x": rng.normal(0, 1, 200)})
+    far = real[real.g == "A"].copy()
+    far["x"] = far["x"] + 50
+    syn = pd.concat([far, real[real.g == "B"].copy()], ignore_index=True)
+    safe = SubgroupSpec(name="a-group", conditions={"g": ["A"]})
+    res = MinorityPrivacyRisk(subgroup_specs=[safe, _SPEC], cap=100).compute(real, syn, _meta())
+    assert set(res.per_column) == {"a-group", "b-group"}
+    assert res.per_column["b-group"]["risk_ratio"] < 0.1
+
+
+def test_capped_subgroup_spanning_all_rows_not_measurable():
+    real = _real()
+    every = SubgroupSpec(name="every", conditions={"g": ["A", "B"]})
+    res = MinorityPrivacyRisk(subgroup_specs=[every], cap=40).compute(real, real.copy(), _meta())
+    assert res.scalars is None
+    assert res.skip_reason and "measurable" in res.skip_reason
+    assert any("every" in n and "spans all kept rows" in n for n in res.notes)
+
+
+def _copied_minority():
+    # A 2% subgroup the synthetic data copies with noise. Capping keeps every
+    # member but only ~2% of the others, so an unweighted median over the kept
+    # rows is half subgroup.
+    rng = np.random.default_rng(0)
+    cols = [f"x{i}" for i in range(5)]
+    meta = Metadata(
+        columns={
+            "g": ColumnMetadata(name="g", dtype=ColumnType.CATEGORICAL),
+            **{c: ColumnMetadata(name=c, dtype=ColumnType.NUMERIC) for c in cols},
+        }
+    )
+    real = pd.DataFrame(rng.normal(0, 1, (10_000, 5)), columns=cols)
+    real.insert(0, "g", ["B"] * 200 + ["A"] * 9_800)
+    copied = real[real.g == "B"].copy()
+    copied[cols] += rng.normal(0, 0.3, (200, 5))
+    fresh = pd.DataFrame(rng.normal(0, 1, (200, 5)), columns=cols)
+    fresh.insert(0, "g", "A")
+    syn = pd.concat([copied, fresh], ignore_index=True)  # 400 rows: never capped
+    return real, syn, meta
+
+
+def _b_group_stats(distance, cap):
+    real, syn, meta = _copied_minority()
+    res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance=distance, cap=cap).compute(
+        real, syn, meta
+    )
+    return res.per_column["b-group"]
+
+
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_capped_baseline_matches_uncapped_baseline(distance):
+    # Without reweighting the concentrated risk would read as smaller than it is.
+    capped = _b_group_stats(distance, cap=400)["risk_ratio"]
+    uncapped = _b_group_stats(distance, cap=10_000)["risk_ratio"]
+    assert capped == pytest.approx(uncapped, abs=0.05)
+
+
+def test_capped_overall_median_matches_uncapped():
+    # Euclidean only: Gower scales by column ranges over the rows it is given, so
+    # absolute Gower distances differ between capped and uncapped runs.
+    capped = _b_group_stats("euclidean", cap=400)["median_dcr_overall"]
+    uncapped = _b_group_stats("euclidean", cap=10_000)["median_dcr_overall"]
+    assert capped == pytest.approx(uncapped, rel=0.05)
 
 
 def test_gower_backend_runs():
