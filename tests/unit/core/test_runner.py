@@ -1,4 +1,6 @@
 # tests/unit/core/test_runner.py
+import math
+
 import pandas as pd
 import pytest
 
@@ -140,3 +142,60 @@ def test_feature_importance_receives_declared_utility_tasks(real_df, syn_good_df
     assert r.scalars is not None
     assert -1.0 <= r.scalars["spearman_rho"] <= 1.0
     assert set(r.per_column) == {"high_income"}
+
+
+def _metric(name: str, scalars: dict[str, float], *, scoring: bool = True):
+    class _M:
+        spec = MetricSpec(
+            name=name,
+            c="congruence",
+            tier="core",
+            data_types=frozenset({"static"}),
+            requires_real=True,
+            scope="table-level",
+            scoring=scoring,
+        )
+
+        def compute(self, real, synthetic, meta):
+            return MetricResult(spec=self.spec, scalars=dict(scalars))
+
+    return _M
+
+
+def _run(*metrics):
+    reg = MetricRegistry()
+    for m in metrics:
+        reg.register(m)
+    return evaluate_with(reg, real=_df(), synthetic=_df(), tiers=("core",), data_type="static")
+
+
+@pytest.mark.parametrize(
+    "scalars",
+    [
+        {"score": float("nan")},
+        {"score": float("inf")},
+        # no "score" key: aggregation reads the first scalar as a distance, and
+        # 1 - min(1, max(0, nan)) used to come out as a perfect 1.0
+        {"distance": float("nan")},
+    ],
+)
+def test_non_finite_score_is_recorded_as_error(scalars):
+    rep = _run(_OkMetric, _metric("nan_metric", scalars))
+    by_name = {r.spec.name: r for r in rep.results}
+    assert by_name["nan_metric"].scalars is None
+    assert "nan_metric returned a non-finite score" in str(by_name["nan_metric"].error)
+    # before: NaN was clamped into the mean as 0 (or 1), so this was 0.45 or 0.95
+    assert rep.aggregated == {"congruence": 0.9}
+
+
+def test_non_finite_secondary_scalar_is_kept():
+    rep = _run(_metric("p_nan", {"score": 0.5, "p_value": float("nan")}))
+    r = rep.results[0]
+    assert r.error is None
+    assert math.isnan(r.scalars["p_value"])
+    assert rep.aggregated == {"congruence": 0.5}
+
+
+def test_non_scoring_metric_with_nan_is_kept():
+    rep = _run(_metric("info", {"epsilon": float("nan")}, scoring=False))
+    assert rep.results[0].error is None

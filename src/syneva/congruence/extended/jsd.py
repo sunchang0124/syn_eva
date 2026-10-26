@@ -23,6 +23,11 @@ class JensenShannon:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
+        if len(real) == 0 or len(synthetic) == 0:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason="A dataset is empty, so there are no category frequencies to compare.",
+            )
         per_column: dict[str, dict[str, float]] = {}
         for name, cm in meta.columns.items():
             if cm.dtype is not ColumnType.CATEGORICAL:

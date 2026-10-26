@@ -32,3 +32,14 @@ def test_jsd_uses_base_2():
     syn = pd.DataFrame({"y": ["a", "b"] * 50})
     r = JensenShannon().compute(real, syn, _meta())
     assert r.per_column["y"]["jsd"] == pytest.approx(1.5 - 0.75 * math.log2(3))
+
+
+@pytest.mark.parametrize("empty", ["real", "synthetic"])
+def test_empty_dataset_is_skipped(empty):
+    # zero rows give all-zero frequencies, which jensenshannon normalises as 0/0
+    df = pd.DataFrame({"y": ["a", "b"] * 50})
+    real = df.iloc[:0] if empty == "real" else df
+    syn = df.iloc[:0] if empty == "synthetic" else df
+    r = JensenShannon().compute(real, syn, _meta())
+    assert r.scalars is None
+    assert "empty" in r.skip_reason
