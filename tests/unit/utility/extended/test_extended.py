@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
@@ -64,6 +65,13 @@ def test_feature_importance_without_tasks_is_skipped(real_df, syn_good_df, metad
 def test_discriminative_score_returns_auc(real_df, syn_good_df, metadata):
     r = DiscriminativeScore().compute(real_df, syn_good_df, metadata)
     assert 0.0 <= r.scalars["auc"] <= 1.0
+
+
+def test_discriminative_score_without_encodable_columns_is_skipped():
+    data = pd.DataFrame({"t": pd.date_range("2020-01-01", periods=20)})
+    r = DiscriminativeScore().compute(data, data.copy(), Metadata.infer(data))
+    assert r.scalars is None
+    assert "numeric or categorical" in r.skip_reason
 
 
 def test_feature_importance_undefined_rho_falls_back_to_zero(real_df, syn_shifted_df, metadata):

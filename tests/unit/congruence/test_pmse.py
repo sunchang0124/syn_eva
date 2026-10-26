@@ -77,3 +77,10 @@ def test_separable_categories_score_zero():
     syn = pd.DataFrame({"g": ["c", "d"] * 250})
     r = PMSE().compute(real, syn, Metadata.infer(real))
     assert r.scalars["score"] < 0.05
+
+
+def test_no_encodable_columns_is_skipped():
+    data = pd.DataFrame({"t": pd.date_range("2020-01-01", periods=20)})
+    r = PMSE().compute(data, data.copy(), Metadata.infer(data))
+    assert r.scalars is None
+    assert "numeric or categorical" in r.skip_reason

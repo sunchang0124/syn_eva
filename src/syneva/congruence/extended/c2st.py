@@ -27,6 +27,11 @@ class C2ST:
         assert real is not None
         # Encode jointly so one-hot columns align by category, not by position.
         X_real, X_syn = encode_pair(real, synthetic, meta)
+        if X_real.shape[1] == 0:
+            return MetricResult(
+                spec=self.spec,
+                skip_reason="There are no numeric or categorical columns to classify on.",
+            )
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
         aucs: list[float] = []

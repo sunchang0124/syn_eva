@@ -42,3 +42,10 @@ def test_different_labels_with_same_count_are_separable():
     syn = pd.DataFrame({"c": rng.choice(list("BC"), n), "x": rng.normal(size=n)})
     r = C2ST().compute(real, syn, Metadata.infer(real))
     assert r.scalars["c2st_auc"] > 0.7
+
+
+def test_no_encodable_columns_is_skipped():
+    data = pd.DataFrame({"t": pd.date_range("2020-01-01", periods=20)})
+    r = C2ST().compute(data, data.copy(), Metadata.infer(data))
+    assert r.scalars is None
+    assert "numeric or categorical" in r.skip_reason
