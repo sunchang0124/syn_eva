@@ -130,6 +130,8 @@ def evaluate_with(
     if holdout is not None and set(holdout.columns) != set(synthetic.columns):
         raise SynevaError("holdout columns must match the synthetic/real columns")
 
+    _check_not_empty(real, synthetic, holdout)
+
     if metadata is None:
         metadata = Metadata.infer(real if real is not None else synthetic)
     metadata.validate_against(synthetic)
@@ -185,6 +187,20 @@ def evaluate_with(
 
     info.finish()
     return Report(metadata=metadata, results=results, run_info=info)
+
+
+def _check_not_empty(
+    real: pd.DataFrame | None, synthetic: pd.DataFrame, holdout: pd.DataFrame | None
+) -> None:
+    # Zero rows can't be evaluated, but each metric would handle them its own way:
+    # privacy metrics score 1.0 (nothing to leak), others score 0 or skip, and the
+    # aggregate looks like a weak dataset instead of a failed run.
+    if len(synthetic) == 0:
+        raise SynevaError("synthetic data has no rows")
+    if real is not None and len(real) == 0:
+        raise SynevaError("real data has no rows")
+    if holdout is not None and len(holdout) == 0:
+        raise SynevaError("holdout has no rows; pass holdout=None to run without one")
 
 
 def _check_schema(real: pd.DataFrame, synthetic: pd.DataFrame) -> None:

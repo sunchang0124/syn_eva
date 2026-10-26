@@ -140,3 +140,36 @@ def test_feature_importance_receives_declared_utility_tasks(real_df, syn_good_df
     assert r.scalars is not None
     assert -1.0 <= r.scalars["spearman_rho"] <= 1.0
     assert set(r.per_column) == {"high_income"}
+
+
+@pytest.mark.parametrize("empty", ["real", "synthetic"])
+def test_empty_dataset_raises(empty):
+    # zero rows would otherwise give a plausible-looking scorecard: some metrics
+    # score 1.0 (nothing to leak), others skip and drop out of the aggregate
+    reg = MetricRegistry()
+    reg.register(_OkMetric)
+    real = _df().iloc[:0] if empty == "real" else _df()
+    syn = _df().iloc[:0] if empty == "synthetic" else _df()
+    with pytest.raises(SynevaError, match=f"{empty} data has no rows"):
+        evaluate_with(reg, real=real, synthetic=syn, tiers=("core",), data_type="static")
+
+
+def test_empty_synthetic_raises_without_real():
+    reg = MetricRegistry()
+    reg.register(_SynOnlyMetric)
+    with pytest.raises(SynevaError, match="synthetic data has no rows"):
+        evaluate_with(reg, real=None, synthetic=_df().iloc[:0], tiers=("core",), data_type="static")
+
+
+def test_empty_holdout_raises():
+    reg = MetricRegistry()
+    reg.register(_OkMetric)
+    with pytest.raises(SynevaError, match="holdout has no rows"):
+        evaluate_with(
+            reg,
+            real=_df(),
+            synthetic=_df(),
+            holdout=_df().iloc[:0],
+            tiers=("core",),
+            data_type="static",
+        )
