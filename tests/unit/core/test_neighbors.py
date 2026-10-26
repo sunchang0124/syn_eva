@@ -4,7 +4,7 @@ import pytest
 from sklearn.neighbors import NearestNeighbors
 
 from syneva.compliance._encode import encode_pair
-from syneva.core.metadata import Metadata
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.neighbors import Neighbors
 
 
@@ -122,3 +122,38 @@ def test_holdout_self_euclidean_k_too_large_raises():
     nb = Neighbors(real, syn, Metadata.infer(real), distance="euclidean", holdout=hold)
     with pytest.raises(ValueError, match="too large"):
         nb.holdout_self(2)  # k=2 >= 2 holdout rows (needs a DIFFERENT other row)
+
+
+def _same_distribution():
+    # Independent draws from one distribution: nothing is copied.
+    cols = [f"x{i}" for i in range(3)]
+    meta = Metadata(columns={c: ColumnMetadata(name=c, dtype=ColumnType.NUMERIC) for c in cols})
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame(rng.normal(0, 1, (500, 3)), columns=cols)
+    syn = pd.DataFrame(rng.normal(0, 1, (500, 3)), columns=cols)
+    outlier = syn.copy()
+    outlier.iloc[0] = [1000.0, 1000.0, 1000.0]
+    return real, syn, outlier, meta
+
+
+def test_gower_one_synthetic_outlier_moves_only_its_own_distances():
+    real, syn, outlier, meta = _same_distribution()
+    clean = Neighbors(real, syn, meta, distance="gower")
+    dirty = Neighbors(real, outlier, meta, distance="gower")
+    assert np.allclose(dirty.real_self(1), clean.real_self(1))
+    # Only the outlier row's own distance to real changes.
+    assert np.allclose(dirty.syn_to_real(1)[1:], clean.syn_to_real(1)[1:])
+    assert np.median(dirty.real_to_syn(1)) == pytest.approx(
+        np.median(clean.real_to_syn(1)), rel=0.05
+    )
+
+
+def test_gower_real_cap_does_not_change_the_scale():
+    real, syn, _, meta = _same_distribution()
+    syn = syn.iloc[:100]  # under the cap, so only the real side is capped
+    full = Neighbors(real, syn, meta, distance="gower", cap=10_000)
+    capped = Neighbors(real, syn, meta, distance="gower", cap=100)
+    assert capped.capped
+    # The real rows the cap kept (same draw as Neighbors makes).
+    kept = np.random.default_rng(42).choice(len(real), 100, replace=False)
+    assert np.allclose(capped.real_to_syn(1), full.real_to_syn(1)[kept])
