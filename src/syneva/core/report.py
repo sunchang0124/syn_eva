@@ -159,9 +159,16 @@ def _normalize_scalars(r: MetricResult) -> float:
     assert r.scalars is not None
     # Convention: metrics expose a "score" key in [0,1]. If not, fall back to
     # 1.0 - min(1.0, max(0.0, first_value)) for distance-like metrics.
-    if "score" in r.scalars:
-        v = r.scalars["score"]
-    else:
-        first = next(iter(r.scalars.values()))
-        v = 1.0 - min(1.0, max(0.0, first))
+    v = _aggregated_scalar(r)
+    if "score" not in r.scalars:
+        v = 1.0 - min(1.0, max(0.0, v))
     return float(min(1.0, max(0.0, v)))
+
+
+def _aggregated_scalar(r: MetricResult) -> float:
+    """Return the raw scalar aggregation reads: ``score`` if present, otherwise the
+    first scalar (a distance)."""
+    assert r.scalars is not None
+    if "score" in r.scalars:
+        return r.scalars["score"]
+    return next(iter(r.scalars.values()))
