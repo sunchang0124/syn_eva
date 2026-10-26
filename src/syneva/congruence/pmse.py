@@ -3,25 +3,12 @@ from __future__ import annotations
 from typing import ClassVar
 
 import numpy as np
-import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from syneva.core.metadata import ColumnType, Metadata
+from syneva.compliance._encode import encode_pair
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
-
-
-def _encode(df: pd.DataFrame, meta: Metadata) -> np.ndarray:
-    pieces: list[np.ndarray] = []
-    for name, cmeta in meta.columns.items():
-        if cmeta.dtype is ColumnType.NUMERIC:
-            col = pd.to_numeric(df[name], errors="coerce").fillna(0).to_numpy()
-            pieces.append(col.reshape(-1, 1))
-        elif cmeta.dtype is ColumnType.CATEGORICAL:
-            dummies = pd.get_dummies(df[name].astype("string").fillna("__NA__"), dtype=float)
-            pieces.append(dummies.to_numpy())
-    return np.concatenate(pieces, axis=1) if pieces else np.zeros((len(df), 0))
 
 
 @registry.register
@@ -42,12 +29,10 @@ class PMSE:
                 spec=self.spec,
                 skip_reason="A dataset is empty, so there are no rows to classify.",
             )
-        n_real = len(real)
-        combined = pd.concat([real, synthetic], ignore_index=True)
-        X = _encode(combined, meta)
-        X_real, X_syn = X[:n_real], X[n_real:]
+        X_real, X_syn = encode_pair(real, synthetic, meta)
         X = np.vstack([X_real, X_syn])
-        y = np.concatenate([np.zeros(n_real), np.ones(len(synthetic))])
+        y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
+        # encode_pair scales only the numeric columns; scale the one-hot columns too
         X = StandardScaler().fit_transform(X)
         # A classifier failure propagates; the runner records it as a metric error.
         clf = LogisticRegression(max_iter=1000, random_state=42).fit(X, y)

@@ -61,3 +61,19 @@ def test_empty_dataset_is_skipped(empty):
     r = PMSE().compute(real, syn, Metadata.infer(data))
     assert r.skip_reason is not None
     assert r.scalars is None
+
+
+def test_categories_align_when_category_sets_differ():
+    # synthetic lacks the rare category "c": the one-hot columns must still line up
+    # by category, not by position, so matching frequencies stay indistinguishable
+    real = pd.DataFrame({"g": ["a", "b"] * 245 + ["c"] * 10})
+    syn = pd.DataFrame({"g": ["b", "a"] * 250})
+    r = PMSE().compute(real, syn, Metadata.infer(real))
+    assert r.scalars["score"] > 0.9
+
+
+def test_separable_categories_score_zero():
+    real = pd.DataFrame({"g": ["a", "b"] * 250})
+    syn = pd.DataFrame({"g": ["c", "d"] * 250})
+    r = PMSE().compute(real, syn, Metadata.infer(real))
+    assert r.scalars["score"] < 0.05
