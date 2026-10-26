@@ -1,4 +1,9 @@
-from bs4 import BeautifulSoup
+import json
+import re
+from pathlib import Path
+
+import pytest
+from bs4 import BeautifulSoup, Tag
 
 from syneva.core.errors import MetricError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
@@ -142,12 +147,129 @@ def test_skipped_metric_renders_in_actual_mode():
     assert "needs a holdout" in card.find(class_="skip-reason").get_text()
 
 
+def _golden_report():
+    path = Path(__file__).parents[2] / "golden" / "adult_income_good.scorecard.json"
+    return Report.from_dict(json.loads(path.read_text()))
+
+
+def _soup(rep, **render_kwargs):
+    return BeautifulSoup(render_html(rep, **render_kwargs), "html.parser")
+
+
+def _card(soup, name=None) -> Tag:
+    """The metric card for `name`, or the first card when no name is given."""
+    codes = soup.select("div.metric > code")
+    code = next(c for c in codes if name is None or c.get_text() == name)
+    card = code.find_parent("div", class_="metric")
+    assert card is not None
+    return card
+
+
+def _breakdown(card: Tag) -> Tag | None:
+    section = card.find("details", class_="breakdown")
+    return section if isinstance(section, Tag) else None
+
+
+def _only_breakdown(rep, **render_kwargs) -> Tag | None:
+    return _breakdown(_card(_soup(rep, **render_kwargs)))
+
+
+def _cells(section: Tag, selector: str) -> list[str]:
+    return [el.get_text(strip=True) for el in section.select(selector)]
+
+
+@pytest.mark.parametrize("mode", ["normalized", "actual"])
+def test_breakdown_lists_every_per_column_key_in_order(mode):
+    rep = _golden_report()
+    soup = _soup(rep, score_mode=mode)
+    with_breakdown = [r for r in rep.results if r.per_column]
+    assert with_breakdown
+    for r in with_breakdown:
+        assert r.per_column is not None
+        section = _breakdown(_card(soup, r.spec.name))
+        assert section is not None, r.spec.name
+        assert not section.has_attr("open")
+        assert _cells(section, "tbody th") == list(r.per_column)
+
+
+def test_breakdown_headers_use_scalar_labels():
+    section = _breakdown(_card(_soup(_golden_report()), "ks_statistic"))
+    assert section is not None
+    assert _cells(section, "thead th") == ["", "KS statistic", "p-value"]
+
+
+def _one_metric_report(**result_kwargs):
+    spec = MetricSpec(
+        name="subgroup_fidelity",
+        c="preservation",
+        tier="extended",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+    meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+    return Report(
+        metadata=meta,
+        results=[MetricResult(spec=spec, **result_kwargs)],
+        run_info=RunInfo.capture(random_state=0),
+    )
+
+
+def test_breakdown_unions_value_names_and_renders_non_finite():
+    rep = _one_metric_report(
+        scalars={"score": 0.5},
+        per_column={
+            "a": {"first": 0.25, "second": float("nan")},
+            "b": {"second": float("inf"), "third": 0.5},
+        },
+    )
+    section = _only_breakdown(rep)
+    assert section is not None
+    assert _cells(section, "thead th") == ["", "First", "Second", "Third"]
+    rows = [_cells(tr, "td") for tr in section.select("tbody tr")]
+    assert rows == [["0.2500", "nan", ""], ["", "inf", "0.5000"]]
+
+
+@pytest.mark.parametrize(
+    ("result_kwargs", "shown"),
+    [
+        ({"scalars": {"score": 0.5}, "per_column": None}, False),
+        ({"scalars": {"score": 0.5}, "per_column": {}}, False),
+        ({"skip_reason": "too few rows", "per_column": {"a": {"first": 0.1}}}, True),
+        ({"error": MetricError("kaboom"), "per_column": {"a": {"first": 0.1}}}, False),
+    ],
+    ids=["none", "empty", "skipped", "errored"],
+)
+def test_breakdown_shown_only_for_non_errored_metrics_with_values(result_kwargs, shown):
+    assert (_only_breakdown(_one_metric_report(**result_kwargs)) is not None) is shown
+
+
+def test_breakdown_escapes_keys():
+    rep = _one_metric_report(scalars={"score": 0.5}, per_column={"<b>x</b>": {"first": 0.1}})
+    section = _only_breakdown(rep)
+    assert section is not None
+    assert section.find("b") is None
+    assert _cells(section, "tbody th") == ["<b>x</b>"]
+
+
+def test_breakdown_scrolls_on_screen_but_prints_in_full():
+    soup = _soup(_one_metric_report(scalars={"score": 0.5}, per_column={"a": {"first": 0.1}}))
+    section = _breakdown(_card(soup))
+    assert section is not None
+    assert section.select_one(".breakdown-scroll > table") is not None
+    css = " ".join(style.get_text() for style in soup.select("style"))
+    assert re.search(r"\.breakdown-scroll\s*\{[^}]*max-height:\s*\d", css)
+    print_rules = re.search(r"@media print\s*\{(.*?)\}\s*\}", css, re.S)
+    assert print_rules
+    assert re.search(r"\.breakdown-scroll\s*\{[^}]*max-height:\s*none", print_rules[1])
+
+
 def test_user_derived_text_is_escaped():
-    rep = _report_with_skipped()
-    skipped = rep.results[-1]
-    skipped.skip_reason = "column '<script>alert(1)</script>' has no values"
-    skipped.notes = ["subgroup '<i>x</i>' skipped"]
-    soup = BeautifulSoup(render_html(rep), "html.parser")
-    assert soup.find("script") is None
-    assert soup.find("i") is None
-    assert "<script>alert(1)</script>" in soup.get_text()
+    rep = _one_metric_report(
+        skip_reason="column '<script>alert(1)</script>' has no values",
+        notes=["subgroup '<i>x</i>' skipped"],
+    )
+    card = _card(_soup(rep))
+    assert card.find("script") is None
+    assert card.find("i") is None
+    assert "<script>alert(1)</script>" in card.get_text()
