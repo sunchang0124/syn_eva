@@ -24,9 +24,21 @@ from syneva.core.run_info import RunInfo
 
 
 def _instantiate(
-    cls, utility_tasks, fairness_specs, subgroup_specs, distance, holdout, random_state
+    cls,
+    utility_tasks,
+    fairness_specs,
+    subgroup_specs,
+    distance,
+    holdout,
+    random_state,
+    neighbors_for=None,
 ):
-    """Instantiate a metric, passing only the kwargs its constructor accepts."""
+    """Instantiate a metric, passing only the kwargs its constructor accepts.
+
+    `neighbors_for(with_holdout)` returns the shared Neighbors for this evaluation;
+    a metric that accepts both `neighbors` and `holdout` gets the holdout one when a
+    holdout is given, so it sees the same encoding it would have built itself.
+    """
     params = inspect.signature(cls).parameters
     kwargs = {}
     if "tasks" in params:
@@ -41,6 +53,8 @@ def _instantiate(
         kwargs["holdout"] = holdout
     if "random_state" in params:
         kwargs["random_state"] = random_state
+    if "neighbors" in params and neighbors_for is not None:
+        kwargs["neighbors"] = neighbors_for("holdout" in params and holdout is not None)
     return cls(**kwargs)
 
 
@@ -120,6 +134,9 @@ def evaluate_with(
     nan_policy: str = "drop",
     # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
 ) -> Report:
+    # Imported here: at module load, neighbors pulls in syneva.compliance, whose
+    # metrics import neighbors back before it has finished loading.
+    from syneva.core.neighbors import Neighbors
     from syneva.utility.task import suggest_tasks
 
     preset_obj = get_preset(preset) if preset is not None else None
@@ -183,11 +200,34 @@ def evaluate_with(
             f"data_type={data_type}, cs={list(cs) if cs is not None else 'all'})"
         )
 
+    # One Neighbors per encoding space, built on first use and shared by every
+    # distance metric: metrics with a holdout encode it too, so they get their own.
+    shared_neighbors: dict[bool, Neighbors] = {}
+
+    def neighbors_for(with_holdout: bool) -> Neighbors:
+        assert real is not None
+        if with_holdout not in shared_neighbors:
+            shared_neighbors[with_holdout] = Neighbors(
+                real,
+                synthetic,
+                metadata,
+                distance=distance,
+                holdout=holdout if with_holdout else None,
+            )
+        return shared_neighbors[with_holdout]
+
     results: list[MetricResult] = []
     for cls in selected:
         try:
             inst = _instantiate(
-                cls, utility_tasks, fairness_specs, subgroup_specs, distance, holdout, random_state
+                cls,
+                utility_tasks,
+                fairness_specs,
+                subgroup_specs,
+                distance,
+                holdout,
+                random_state,
+                neighbors_for=neighbors_for if real is not None else None,
             )
             results.append(_reject_non_finite(inst.compute(real, synthetic, metadata)))
         except Exception as e:

@@ -20,12 +20,18 @@ class AlphaPrecisionBetaRecall:
         scope="table-level",
     )
 
-    def __init__(self, distance: str = "euclidean") -> None:
+    def __init__(self, distance: str = "euclidean", neighbors: Neighbors | None = None) -> None:
         self.distance = distance
+        # Shared by the runner (built for these real/synthetic frames); else built here.
+        self.neighbors = neighbors
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        nb = Neighbors(real, synthetic, meta, distance=self.distance)
+        nb = (
+            self.neighbors
+            if self.neighbors is not None
+            else Neighbors(real, synthetic, meta, distance=self.distance)
+        )
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,

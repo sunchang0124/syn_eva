@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 from sklearn.neighbors import NearestNeighbors
 
+import syneva.core.neighbors as neighbors
 from syneva.compliance._encode import encode_pair
 from syneva.core.metadata import Metadata
 from syneva.core.neighbors import Neighbors
@@ -145,3 +146,36 @@ def test_gower_real_cap_does_not_change_the_scale(same_distribution_with_outlier
     # The real rows the cap kept (same draw as Neighbors makes).
     kept = np.random.default_rng(42).choice(len(real), 100, replace=False)
     assert np.allclose(capped.real_to_syn(1), full.real_to_syn(1)[kept])
+
+
+def _spy_gower(monkeypatch):
+    calls = []
+    original = neighbors.gower_matrix
+
+    def spy(a, b, *args, **kwargs):
+        calls.append((len(a), len(b)))
+        return original(a, b, *args, **kwargs)
+
+    monkeypatch.setattr(neighbors, "gower_matrix", spy)
+    return calls
+
+
+def test_gower_builds_no_matrix_until_one_is_needed(monkeypatch):
+    calls = _spy_gower(monkeypatch)
+    real, syn, meta = _data()
+    holdout = real.iloc[:30]
+    Neighbors(real, syn, meta, distance="gower", holdout=holdout)
+    assert calls == []
+
+
+def test_gower_builds_each_matrix_once(monkeypatch):
+    calls = _spy_gower(monkeypatch)
+    real, syn, meta = _data()  # 60 real, 40 synthetic
+    nb = Neighbors(real, syn, meta, distance="gower")
+    nb.real_self(1)
+    nb.real_self(2)
+    nb.real_to_syn(1)
+    nb.syn_to_real(2)  # reads the transpose of real x synthetic
+    nb.real_to_syn_index()
+    # real x real, then real x synthetic; synthetic x synthetic is never needed here.
+    assert calls == [(60, 60), (60, 40)]

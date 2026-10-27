@@ -21,7 +21,8 @@ def _usable_feature_count(meta: Metadata) -> int:
 
 class Neighbors:
     """Nearest-neighbour distance primitives for a (real, synthetic) pair, under
-    a euclidean (encode_pair + sklearn) or gower (precomputed matrices) backend."""
+    a euclidean (encode_pair, exact nearest neighbours) or gower (matrices built on
+    first use) backend."""
 
     def __init__(
         self,
@@ -53,11 +54,10 @@ class Neighbors:
             if h is not None and len(h) > cap:
                 h = h.iloc[rng.choice(len(h), cap, replace=False)]
                 self.capped = True
-            self._d_rr = gower_matrix(r, r, meta, ranges)
-            self._d_rs = gower_matrix(r, s, meta, ranges)
-            self._d_ss = gower_matrix(s, s, meta, ranges)
-            self._d_hr = gower_matrix(h, r, meta, ranges) if h is not None else None
-            self._d_hh = gower_matrix(h, h, meta, ranges) if h is not None else None
+            # Rows are fixed here; each matrix is built on first use (see _gower).
+            self._frames = {"real": r, "syn": s, "holdout": h}
+            self._meta, self._ranges = meta, ranges
+            self._gower_cache: dict[tuple[str, str], np.ndarray] = {}
             self._n_features = _usable_feature_count(meta)
             self._nr, self._ns = len(r), len(s)
         else:
@@ -76,9 +76,20 @@ class Neighbors:
     def n_features(self) -> int:
         return self._n_features
 
+    def _gower(self, a: str, b: str) -> np.ndarray:
+        """Gower matrix between two of the (capped) frames, built once and reused.
+        Read-only, since every metric sharing this instance reads the same array;
+        callers that modify it must work on a copy."""
+        key = (a, b)
+        if key not in self._gower_cache:
+            d = gower_matrix(self._frames[a], self._frames[b], self._meta, self._ranges)
+            d.setflags(write=False)
+            self._gower_cache[key] = d
+        return self._gower_cache[key]
+
     def _self_dist(self, which: str, k: int) -> np.ndarray:
         if self.distance == "gower":
-            d = (self._d_rr if which == "real" else self._d_ss).copy()
+            d = self._gower(which, which).copy()
             n = d.shape[0]
             if k >= n:
                 raise ValueError(
@@ -97,7 +108,9 @@ class Neighbors:
 
     def _cross_dist(self, src: str, k: int) -> np.ndarray:
         if self.distance == "gower":
-            d = self._d_rs if src == "real" else self._d_rs.T
+            d = self._gower("real", "syn")
+            if src != "real":
+                d = d.T
             if k > d.shape[1]:
                 raise ValueError(f"k={k} too large: only {d.shape[1]} target rows available")
             return np.partition(d, k - 1, axis=1)[:, k - 1]
@@ -119,7 +132,7 @@ class Neighbors:
 
     def real_to_syn_index(self) -> np.ndarray:
         if self.distance == "gower":
-            return np.argmin(self._d_rs, axis=1)
+            return np.argmin(self._gower("real", "syn"), axis=1)
         return (
             NearestNeighbors(n_neighbors=1)
             .fit(self._x_syn)
@@ -130,8 +143,7 @@ class Neighbors:
         if not self._has_holdout:
             raise ValueError("no holdout provided to Neighbors")
         if self.distance == "gower":
-            d = self._d_hr
-            assert d is not None
+            d = self._gower("holdout", "real")
             if k > d.shape[1]:
                 raise ValueError(f"k={k} too large: only {d.shape[1]} real rows")
             return np.partition(d, k - 1, axis=1)[:, k - 1]
@@ -148,8 +160,7 @@ class Neighbors:
         if not self._has_holdout:
             raise ValueError("no holdout provided to Neighbors")
         if self.distance == "gower":
-            assert self._d_hh is not None
-            d = self._d_hh.copy()
+            d = self._gower("holdout", "holdout").copy()
             n = d.shape[0]
             if k >= n:
                 raise ValueError(f"k={k} too large: only {n - 1} other holdout rows")
