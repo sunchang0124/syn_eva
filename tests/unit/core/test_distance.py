@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from syneva.core.distance import gower_matrix, gower_nearest_index, numeric_ranges
+from syneva.core.distance import (
+    gower_matrix,
+    gower_nearest_distance,
+    gower_nearest_index,
+    numeric_ranges,
+)
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 
 
@@ -123,7 +128,28 @@ def test_gower_nearest_index_matches_full_matrix_argmin(block_size):
     assert idx.tolist() == expected.tolist()
 
 
-def test_gower_nearest_index_rejects_non_positive_block_size():
+@pytest.mark.parametrize("nearest", [gower_nearest_index, gower_nearest_distance])
+def test_gower_nearest_rejects_non_positive_block_size(nearest):
     df = pd.DataFrame({"num": [1.0], "cat": ["x"]})
     with pytest.raises(ValueError, match="block_size"):
-        gower_nearest_index(df, df, _meta(), {"num": 1.0}, block_size=0)
+        nearest(df, df, _meta(), {"num": 1.0}, block_size=0)
+
+
+def test_gower_nearest_distance_worked_example():
+    real = pd.DataFrame({"num": [0.0, 10.0], "cat": ["x", "y"]})
+    syn = pd.DataFrame({"num": [10.0, 5.0], "cat": ["y", "x"]})
+    # Row 0 (0, x): distances 1.0, 0.25. Row 1 (10, y): 0.0, 0.75.
+    d = gower_nearest_distance(real, syn, _meta(), {"num": 10.0}, block_size=1)
+    assert d.tolist() == pytest.approx([0.25, 0.0])
+
+
+@pytest.mark.parametrize("block_size", [1, 7, 10, 40, 1000])
+def test_gower_nearest_distance_matches_full_matrix_min(block_size):
+    rng = np.random.default_rng(1)
+    real = pd.DataFrame({"num": rng.normal(0, 1, 40), "cat": rng.choice(list("abc"), 40)})
+    syn = pd.DataFrame({"num": rng.normal(0, 1, 25), "cat": rng.choice(list("abc"), 25)})
+    ranges = numeric_ranges(real, _meta())
+    expected = gower_matrix(real, syn, _meta(), ranges).min(axis=1)
+    d = gower_nearest_distance(real, syn, _meta(), ranges, block_size=block_size)
+    # Exact: a block's rows are the same elementwise computation as the full matrix's.
+    np.testing.assert_array_equal(d, expected)
