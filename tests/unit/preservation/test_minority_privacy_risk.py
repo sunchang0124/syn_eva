@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from syneva import SubgroupSpec
+from syneva.core.distance import GOWER_BLOCK_ROWS
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.preservation.minority_privacy_risk import MinorityPrivacyRisk
 
@@ -174,3 +175,109 @@ def test_gower_backend_runs():
         real, real.copy(), _meta()
     )
     assert 0.0 <= res.scalars["score"] <= 1.0
+
+
+def _mixed_frames(n_real=600, n_syn=500):
+    rng = np.random.default_rng(3)
+
+    def make_frame(n):
+        return pd.DataFrame(
+            {
+                "g": rng.choice(["A", "B"], n, p=[0.85, 0.15]),
+                "job": rng.choice(list("abc"), n),
+                "x": rng.normal(0, 1, n),
+                "y": rng.integers(0, 100, n).astype(float),
+            }
+        )
+
+    meta = Metadata(
+        columns={
+            "g": ColumnMetadata(name="g", dtype=ColumnType.CATEGORICAL),
+            "job": ColumnMetadata(name="job", dtype=ColumnType.CATEGORICAL),
+            "x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC),
+            "y": ColumnMetadata(name="y", dtype=ColumnType.NUMERIC),
+        }
+    )
+    return make_frame(n_real), make_frame(n_syn), meta
+
+
+@pytest.mark.parametrize(
+    ("cap", "ratio", "sub_med", "rest_med", "overall_med", "notes"),
+    [
+        (
+            2000,
+            2.44492488852193,
+            0.024457350951249818,
+            0.010003313829240164,
+            0.010497413295214614,
+            [],
+        ),
+        (
+            300,
+            2.76751286683609,
+            0.03518295738729698,
+            0.01271284329194529,
+            0.013885621125896919,
+            [
+                "synthetic capped at 300 rows",
+                "real rows capped at 300 (81 subgroup members + 219 others kept; "
+                "baseline reweighted to the full real data)",
+            ],
+        ),
+    ],
+)
+def test_gower_results_on_mixed_data(cap, ratio, sub_med, rest_med, overall_med, notes):
+    real, syn, meta = _mixed_frames()
+    res = MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance="gower", cap=cap).compute(
+        real, syn, meta
+    )
+    assert res.scalars is not None and res.per_column is not None
+    # Values from the full-matrix implementation before #83.
+    assert res.scalars == pytest.approx(
+        {"score": 1.0, "mean_risk_ratio": ratio, "worst_risk_ratio": ratio}
+    )
+    assert res.per_column["b-group"] == pytest.approx(
+        {
+            "risk_ratio": ratio,
+            "median_dcr_subgroup": sub_med,
+            "median_dcr_rest": rest_med,
+            "median_dcr_overall": overall_med,
+        }
+    )
+    assert res.notes == notes
+
+
+def test_gower_compares_real_blocks_with_synthetic_only(monkeypatch):
+    import syneva.core.distance as distance
+
+    calls = []
+    original = distance.gower_matrix
+
+    def spy(a, b, *args, **kwargs):
+        calls.append((len(a), len(b)))
+        return original(a, b, *args, **kwargs)
+
+    monkeypatch.setattr(distance, "gower_matrix", spy)
+    real, syn, meta = _mixed_frames()
+    MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance="gower").compute(real, syn, meta)
+    assert len(real) > GOWER_BLOCK_ROWS
+    assert calls
+    assert all(n_a <= GOWER_BLOCK_ROWS and n_b == len(syn) for n_a, n_b in calls)
+    assert sum(n_a for n_a, _ in calls) == len(real)
+
+
+@pytest.mark.slow
+def test_gower_memory_stays_bounded_with_a_raised_cap():
+    import tracemalloc
+
+    real, syn, meta = _mixed_frames(n_real=8000, n_syn=2000)
+    tracemalloc.start()
+    try:
+        MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance="gower", cap=20_000).compute(
+            real, syn, meta
+        )
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    full_matrix = len(real) * len(syn) * 8  # one float64 real x synthetic matrix
+    assert peak < full_matrix / 4

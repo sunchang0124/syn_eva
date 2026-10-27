@@ -78,8 +78,31 @@ def gower_matrix(
     return total / count
 
 
-# Rows of `a` per block in gower_nearest_index.
+# Rows of `a` per block in gower_nearest_index and gower_nearest_distance.
 GOWER_BLOCK_ROWS = 256
+
+
+def _gower_nearest(
+    a: pd.DataFrame,
+    b: pd.DataFrame,
+    meta: Metadata,
+    ranges: Mapping[str, float],
+    block_size: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """(position in `b`, distance) of the Gower-nearest row for every row of `a`,
+    computed over blocks of `block_size` rows of `a`."""
+    if block_size < 1:
+        raise ValueError(f"block_size must be at least 1, got {block_size}")
+    idx = np.empty(len(a), dtype=np.intp)
+    dist = np.empty(len(a), dtype=float)
+    for start in range(0, len(a), block_size):
+        block = a.iloc[start : start + block_size]
+        d = gower_matrix(block, b, meta, ranges)
+        nearest = np.argmin(d, axis=1)
+        stop = start + len(block)
+        idx[start:stop] = nearest
+        dist[start:stop] = d[np.arange(len(block)), nearest]
+    return idx, dist
 
 
 def gower_nearest_index(
@@ -98,10 +121,20 @@ def gower_nearest_index(
     `ranges` is required (see `numeric_ranges`): every block must share one
     scale, or the blocked result would differ from the full-matrix argmin.
     """
-    if block_size < 1:
-        raise ValueError(f"block_size must be at least 1, got {block_size}")
-    out = np.empty(len(a), dtype=np.intp)
-    for start in range(0, len(a), block_size):
-        block = a.iloc[start : start + block_size]
-        out[start : start + len(block)] = np.argmin(gower_matrix(block, b, meta, ranges), axis=1)
-    return out
+    return _gower_nearest(a, b, meta, ranges, block_size)[0]
+
+
+def gower_nearest_distance(
+    a: pd.DataFrame,
+    b: pd.DataFrame,
+    meta: Metadata,
+    ranges: Mapping[str, float],
+    *,
+    block_size: int = GOWER_BLOCK_ROWS,
+) -> np.ndarray:
+    """Gower distance from every row of `a` to its nearest row of `b`.
+
+    Same result as ``gower_matrix(a, b, meta, ranges).min(axis=1)``, computed in
+    blocks like `gower_nearest_index` (same memory bound, same required `ranges`).
+    """
+    return _gower_nearest(a, b, meta, ranges, block_size)[1]
