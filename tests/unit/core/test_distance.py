@@ -128,10 +128,11 @@ def test_gower_nearest_index_matches_full_matrix_argmin(block_size):
     assert idx.tolist() == expected.tolist()
 
 
-def test_gower_nearest_index_rejects_non_positive_block_size():
+@pytest.mark.parametrize("nearest", [gower_nearest_index, gower_nearest_distance])
+def test_gower_nearest_rejects_non_positive_block_size(nearest):
     df = pd.DataFrame({"num": [1.0], "cat": ["x"]})
     with pytest.raises(ValueError, match="block_size"):
-        gower_nearest_index(df, df, _meta(), {"num": 1.0}, block_size=0)
+        nearest(df, df, _meta(), {"num": 1.0}, block_size=0)
 
 
 def test_gower_nearest_distance_worked_example():
@@ -150,10 +151,5 @@ def test_gower_nearest_distance_matches_full_matrix_min(block_size):
     ranges = numeric_ranges(real, _meta())
     expected = gower_matrix(real, syn, _meta(), ranges).min(axis=1)
     d = gower_nearest_distance(real, syn, _meta(), ranges, block_size=block_size)
-    np.testing.assert_allclose(d, expected)
-
-
-def test_gower_nearest_distance_rejects_non_positive_block_size():
-    df = pd.DataFrame({"num": [1.0], "cat": ["x"]})
-    with pytest.raises(ValueError, match="block_size"):
-        gower_nearest_distance(df, df, _meta(), {"num": 1.0}, block_size=0)
+    # Exact: a block's rows are the same elementwise computation as the full matrix's.
+    np.testing.assert_array_equal(d, expected)

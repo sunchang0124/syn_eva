@@ -233,10 +233,9 @@ def test_gower_results_on_mixed_data(cap, ratio, sub_med, rest_med, overall_med,
     )
     assert res.scalars is not None and res.per_column is not None
     # Values from the full-matrix implementation before #83.
-    assert res.scalars == pytest.approx(
-        {"score": 1.0, "mean_risk_ratio": ratio, "worst_risk_ratio": ratio}
-    )
-    assert res.per_column["b-group"] == pytest.approx(
+    # Exact equality: blocking does not change a single distance.
+    assert res.scalars == {"score": 1.0, "mean_risk_ratio": ratio, "worst_risk_ratio": ratio}
+    assert res.per_column["b-group"] == (
         {
             "risk_ratio": ratio,
             "median_dcr_subgroup": sub_med,
@@ -260,7 +259,9 @@ def test_gower_compares_real_blocks_with_synthetic_only(monkeypatch):
     monkeypatch.setattr(distance, "gower_matrix", spy)
     real, syn, meta = _mixed_frames()
     MinorityPrivacyRisk(subgroup_specs=[_SPEC], distance="gower").compute(real, syn, meta)
-    assert len(real) > GOWER_BLOCK_ROWS
+    # 600 real and 500 synthetic rows both exceed a block, so any real x real or
+    # syn x syn call would fail the block-size check.
+    assert len(real) > GOWER_BLOCK_ROWS and len(syn) > GOWER_BLOCK_ROWS
     assert calls
     assert all(n_a <= GOWER_BLOCK_ROWS and n_b == len(syn) for n_a, n_b in calls)
     assert sum(n_a for n_a, _ in calls) == len(real)
@@ -279,5 +280,8 @@ def test_gower_memory_stays_bounded_with_a_raised_cap():
         peak = tracemalloc.get_traced_memory()[1]
     finally:
         tracemalloc.stop()
-    full_matrix = len(real) * len(syn) * 8  # one float64 real x synthetic matrix
-    assert peak < full_matrix / 4
+    # gower_matrix keeps a few block x synthetic float64 temporaries alive at once; allow
+    # ten. A single full real x synthetic matrix would already be over three times that.
+    block_bound = 10 * GOWER_BLOCK_ROWS * len(syn) * 8
+    assert block_bound < len(real) * len(syn) * 8 / 3
+    assert peak < block_bound

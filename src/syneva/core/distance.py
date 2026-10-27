@@ -89,8 +89,10 @@ def _gower_nearest(
     ranges: Mapping[str, float],
     block_size: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """(position in `b`, distance) of the Gower-nearest row for every row of `a`,
-    computed over blocks of `block_size` rows of `a`."""
+    """Position in `b` of, and distance to, the Gower-nearest row of every row of `a`.
+
+    Shared block loop behind `gower_nearest_index` and `gower_nearest_distance`.
+    """
     if block_size < 1:
         raise ValueError(f"block_size must be at least 1, got {block_size}")
     idx = np.empty(len(a), dtype=np.intp)
