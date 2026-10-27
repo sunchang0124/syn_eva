@@ -40,8 +40,10 @@ class NNDR:
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        nb = self.neighbors or Neighbors(
-            real, synthetic, meta, distance=self.distance, holdout=self.holdout
+        nb = (
+            self.neighbors
+            if self.neighbors is not None
+            else Neighbors(real, synthetic, meta, distance=self.distance, holdout=self.holdout)
         )
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) == 0:
             return MetricResult(

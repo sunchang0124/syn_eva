@@ -21,7 +21,8 @@ def _usable_feature_count(meta: Metadata) -> int:
 
 class Neighbors:
     """Nearest-neighbour distance primitives for a (real, synthetic) pair, under
-    a euclidean (encode_pair + sklearn) or gower (matrices built on first use) backend."""
+    a euclidean (encode_pair, exact nearest neighbours) or gower (matrices built on
+    first use) backend."""
 
     def __init__(
         self,
@@ -77,12 +78,13 @@ class Neighbors:
 
     def _gower(self, a: str, b: str) -> np.ndarray:
         """Gower matrix between two of the (capped) frames, built once and reused.
-        Callers that modify it must work on a copy."""
+        Read-only, since every metric sharing this instance reads the same array;
+        callers that modify it must work on a copy."""
         key = (a, b)
         if key not in self._gower_cache:
-            self._gower_cache[key] = gower_matrix(
-                self._frames[a], self._frames[b], self._meta, self._ranges
-            )
+            d = gower_matrix(self._frames[a], self._frames[b], self._meta, self._ranges)
+            d.setflags(write=False)
+            self._gower_cache[key] = d
         return self._gower_cache[key]
 
     def _self_dist(self, which: str, k: int) -> np.ndarray:
@@ -106,7 +108,9 @@ class Neighbors:
 
     def _cross_dist(self, src: str, k: int) -> np.ndarray:
         if self.distance == "gower":
-            d = self._gower("real", "syn") if src == "real" else self._gower("real", "syn").T
+            d = self._gower("real", "syn")
+            if src != "real":
+                d = d.T
             if k > d.shape[1]:
                 raise ValueError(f"k={k} too large: only {d.shape[1]} target rows available")
             return np.partition(d, k - 1, axis=1)[:, k - 1]

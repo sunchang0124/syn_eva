@@ -201,7 +201,7 @@ def evaluate_with(
         )
 
     # One Neighbors per encoding space, built on first use and shared by every
-    # distance metric (#46): metrics with a holdout encode it too, so they get their own.
+    # distance metric: metrics with a holdout encode it too, so they get their own.
     shared_neighbors: dict[bool, Neighbors] = {}
 
     def neighbors_for(with_holdout: bool) -> Neighbors:

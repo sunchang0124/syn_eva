@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 from sklearn.neighbors import NearestNeighbors
 
+import syneva.core.neighbors as neighbors
 from syneva.compliance._encode import encode_pair
 from syneva.core.metadata import Metadata
 from syneva.core.neighbors import Neighbors
@@ -148,8 +149,6 @@ def test_gower_real_cap_does_not_change_the_scale(same_distribution_with_outlier
 
 
 def _spy_gower(monkeypatch):
-    import syneva.core.neighbors as neighbors
-
     calls = []
     original = neighbors.gower_matrix
 

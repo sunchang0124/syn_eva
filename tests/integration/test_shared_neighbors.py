@@ -68,9 +68,8 @@ def test_euclidean_encodes_once_per_shared_instance(
 
     def spying(original):
         def spy(*args, **kwargs):
-            meta = args[-1] if len(args) in (2, 3) else kwargs.get("meta")
             # attribute_disclosure builds its own Neighbors over quasi-identifiers only.
-            if meta is metadata:
+            if any(arg is metadata for arg in (*args, *kwargs.values())):
                 calls.append(original.__name__)
             return original(*args, **kwargs)
 
