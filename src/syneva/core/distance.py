@@ -76,3 +76,28 @@ def gower_matrix(
     if count == 0:
         return np.zeros((na, nb))
     return total / count
+
+
+def gower_nearest_index(
+    a: pd.DataFrame,
+    b: pd.DataFrame,
+    meta: Metadata,
+    ranges: Mapping[str, float] | None = None,
+    *,
+    block_size: int = 256,
+) -> np.ndarray:
+    """Position in `b` of the Gower-nearest row for every row of `a`.
+
+    Same result as ``np.argmin(gower_matrix(a, b, meta, ranges), axis=1)`` (ties
+    go to the first row of `b`), but `a` is processed in blocks of `block_size`
+    rows, so peak memory grows with block_size * len(b), not len(a) * len(b).
+    Pass `ranges` so every block shares one scale; without it each block would
+    take its own range over union(block, b).
+    """
+    if block_size < 1:
+        raise ValueError(f"block_size must be at least 1, got {block_size}")
+    out = np.empty(len(a), dtype=np.intp)
+    for start in range(0, len(a), block_size):
+        block = a.iloc[start : start + block_size]
+        out[start : start + len(block)] = np.argmin(gower_matrix(block, b, meta, ranges), axis=1)
+    return out

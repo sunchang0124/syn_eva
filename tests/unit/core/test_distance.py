@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+import pytest
 
-from syneva.core.distance import gower_matrix, numeric_ranges
+from syneva.core.distance import gower_matrix, gower_nearest_index, numeric_ranges
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 
 
@@ -90,3 +91,39 @@ def test_column_missing_from_ranges_is_skipped():
     b = pd.DataFrame({"num": [5.0], "cat": ["y"]})
     d = gower_matrix(a, b, _meta(), ranges={})
     assert np.allclose(d, [[1.0]])
+
+
+def test_gower_nearest_index_worked_example():
+    real = pd.DataFrame({"num": [0.0, 10.0], "cat": ["x", "y"]})
+    syn = pd.DataFrame({"num": [10.0, 0.0, 5.0], "cat": ["y", "x", "x"]})
+    # Row 0 (0, x): distances 1.0, 0.0, 0.25 -> 1. Row 1 (10, y): 0.0, 1.0, 0.75 -> 0.
+    idx = gower_nearest_index(real, syn, _meta(), {"num": 10.0}, block_size=1)
+    assert idx.tolist() == [1, 0]
+
+
+def test_gower_nearest_index_ties_go_to_first_synthetic_row():
+    real = pd.DataFrame({"num": [5.0], "cat": ["x"]})
+    syn = pd.DataFrame({"num": [10.0, 0.0, 10.0], "cat": ["x", "x", "x"]})
+    # All three synthetic rows sit 0.25 away.
+    assert gower_nearest_index(real, syn, _meta(), {"num": 10.0}).tolist() == [0]
+
+
+@pytest.mark.parametrize("block_size", [1, 7, 10, 40, 1000])
+def test_gower_nearest_index_matches_full_matrix_argmin(block_size):
+    rng = np.random.default_rng(0)
+    real = pd.DataFrame(
+        {"num": rng.integers(0, 5, 40).astype(float), "cat": rng.choice(list("ab"), 40)}
+    )
+    syn = pd.DataFrame(
+        {"num": rng.integers(0, 5, 25).astype(float), "cat": rng.choice(list("ab"), 25)}
+    )
+    ranges = numeric_ranges(real, _meta())
+    expected = np.argmin(gower_matrix(real, syn, _meta(), ranges), axis=1)
+    idx = gower_nearest_index(real, syn, _meta(), ranges, block_size=block_size)
+    assert idx.tolist() == expected.tolist()
+
+
+def test_gower_nearest_index_rejects_non_positive_block_size():
+    df = pd.DataFrame({"num": [1.0], "cat": ["x"]})
+    with pytest.raises(ValueError, match="block_size"):
+        gower_nearest_index(df, df, _meta(), block_size=0)
