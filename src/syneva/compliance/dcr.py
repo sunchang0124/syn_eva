@@ -21,13 +21,22 @@ class DCR:
         scope="table-level",
     )
 
-    def __init__(self, distance: str = "euclidean", holdout: pd.DataFrame | None = None) -> None:
+    def __init__(
+        self,
+        distance: str = "euclidean",
+        holdout: pd.DataFrame | None = None,
+        neighbors: Neighbors | None = None,
+    ) -> None:
         self.distance = distance
         self.holdout = holdout
+        # Shared by the runner (built for these real/synthetic/holdout frames); else built here.
+        self.neighbors = neighbors
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
-        nb = Neighbors(real, synthetic, meta, distance=self.distance, holdout=self.holdout)
+        nb = self.neighbors or Neighbors(
+            real, synthetic, meta, distance=self.distance, holdout=self.holdout
+        )
         if nb.n_features == 0 or len(real) == 0 or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
