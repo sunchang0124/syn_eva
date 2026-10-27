@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from syneva.compliance.extended.attribute_disclosure import AttributeDisclosure
+from syneva.core.distance import GOWER_BLOCK_ROWS
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 
 
@@ -53,7 +54,7 @@ def _mixed_frames():
 
     rng = np.random.default_rng(7)
 
-    def one(n):
+    def make_frame(n):
         return pd.DataFrame(
             {
                 "age": rng.integers(18, 90, n).astype(float),
@@ -71,7 +72,7 @@ def _mixed_frames():
             "score": ColumnMetadata(name="score", dtype=ColumnType.NUMERIC, sensitive=True),
         }
     )
-    return one(600), one(500), meta
+    return make_frame(600), make_frame(500), meta
 
 
 def test_gower_compares_real_blocks_with_synthetic_only(monkeypatch):
@@ -90,8 +91,10 @@ def test_gower_compares_real_blocks_with_synthetic_only(monkeypatch):
     real, syn, meta = _mixed_frames()
     AttributeDisclosure(distance="gower").compute(real, syn, meta)
     assert calls
-    # Never real x real or syn x syn, and never the whole real table at once.
-    assert all(n_b == len(syn) and n_a < len(real) for n_a, n_b in calls)
+    # Every call is one block of real rows against all synthetic rows; 600 real and 500
+    # synthetic rows both exceed a block, so a real x real or syn x syn call would fail.
+    assert len(real) > GOWER_BLOCK_ROWS and len(syn) > GOWER_BLOCK_ROWS
+    assert all(n_a <= GOWER_BLOCK_ROWS and n_b == len(syn) for n_a, n_b in calls)
     assert sum(n_a for n_a, _ in calls) == len(real)
 
 
@@ -103,3 +106,9 @@ def test_gower_disclosure_rate_on_mixed_data():
     assert r.scalars["disclosure_rate"] == pytest.approx(34 / 600)
     assert r.scalars["score"] == pytest.approx(1 - 34 / 600)
     assert not r.notes
+
+
+def test_unknown_distance_raises_even_with_empty_synthetic():
+    df = pd.DataFrame({"qi": [1, 2, 3], "secret": ["A", "B", "A"]})
+    with pytest.raises(ValueError, match="unknown distance"):
+        AttributeDisclosure(distance="bogus").compute(df, df.iloc[:0], _meta_sens())

@@ -126,4 +126,4 @@ def test_gower_nearest_index_matches_full_matrix_argmin(block_size):
 def test_gower_nearest_index_rejects_non_positive_block_size():
     df = pd.DataFrame({"num": [1.0], "cat": ["x"]})
     with pytest.raises(ValueError, match="block_size"):
-        gower_nearest_index(df, df, _meta(), block_size=0)
+        gower_nearest_index(df, df, _meta(), {"num": 1.0}, block_size=0)
