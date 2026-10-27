@@ -5,6 +5,7 @@ from typing import ClassVar
 import numpy as np
 import pandas as pd
 
+from syneva.core.distance import gower_nearest_index, numeric_ranges
 from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.neighbors import Neighbors
@@ -46,8 +47,13 @@ class AttributeDisclosure:
                 ),
             )
         qi_meta = Metadata(columns={n: meta.columns[n] for n in qi})
-        nb = Neighbors(real, synthetic, qi_meta, distance=self.distance, cap=10**9)
-        if nb.n_features == 0 or len(synthetic) == 0:
+        # Gower QIs are always usable (see _USABLE), so only euclidean can lack features.
+        nb = (
+            None
+            if self.distance == "gower"
+            else Neighbors(real, synthetic, qi_meta, distance=self.distance)
+        )
+        if (nb is not None and nb.n_features == 0) or len(synthetic) == 0:
             return MetricResult(
                 spec=self.spec,
                 skip_reason=(
@@ -55,7 +61,12 @@ class AttributeDisclosure:
                     "empty."
                 ),
             )
-        idx = nb.real_to_syn_index()
+        if nb is None:
+            # Exact nearest synthetic row for every real row, in blocks: no sampling, and
+            # no full real x synthetic matrix.
+            idx = gower_nearest_index(real, synthetic, qi_meta, numeric_ranges(real, qi_meta))
+        else:
+            idx = nb.real_to_syn_index()
         real_r = real.reset_index(drop=True)
         syn_r = synthetic.reset_index(drop=True)
         matches = np.ones(len(real_r), dtype=bool)
