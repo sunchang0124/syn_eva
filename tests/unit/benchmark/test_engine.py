@@ -169,3 +169,207 @@ def test_all_errored_candidate_ranks_last_under_relative_norm():
         assert names_in_order[-1] == "aaa_err", (
             f"mode={mode}: all-errored candidate 'aaa_err' must be last, got {names_in_order}"
         )
+
+
+# --- Candidates are compared only on metrics every candidate scored (#33) ---
+
+_META = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+_RUN_INFO = RunInfo(random_state=42, started_at=0.0, finished_at=1.0, library_versions={})
+
+
+def _spec(name: str, c: str) -> MetricSpec:
+    return MetricSpec(
+        name=name,
+        c=c,
+        tier="core",
+        data_types=frozenset(["static"]),
+        requires_real=True,
+        scope="table-level",
+    )
+
+
+def _report(**results: float | str | None) -> Report:
+    """One result per `c__metric=value`: a float is a score, "skip" a skip, and
+    None a failure."""
+    out = []
+    for key, value in results.items():
+        c, _, name = key.partition("__")
+        spec = _spec(name, c)
+        if value is None:
+            out.append(MetricResult(spec=spec, error=MetricError("simulated error")))
+        elif value == "skip":
+            out.append(MetricResult(spec=spec, skip_reason="simulated skip"))
+        else:
+            out.append(MetricResult(spec=spec, scalars={"score": value}))
+    return Report(metadata=_META, results=out, run_info=_RUN_INFO)
+
+
+_NORMALIZATIONS = ("absolute", "linear", "quantile", "normal")
+
+
+@pytest.mark.parametrize("normalization", _NORMALIZATIONS)
+def test_a_failed_metric_does_not_lift_a_candidate_above_one_that_scored_it(normalization):
+    res = BenchmarkResult(
+        reports={
+            # Counting only what ran, A (0.8) would beat B ((0.9 + 0.2) / 2).
+            "A": _report(compliance__dcr=0.8, compliance__mia_auc=None),
+            "B": _report(compliance__dcr=0.9, compliance__mia_auc=0.2),
+        }
+    )
+    assert res.overall == pytest.approx({"A": 0.8, "B": 0.9})
+    assert [name for _, name, _ in res.ranking(normalization=normalization)] == ["B", "A"]
+
+
+def test_a_dimension_failed_for_one_candidate_is_compared_for_none():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, compliance__dcr=None),
+            "B": _report(congruence__ks=0.7, compliance__dcr=0.1),
+        }
+    )
+    assert res.c_dims() == ["congruence"]
+    assert res.c_scores == {"A": {"congruence": 0.6}, "B": {"congruence": 0.7}}
+    assert res.overall == pytest.approx({"A": 0.6, "B": 0.7})
+    assert [name for _, name, _ in res.ranking()] == ["B", "A"]
+    with pytest.raises(SynevaError, match="unknown ranking target"):
+        res.ranking(by="compliance")
+
+
+def test_a_metric_skipped_for_one_candidate_is_compared_for_none():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, congruence__tvd="skip"),
+            "B": _report(congruence__ks=0.7, congruence__tvd=0.1),
+        }
+    )
+    assert res.compared_metrics() == ["ks"]
+    assert [name for _, name, _ in res.ranking()] == ["B", "A"]
+
+
+def test_a_candidate_with_nothing_scored_ranks_last_without_shrinking_the_comparison():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.9, congruence__tvd=0.1),
+            "B": _report(congruence__ks=0.5, congruence__tvd=0.6),
+            "aaa_failed": _report(congruence__ks=None, congruence__tvd=None),
+        }
+    )
+    assert res.compared_metrics() == ["ks", "tvd"]
+    assert res.overall == pytest.approx({"A": 0.5, "B": 0.55, "aaa_failed": 0.0})
+    assert res.c_scores["aaa_failed"] == {}
+    assert [name for _, name, _ in res.ranking()] == ["B", "A", "aaa_failed"]
+
+
+def test_ranking_by_one_metric_still_ranks_candidates_without_it_last():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(compliance__dcr=0.8, compliance__mia_auc=None),
+            "B": _report(compliance__dcr=0.9, compliance__mia_auc=0.2),
+        }
+    )
+    assert res.ranking(by="mia_auc") == [(1, "B", 0.2), (2, "A", float("-inf"))]
+
+
+def test_notes_name_each_metric_left_out_of_the_comparison_once():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, compliance__dcr=None, congruence__tvd=0.2),
+            "B": _report(congruence__ks=0.7, compliance__dcr=0.1, congruence__tvd="skip"),
+            "C": _report(congruence__ks=0.5, compliance__dcr="skip", congruence__tvd=0.3),
+            "D": _report(congruence__ks=None, compliance__dcr=None, congruence__tvd=None),
+        }
+    )
+    for _ in range(2):
+        res.ranking()
+        res.ranking(normalization="linear")
+        _ = res.overall, res.c_scores
+    assert res.notes == [
+        "dcr not compared: failed for A, skipped for C",
+        "tvd not compared: skipped for B",
+        "D has no scored metrics and ranks last",
+    ]
+
+
+def test_a_metric_skipped_for_every_candidate_adds_no_note():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, compliance__mia_auc="skip"),
+            "B": _report(congruence__ks=0.7, compliance__mia_auc="skip"),
+        }
+    )
+    res.ranking()
+    assert res.notes == []
+
+
+def test_comparison_notes_survive_a_json_round_trip(tmp_path):
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, compliance__dcr=None),
+            "B": _report(congruence__ks=0.7, compliance__dcr=0.1),
+        }
+    )
+    res.to_json(tmp_path / "b.json")
+    loaded = BenchmarkResult.from_json(tmp_path / "b.json")
+    assert loaded.notes == res.notes == ["dcr not compared: failed for A"]
+    assert loaded.overall == res.overall
+    assert loaded.c_scores == res.c_scores
+    assert loaded.ranking() == res.ranking()
+
+
+def test_with_one_candidate_scores_match_its_report():
+    report = _report(congruence__ks=0.6, congruence__tvd=0.2, compliance__dcr=0.9)
+    res = BenchmarkResult(reports={"only": report})
+    assert res.c_scores == {"only": report.aggregated}
+    assert res.overall["only"] == pytest.approx((0.4 + 0.9) / 2)
+
+
+def test_a_metric_missing_from_a_report_is_noted_as_not_run():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6),
+            "B": _report(congruence__ks=0.7, congruence__tvd=0.1),
+        }
+    )
+    assert res.compared_metrics() == ["ks"]
+    assert res.notes == ["tvd not compared: not run for A"]
+
+
+def test_notes_passed_in_are_not_changed_in_place():
+    mine = ["hand-written note"]
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, compliance__dcr=None),
+            "B": _report(congruence__ks=0.7, compliance__dcr=0.1),
+        },
+        notes=mine,
+    )
+    assert mine == ["hand-written note"]
+    assert res.notes == ["hand-written note", "dcr not compared: failed for A"]
+
+
+def test_changing_the_returned_score_matrix_does_not_change_the_result():
+    res = BenchmarkResult(reports={"A": _report(congruence__ks=0.6)})
+    res.score_matrix["A"]["ks"] = 0.0
+    assert res.score_matrix == {"A": {"ks": 0.6}}
+    assert res.overall == {"A": 0.6}
+
+
+def test_a_ranking_with_no_shared_metric_says_it_orders_by_name():
+    res = BenchmarkResult(
+        reports={
+            "B": _report(congruence__ks=0.9, congruence__tvd="skip"),
+            "A": _report(congruence__ks="skip", congruence__tvd=0.1),
+        }
+    )
+    assert res.compared_metrics() == []
+    assert [name for _, name, _ in res.ranking()] == ["A", "B"]
+    assert "no metric was scored by every candidate, so candidates are ordered by name" in (
+        res.notes
+    )
+
+
+def test_a_ranking_with_shared_metrics_adds_no_name_order_note():
+    res = BenchmarkResult(
+        reports={"A": _report(congruence__ks=0.6), "B": _report(congruence__ks=0.7)}
+    )
+    assert res.notes == []

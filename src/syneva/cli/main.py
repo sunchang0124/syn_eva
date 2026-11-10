@@ -134,6 +134,8 @@ def benchmark(
         res.to_json(out / "benchmark.json")
         for rank, name, score in ranked:
             typer.echo(f"{rank}. {name}  {score:.4f}")
+        for note in res.notes:
+            typer.echo(f"note: {note}")
         typer.echo(f"wrote leaderboard to {out}/")
     except SynevaError as e:
         typer.echo(f"syneva error: {e}", err=True)

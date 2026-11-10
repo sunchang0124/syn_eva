@@ -62,3 +62,29 @@ def test_leaderboard_escapes_candidate_names_but_embeds_scorecards():
     assert "<i>evil</i>" in soup.get_text()
     # the embedded per-candidate scorecard is trusted HTML and must still render
     assert soup.select_one("details.drill div.metric") is not None
+
+
+def test_leaderboard_names_metrics_left_out_of_the_comparison():
+    real = pd.read_parquet("tests/fixtures/adult_income_real_500.parquet")
+    good = pd.read_parquet("tests/fixtures/adult_income_syn_good_500.parquet")
+    # One row repeated: no column pair has an association, so correlation_difference
+    # is skipped for this candidate only.
+    constant = pd.concat([good.head(1)] * 50, ignore_index=True)
+    res = syneva.benchmark(real, {"good": good, "constant": constant}, syneva.Metadata.infer(real))
+    html = render_leaderboard(res)
+    assert "correlation_difference not compared: skipped for constant" in html
+
+
+_PARTIAL = "use only the metrics every candidate scored"
+
+
+def test_leaderboard_says_its_scores_differ_from_the_scorecards_when_metrics_are_left_out():
+    real = pd.read_parquet("tests/fixtures/adult_income_real_500.parquet")
+    good = pd.read_parquet("tests/fixtures/adult_income_syn_good_500.parquet")
+    constant = pd.concat([good.head(1)] * 50, ignore_index=True)
+    res = syneva.benchmark(real, {"good": good, "constant": constant}, syneva.Metadata.infer(real))
+    assert _PARTIAL in render_leaderboard(res)
+
+
+def test_leaderboard_has_no_partial_comparison_label_when_every_metric_is_compared():
+    assert _PARTIAL not in render_leaderboard(_result())

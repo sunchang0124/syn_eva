@@ -62,6 +62,7 @@
   </div>
 
   <h2>Leaderboard</h2>
+  {% if partial %}<p class="modeline">Overall and dimension scores here use only the metrics every candidate scored (see the notes above). Each candidate's own scorecard below uses all of its metrics, so its dimension scores can differ.</p>{% endif %}
   <table class="leaderboard">
     <thead><tr><th>#</th><th>Candidate</th><th>Overall</th>
       {% for c in c_dims %}<th title="{{ c_info[c] }}">{{ c }}</th>{% endfor %}</tr></thead>
