@@ -36,8 +36,16 @@ class AttributeDisclosure:
         meta: Metadata,
     ) -> MetricResult:
         assert real is not None
+        # Targets are the sensitive attributes; the attacker links on the quasi-identifiers
+        # (Machanavajjhala et al., 2007). A target is never linked on, even when it is also
+        # declared a quasi-identifier, or it would trivially match its own copy.
+        # With no non-sensitive quasi-identifier declared, every non-sensitive column is
+        # assumed linkable.
         sensitive = [n for n, cm in meta.columns.items() if cm.sensitive]
-        qi = [n for n, cm in meta.columns.items() if not cm.sensitive and cm.dtype in _USABLE]
+        linkable = {n: cm for n, cm in meta.columns.items() if not cm.sensitive}
+        if any(cm.quasi_identifier for cm in linkable.values()):
+            linkable = {n: cm for n, cm in linkable.items() if cm.quasi_identifier}
+        qi = [n for n, cm in linkable.items() if cm.dtype in _USABLE]
         if not sensitive or not qi:
             return MetricResult(
                 spec=self.spec,

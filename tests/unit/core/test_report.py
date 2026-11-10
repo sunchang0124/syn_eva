@@ -77,3 +77,23 @@ def test_to_html_writes_utf8(tmp_path, cp1252_locale):
     path = tmp_path / "out.html"
     r.to_html(path)
     assert path.read_text(encoding="utf-8") == render_html(r)
+
+
+def test_privacy_roles_round_trip():
+    r = _example_report()
+    r.metadata.columns["zip"] = ColumnMetadata(
+        name="zip", dtype=ColumnType.CATEGORICAL, quasi_identifier=True
+    )
+    r.metadata.columns["income"] = ColumnMetadata(
+        name="income", dtype=ColumnType.NUMERIC, sensitive=True
+    )
+    cols = Report.from_dict(json.loads(json.dumps(r.to_dict()))).metadata.columns
+    assert (cols["zip"].quasi_identifier, cols["zip"].sensitive) == (True, False)
+    assert (cols["income"].quasi_identifier, cols["income"].sensitive) == (False, True)
+
+
+def test_from_dict_defaults_quasi_identifier_for_older_reports():
+    d = _example_report().to_dict()
+    for c in d["metadata"]["columns"].values():
+        c.pop("quasi_identifier", None)
+    assert Report.from_dict(d).metadata.columns["x"].quasi_identifier is False

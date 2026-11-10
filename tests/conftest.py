@@ -18,6 +18,7 @@ def _load_metadata() -> Metadata:
             name=n,
             dtype=ColumnType(c["dtype"]),
             sensitive=c.get("sensitive", False),
+            quasi_identifier=c.get("quasi_identifier", False),
         )
         for n, c in raw["columns"].items()
     }

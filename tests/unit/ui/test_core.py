@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 import syneva  # noqa: F401  populates the global registry on import
-from syneva.core.metadata import ColumnType, Metadata
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.report import Report
 from syneva.ui import core
 from syneva.utility.task import UtilityTask
@@ -57,8 +57,8 @@ def test_metadata_rows_from_inferred():
 
 def test_metadata_from_editor_roundtrip():
     rows = [
-        {"column": "age", "dtype": "numeric", "sensitive": False},
-        {"column": "sex", "dtype": "categorical", "sensitive": True},
+        {"column": "age", "dtype": "numeric", "quasi_identifier": True, "sensitive": False},
+        {"column": "sex", "dtype": "categorical", "quasi_identifier": False, "sensitive": True},
     ]
     meta = core.metadata_from_editor(rows)
     assert meta.columns["age"].dtype is ColumnType.NUMERIC
@@ -209,3 +209,22 @@ def test_benchmark_json_str_roundtrips():
 
     restored = BenchmarkResult.from_dict(json.loads(s))
     assert restored.ranking() == res.ranking()
+
+
+def test_metadata_editor_carries_quasi_identifier():
+    rows = core.metadata_rows(
+        Metadata(
+            columns={
+                "zip": ColumnMetadata(
+                    name="zip", dtype=ColumnType.CATEGORICAL, quasi_identifier=True
+                ),
+                "income": ColumnMetadata(name="income", dtype=ColumnType.NUMERIC, sensitive=True),
+            }
+        )
+    )
+    by_col = {r["column"]: r for r in rows}
+    assert by_col["zip"]["quasi_identifier"] is True
+    assert by_col["income"]["quasi_identifier"] is False
+    cols = core.metadata_from_editor(rows).columns
+    assert (cols["zip"].quasi_identifier, cols["zip"].sensitive) == (True, False)
+    assert (cols["income"].quasi_identifier, cols["income"].sensitive) == (False, True)

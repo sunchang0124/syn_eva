@@ -30,7 +30,11 @@ _ID_PATTERN = re.compile(r"^(id|.*_id|.*_key)$", re.IGNORECASE)
 class ColumnMetadata:
     name: str
     dtype: ColumnType
+    # Privacy roles (Sweeney, 2002; Machanavajjhala et al., 2007). A quasi-identifier is
+    # an attribute an attacker can link on; a sensitive attribute is one whose disclosure
+    # is the harm. They are independent: a column may be both.
     sensitive: bool = False
+    quasi_identifier: bool = False
     categories: list[str] | None = None
     value_range: tuple[float, float] | None = None
 

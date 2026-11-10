@@ -71,6 +71,7 @@ def _metadata_to_dict(m: Metadata) -> dict:
                 "name": c.name,
                 "dtype": c.dtype.value,
                 "sensitive": c.sensitive,
+                "quasi_identifier": c.quasi_identifier,
                 "categories": c.categories,
                 "value_range": list(c.value_range) if c.value_range else None,
             }
@@ -86,6 +87,7 @@ def _metadata_from_dict(d: dict) -> Metadata:
             name=c["name"],
             dtype=ColumnType(c["dtype"]),
             sensitive=c.get("sensitive", False),
+            quasi_identifier=c.get("quasi_identifier", False),
             categories=c.get("categories"),
             value_range=tuple(c["value_range"]) if c.get("value_range") else None,
         )

@@ -52,7 +52,7 @@ METRIC_INFO: dict[str, str] = {
     # Compliance — privacy and disclosure
     "dcr": "How far synthetic rows sit from the nearest real record.",
     "nndr": "Whether synthetic rows sit much closer to one real record than to any other, a sign of memorization.",
-    "k_anonymity": "The size of the smallest group sharing the same sensitive values.",
+    "k_anonymity": "The size of the smallest group of synthetic rows sharing the same quasi-identifier values.",
     "identical_match_rate": "The share of synthetic rows that are exact copies of a real row.",
     "hitting_rate": "How often a real record has a near-identical synthetic counterpart.",
     "epsilon_identifiability": "Whether real records are closer to a synthetic record than to their own nearest real neighbour.",

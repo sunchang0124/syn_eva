@@ -85,9 +85,9 @@ def main() -> None:
 
     metadata = {
         "columns": {
-            "age": {"dtype": "numeric"},
-            "sex": {"dtype": "categorical", "sensitive": True},
-            "education": {"dtype": "categorical"},
+            "age": {"dtype": "numeric", "quasi_identifier": True},
+            "sex": {"dtype": "categorical", "quasi_identifier": True},
+            "education": {"dtype": "categorical", "quasi_identifier": True},
             "hours_per_week": {"dtype": "numeric"},
             "income": {"dtype": "numeric", "sensitive": True},
             "high_income": {"dtype": "categorical"},

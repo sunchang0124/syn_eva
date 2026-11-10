@@ -8,6 +8,15 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 - Streamlit web UI (`syn-eva ui`, optional `[ui]` extra): upload real/synthetic
   data, edit column metadata, select evaluators, and view/download the scorecard.
 
+### Changed
+- Column metadata has a new `quasi_identifier` role, separate from `sensitive`
+  (#34). `k_anonymity` now groups on `quasi_identifier` columns instead of
+  `sensitive` ones, and `attribute_disclosure` infers the `sensitive` columns
+  from the declared quasi-identifiers (falling back to every other usable
+  column when none are declared). Existing metadata must add
+  `"quasi_identifier": true` to the linking columns to keep k-anonymity results;
+  without it, `k_anonymity` is skipped.
+
 ## [0.1.0rc1] - 2026-06-12
 
 ### Added

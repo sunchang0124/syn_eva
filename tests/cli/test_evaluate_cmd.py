@@ -156,3 +156,25 @@ def test_load_metadata_reads_utf8(tmp_path, cp1252_locale):
     meta = _load_metadata(path)
     assert meta is not None
     assert set(meta.columns) == {"年龄", "≥50K"}
+
+
+def test_load_metadata_reads_privacy_roles(tmp_path):
+    from syneva.cli.main import _load_metadata
+
+    path = tmp_path / "metadata.json"
+    path.write_text(
+        json.dumps(
+            {
+                "columns": {
+                    "zip": {"dtype": "categorical", "quasi_identifier": True},
+                    "income": {"dtype": "numeric", "sensitive": True},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    meta = _load_metadata(path)
+    assert meta is not None
+    cols = meta.columns
+    assert (cols["zip"].quasi_identifier, cols["zip"].sensitive) == (True, False)
+    assert (cols["income"].quasi_identifier, cols["income"].sensitive) == (False, True)

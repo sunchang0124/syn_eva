@@ -112,3 +112,86 @@ def test_unknown_distance_raises_even_with_empty_synthetic():
     df = pd.DataFrame({"qi": [1, 2, 3], "secret": ["A", "B", "A"]})
     with pytest.raises(ValueError, match="unknown distance"):
         AttributeDisclosure(distance="bogus").compute(df, df.iloc[:0], _meta_sens())
+
+
+_NOISE = [f"noise{i}" for i in range(6)]
+
+
+def _linkage_frames():
+    # `zip` fully determines `diagnosis`. The six noise columns are shuffled in the
+    # synthetic copy, so they pull the nearest match towards a random row: only `zip`
+    # links a real row to a synthetic row with the same diagnosis.
+    import numpy as np
+
+    rng = np.random.default_rng(3)
+    n = 200
+    zip_ = rng.choice(["a", "b", "c", "d"], n)
+    real = pd.DataFrame({"zip": zip_, "diagnosis": np.where(np.isin(zip_, ["a", "b"]), "x", "y")})
+    for c in _NOISE:
+        real[c] = rng.normal(0, 1, n)
+    syn = real.copy()
+    for c in _NOISE:
+        syn[c] = rng.permutation(syn[c].to_numpy())
+    return real, syn
+
+
+def _linkage_meta(zip_is_qi: bool, diagnosis_is_qi: bool = False) -> Metadata:
+    cols = {
+        "zip": ColumnMetadata(name="zip", dtype=ColumnType.CATEGORICAL, quasi_identifier=zip_is_qi),
+        "diagnosis": ColumnMetadata(
+            name="diagnosis",
+            dtype=ColumnType.CATEGORICAL,
+            sensitive=True,
+            quasi_identifier=diagnosis_is_qi,
+        ),
+    }
+    for c in _NOISE:
+        cols[c] = ColumnMetadata(name=c, dtype=ColumnType.NUMERIC)
+    return Metadata(columns=cols)
+
+
+def test_infers_only_from_declared_quasi_identifiers():
+    real, syn = _linkage_frames()
+    scalars = AttributeDisclosure().compute(real, syn, _linkage_meta(zip_is_qi=True)).scalars
+    assert scalars is not None
+    # Linking on zip alone always lands on a row with the same diagnosis.
+    assert scalars["disclosure_rate"] == 1.0
+
+
+def test_without_declared_quasi_identifiers_uses_all_non_sensitive_columns():
+    real, syn = _linkage_frames()
+    fallback = AttributeDisclosure().compute(real, syn, _linkage_meta(zip_is_qi=False)).scalars
+    # Same table with every non-sensitive column declared a quasi-identifier explicitly.
+    explicit_meta = _linkage_meta(zip_is_qi=True)
+    for c in _NOISE:
+        explicit_meta.columns[c].quasi_identifier = True
+    explicit = AttributeDisclosure().compute(real, syn, explicit_meta).scalars
+    assert fallback is not None
+    assert explicit is not None
+    assert fallback == explicit
+    # The shuffled noise drags some matches to other zips: short of zip-only linkage.
+    assert fallback["disclosure_rate"] < 1.0
+
+
+def test_quasi_identifier_only_on_the_target_still_falls_back():
+    # The target can never be linked on, so declaring only it leaves nothing declared to
+    # link on: the metric falls back instead of skipping.
+    real, syn = _linkage_frames()
+    target_only = _linkage_meta(zip_is_qi=False, diagnosis_is_qi=True)
+    r = AttributeDisclosure().compute(real, syn, target_only)
+    fallback = AttributeDisclosure().compute(real, syn, _linkage_meta(zip_is_qi=False))
+    assert r.skip_reason is None
+    assert r.scalars == fallback.scalars
+
+
+def test_column_with_both_roles_is_a_target_not_a_quasi_identifier():
+    # Unique per-row diagnoses, and every synthetic zip collapsed to "a": linking on zip
+    # gives no information, so the rate is near zero. If diagnosis were also linked on,
+    # each real row would find its own synthetic copy and the rate would be 1.0.
+    real, shuffled = _linkage_frames()
+    real = real.assign(diagnosis=[f"d{i}" for i in range(len(real))])
+    syn = real.assign(zip="a", **{c: shuffled[c] for c in _NOISE})
+    meta = _linkage_meta(zip_is_qi=True, diagnosis_is_qi=True)
+    scalars = AttributeDisclosure().compute(real, syn, meta).scalars
+    assert scalars is not None
+    assert scalars["disclosure_rate"] < 0.1

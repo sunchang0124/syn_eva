@@ -46,6 +46,24 @@ def _sidebar() -> dict | None:
                 return None
 
         st.header("2 · Column metadata")
+        st.caption(
+            "The privacy metrics need two roles. Tick **quasi-identifier** for what an "
+            "attacker might already know about a person, and **sensitive** for what they "
+            "must not learn. A column can be both."
+        )
+        # Header tooltips open leftwards and overflow the narrow sidebar, so the full
+        # explanation lives here and the tooltips stay short.
+        with st.expander("What do these roles mean?"):
+            st.markdown(
+                "**Quasi-identifier**: information an attacker could already know about a "
+                "person and use to find their row, such as age, sex or postcode. None of "
+                "these names anyone, but together they can narrow the table to a few "
+                "people. *k-anonymity* checks how many synthetic rows share each "
+                "combination of these columns.\n\n"
+                "**Sensitive**: information that would harm a person if revealed, such as a "
+                "diagnosis or income. *Attribute disclosure* tests whether an attacker who "
+                "matches someone on the quasi-identifiers can correctly guess these columns."
+            )
         inferred_rows = core.metadata_rows(Metadata.infer(real))
         edited = st.data_editor(
             inferred_rows,
@@ -53,7 +71,13 @@ def _sidebar() -> dict | None:
                 "dtype": st.column_config.SelectboxColumn(
                     options=["numeric", "categorical", "datetime", "boolean", "id"]
                 ),
-                "sensitive": st.column_config.CheckboxColumn(),
+                "quasi_identifier": st.column_config.CheckboxColumn(
+                    "quasi-identifier",
+                    help="Known to an attacker (e.g. age, postcode)",
+                ),
+                "sensitive": st.column_config.CheckboxColumn(
+                    help="Harmful if revealed (e.g. diagnosis)",
+                ),
             },
             hide_index=True,
             key="meta_editor",

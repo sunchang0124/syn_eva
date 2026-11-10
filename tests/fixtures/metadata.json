@@ -1,14 +1,16 @@
 {
   "columns": {
     "age": {
-      "dtype": "numeric"
+      "dtype": "numeric",
+      "quasi_identifier": true
     },
     "sex": {
       "dtype": "categorical",
-      "sensitive": true
+      "quasi_identifier": true
     },
     "education": {
-      "dtype": "categorical"
+      "dtype": "categorical",
+      "quasi_identifier": true
     },
     "hours_per_week": {
       "dtype": "numeric"
