@@ -85,3 +85,28 @@ def test_benchmark_unknown_normalization_exits_nonzero(tmp_path):
         ]
     )
     assert proc.returncode != 0
+
+
+def test_benchmark_prints_metrics_left_out_of_the_comparison(tmp_path):
+    import pandas as pd
+
+    good = pd.read_parquet(_GOOD)
+    # One row repeated: correlation_difference is skipped for this candidate only.
+    constant = tmp_path / "constant.parquet"
+    pd.concat([good.head(1)] * 50, ignore_index=True).to_parquet(constant)
+    proc = _run(
+        [
+            "--real",
+            str(_REAL),
+            "--metadata",
+            str(_META),
+            "--candidate",
+            f"good={_GOOD}",
+            "--candidate",
+            f"constant={constant}",
+            "--out",
+            str(tmp_path / "bench"),
+        ]
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "correlation_difference not compared: skipped for constant" in proc.stdout

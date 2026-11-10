@@ -66,6 +66,35 @@ class BenchmarkResult:
     random_state: int = 42
     notes: list[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        for note in self._comparison_notes():
+            if note not in self.notes:
+                self.notes.append(note)
+
+    def _comparison_notes(self) -> list[str]:
+        """One line per metric some candidate scored that isn't compared, naming the
+        candidates that failed or skipped it, then one per candidate with nothing
+        scored."""
+        sm = self.score_matrix
+        compared = set(self.compared_metrics())
+        scoring = [name for name, row in sm.items() if row]
+        notes = []
+        for m in self.metrics():
+            if m in compared:
+                continue
+            lacking = []
+            for name in scoring:
+                if m in sm[name]:
+                    continue
+                r = next((r for r in self.reports[name].results if r.spec.name == m), None)
+                status = "not run" if r is None else "failed" if r.error else "skipped"
+                lacking.append(f"{status} for {name}")
+            notes.append(f"{m} not compared: {', '.join(lacking)}")
+        notes += [
+            f"{name} has no scored metrics and ranks last" for name, row in sm.items() if not row
+        ]
+        return notes
+
     @property
     def score_matrix(self) -> dict[str, dict[str, float]]:
         out: dict[str, dict[str, float]] = {}
@@ -77,9 +106,28 @@ class BenchmarkResult:
             out[name] = row
         return out
 
+    def compared_metrics(self) -> list[str]:
+        """Metrics every candidate scored, which are the only ones candidates are
+        compared on. A metric that failed or was skipped for one candidate would
+        otherwise leave that candidate scored on an easier set than the others.
+        Candidates with nothing scored are left out, so they don't empty the set;
+        they rank last."""
+        rows = [set(row) for row in self.score_matrix.values() if row]
+        return sorted(set.intersection(*rows)) if rows else []
+
     @property
     def c_scores(self) -> dict[str, dict[str, float]]:
-        return {name: rep.aggregated for name, rep in self.reports.items()}
+        sm = self.score_matrix
+        cmap = self._metric_c_map()
+        compared = self.compared_metrics()
+        out: dict[str, dict[str, float]] = {}
+        for name in self.reports:
+            by_c: dict[str, list[float]] = defaultdict(list)
+            for m in compared:
+                if m in sm[name]:
+                    by_c[cmap[m]].append(sm[name][m])
+            out[name] = {c: sum(vs) / len(vs) for c, vs in sorted(by_c.items())}
+        return out
 
     @property
     def overall(self) -> dict[str, float]:
@@ -146,9 +194,9 @@ class BenchmarkResult:
         nm = self._normalized_per_metric(normalization)
         cmap = self._metric_c_map()
         if by == "overall":
-            metric_names = self.metrics()
+            metric_names = self.compared_metrics()
         elif by in self.c_dims():
-            metric_names = [m for m in self.metrics() if cmap.get(m) == by]
+            metric_names = [m for m in self.compared_metrics() if cmap.get(m) == by]
         elif by in self.metrics():
             metric_names = [by]
         else:
