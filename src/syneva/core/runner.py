@@ -37,7 +37,9 @@ def _instantiate(
 
     `neighbors_for(with_holdout)` returns the shared Neighbors for this evaluation;
     a metric that accepts both `neighbors` and `holdout` gets the holdout one when a
-    holdout is given, so it sees the same encoding it would have built itself.
+    holdout is given, so it sees the same encoding it would have built itself. A
+    metric without a `distance` option (MIA) is always euclidean, so it shares only
+    in a euclidean run; otherwise it builds its own.
     """
     params = inspect.signature(cls).parameters
     kwargs = {}
@@ -53,7 +55,8 @@ def _instantiate(
         kwargs["holdout"] = holdout
     if "random_state" in params:
         kwargs["random_state"] = random_state
-    if "neighbors" in params and neighbors_for is not None:
+    shares_distance = "distance" in params or distance == "euclidean"
+    if "neighbors" in params and neighbors_for is not None and shares_distance:
         kwargs["neighbors"] = neighbors_for("holdout" in params and holdout is not None)
     return cls(**kwargs)
 
@@ -201,23 +204,46 @@ def evaluate_with(
         )
 
     # One Neighbors per encoding space, built on first use and shared by every
-    # distance metric: metrics with a holdout encode it too, so they get their own.
-    shared_neighbors: dict[bool, Neighbors] = {}
+    # distance metric. A euclidean holdout changes the encoding (its scaler is fit on
+    # the holdout too), so metrics with a holdout get their own instance. Gower scales
+    # by the real data only and caps real and synthetic before the holdout, so one
+    # instance, with the holdout when there is one, serves every gower metric.
+    # A failed build is kept and re-raised, so later metrics don't repeat it.
+    # Neighbors keeps its default seed (42) for the gower cap rather than taking
+    # random_state, so evaluate() matches each metric run on its own.
+    shared_neighbors: dict[bool, Neighbors | Exception] = {}
 
     def neighbors_for(with_holdout: bool) -> Neighbors:
         assert real is not None
+        if distance == "gower":
+            with_holdout = holdout is not None
         if with_holdout not in shared_neighbors:
-            shared_neighbors[with_holdout] = Neighbors(
-                real,
-                synthetic,
-                metadata,
-                distance=distance,
-                holdout=holdout if with_holdout else None,
-            )
-        return shared_neighbors[with_holdout]
+            try:
+                shared_neighbors[with_holdout] = Neighbors(
+                    real,
+                    synthetic,
+                    metadata,
+                    distance=distance,
+                    holdout=holdout if with_holdout else None,
+                )
+            except Exception as e:
+                shared_neighbors[with_holdout] = e
+        nb = shared_neighbors[with_holdout]
+        if isinstance(nb, Exception):
+            raise nb
+        return nb
+
+    # Drop the shared instances (and their cached matrices) once the last metric
+    # that can use them has run, rather than holding them to the end of the run.
+    last_neighbors_user = max(
+        (i for i, c in enumerate(selected) if "neighbors" in inspect.signature(c).parameters),
+        default=-1,
+    )
 
     results: list[MetricResult] = []
-    for cls in selected:
+    for i, cls in enumerate(selected):
+        if i > last_neighbors_user:
+            shared_neighbors.clear()
         try:
             inst = _instantiate(
                 cls,

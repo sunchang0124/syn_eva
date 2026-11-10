@@ -5,10 +5,9 @@ from typing import ClassVar
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
-from sklearn.neighbors import NearestNeighbors
 
-from syneva.compliance._encode import encode_frames
 from syneva.core.metric import MetricResult, MetricSpec
+from syneva.core.neighbors import Neighbors
 from syneva.core.registry import registry
 
 
@@ -23,8 +22,13 @@ class MembershipInferenceAttack:
         scope="table-level",
     )
 
-    def __init__(self, holdout: pd.DataFrame | None = None) -> None:
+    def __init__(
+        self, holdout: pd.DataFrame | None = None, neighbors: Neighbors | None = None
+    ) -> None:
         self.holdout = holdout
+        # Shared by the runner; checked and otherwise built in compute (Neighbors.resolve).
+        # Always euclidean: the attack has no distance option.
+        self.neighbors = neighbors
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
@@ -43,8 +47,8 @@ class MembershipInferenceAttack:
                     "the holdout upload in the UI) to run it."
                 ),
             )
-        x_real, x_syn, x_hold = encode_frames([real, synthetic, self.holdout], meta)
-        if x_real.shape[1] == 0 or len(x_syn) < 1 or len(x_hold) < 1 or len(x_real) < 1:
+        nb = Neighbors.resolve(self.neighbors, real, synthetic, meta, holdout=self.holdout)
+        if nb.n_features == 0 or len(synthetic) < 1 or len(self.holdout) < 1 or len(real) < 1:
             return MetricResult(
                 spec=self.spec,
                 skip_reason=(
@@ -52,11 +56,10 @@ class MembershipInferenceAttack:
                     "synthetic or holdout data is empty."
                 ),
             )
-        nn = NearestNeighbors(n_neighbors=1).fit(x_syn)
-        d_mem, _ = nn.kneighbors(x_real)
-        d_non, _ = nn.kneighbors(x_hold)
-        y = np.concatenate([np.ones(len(x_real)), np.zeros(len(x_hold))])
-        scores = -np.concatenate([d_mem.ravel(), d_non.ravel()])  # closer => more likely member
+        d_mem = nb.real_to_syn(1)
+        d_non = nb.holdout_to_syn(1)
+        y = np.concatenate([np.ones(len(d_mem)), np.zeros(len(d_non))])
+        scores = -np.concatenate([d_mem, d_non])  # closer => more likely member
         try:
             auc = float(roc_auc_score(y, scores))
         except ValueError:

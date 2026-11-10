@@ -24,7 +24,7 @@ class NNAdversarialAccuracy:
 
     def __init__(self, distance: str = "euclidean", neighbors: Neighbors | None = None) -> None:
         self.distance = distance
-        # Shared by the runner (built for these real/synthetic frames); else built here.
+        # Shared by the runner; checked and otherwise built in compute (Neighbors.resolve).
         self.neighbors = neighbors
 
     def compute(
@@ -34,11 +34,7 @@ class NNAdversarialAccuracy:
         meta: Metadata,
     ) -> MetricResult:
         assert real is not None
-        nb = (
-            self.neighbors
-            if self.neighbors is not None
-            else Neighbors(real, synthetic, meta, distance=self.distance)
-        )
+        nb = Neighbors.resolve(self.neighbors, real, synthetic, meta, distance=self.distance)
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 2:
             return MetricResult(
                 spec=self.spec,
