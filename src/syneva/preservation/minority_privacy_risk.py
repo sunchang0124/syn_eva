@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 from syneva.compliance._encode import encode_pair
-from syneva.core.distance import gower_matrix, numeric_ranges
+from syneva.core.distance import gower_nearest_distance, numeric_ranges
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 from syneva.preservation._util import _EPS, runnable_specs
@@ -104,7 +104,7 @@ class MinorityPrivacyRisk:
 
         if self.distance == "gower":
             # Ranges from the full real data, so the cap doesn't change the scale.
-            dcr = gower_matrix(real_kept, syn, meta, numeric_ranges(real, meta)).min(axis=1)
+            dcr = gower_nearest_distance(real_kept, syn, meta, numeric_ranges(real, meta))
         else:
             x_real, x_syn = encode_pair(real_kept, syn, meta)
             nn = NearestNeighbors(n_neighbors=1).fit(x_syn)
