@@ -225,6 +225,13 @@ def test_resolve_returns_a_matching_injected_instance():
     assert resolved is injected
 
 
+def test_resolve_ignores_the_seed_for_euclidean():
+    # Only a capped gower instance samples rows, so a euclidean seed changes nothing.
+    real, syn, meta = _data()
+    injected = Neighbors(real, syn, meta, random_state=7)
+    assert Neighbors.resolve(injected, real, syn, meta, random_state=42) is injected
+
+
 @pytest.mark.parametrize(
     ("built", "asked", "match"),
     [
@@ -232,6 +239,7 @@ def test_resolve_returns_a_matching_injected_instance():
         ({"distance": "euclidean"}, {"holdout": True}, "has none"),
         ({"holdout": True}, {}, "has one"),
         ({}, {"rows": 50}, "rows"),
+        ({"distance": "gower", "random_state": 7}, {"distance": "gower"}, "random_state"),
     ],
 )
 def test_resolve_rejects_a_mismatched_injected_instance(built, asked, match):
@@ -243,6 +251,7 @@ def test_resolve_rejects_a_mismatched_injected_instance(built, asked, match):
         meta,
         distance=built.get("distance", "euclidean"),
         holdout=holdout if built.get("holdout") else None,
+        random_state=built.get("random_state", 42),
     )
     with pytest.raises(ValueError, match=match):
         Neighbors.resolve(

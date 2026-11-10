@@ -33,6 +33,9 @@ class MMD:
         scope="table-level",
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(
         self,
         real: pd.DataFrame | None,
@@ -49,7 +52,7 @@ class MMD:
                     "dataset is empty."
                 ),
             )
-        rng = np.random.default_rng(42)
+        rng = np.random.default_rng(self.random_state)
         x_real = _subsample(x_real, rng)
         x_syn = _subsample(x_syn, rng)
         z = np.vstack([x_real, x_syn])

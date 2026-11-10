@@ -17,6 +17,18 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   `"quasi_identifier": true` to the linking columns to keep k-anonymity results;
   without it, `k_anonymity` is skipped.
 
+### Fixed
+- `evaluate(random_state=...)` now controls every random component of a run
+  (#42). `c2st`, `discriminative_score`, `sliced_wasserstein`, `mmd`,
+  `hitting_rate`, `pmse`, `pca_scatter` and the shared Gower subsampling used a
+  hardcoded seed of 42, so a seed sweep repeated the same splits, subsamples and
+  projections and `RunInfo.random_state` reported a seed that was never used.
+  Each of these, and every metric that builds distances (`dcr`, `nndr`,
+  `epsilon_identifiability`, `mia_auc`, `alpha_precision_beta_recall`,
+  `authenticity`, `nn_adversarial_accuracy`, `attribute_disclosure`), now takes
+  `random_state` (default 42), so results at the default seed are unchanged.
+  `minority_utility_gap` now also passes its seed to its classifier.
+
 ## [0.1.0rc1] - 2026-06-12
 
 ### Added

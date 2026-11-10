@@ -23,6 +23,9 @@ class DiscriminativeScore:
         scope="table-level",
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         # the stratified train/test split needs both classes on each side of it
@@ -39,8 +42,12 @@ class DiscriminativeScore:
             )
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-        clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=1).fit(X_tr, y_tr)
+        X_tr, X_te, y_tr, y_te = train_test_split(
+            X, y, test_size=0.3, random_state=self.random_state, stratify=y
+        )
+        clf = RandomForestClassifier(
+            n_estimators=100, random_state=self.random_state, n_jobs=1
+        ).fit(X_tr, y_tr)
         auc = float(roc_auc_score(y_te, clf.predict_proba(X_te)[:, 1]))
         score = float(max(0.0, 1.0 - 2 * abs(auc - 0.5)))
         return MetricResult(spec=self.spec, scalars={"score": score, "auc": auc})

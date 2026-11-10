@@ -23,6 +23,9 @@ class HittingRate:
         scope="table-level",
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(
         self,
         real: pd.DataFrame | None,
@@ -37,7 +40,7 @@ class HittingRate:
                 spec=self.spec,
                 skip_reason="There are no numeric or categorical columns to compare.",
             )
-        rng = np.random.default_rng(42)
+        rng = np.random.default_rng(self.random_state)
         notes: list[str] = []
         r, s = real, synthetic
         if len(r) > _CAP:

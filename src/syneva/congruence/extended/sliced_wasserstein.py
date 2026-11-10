@@ -65,6 +65,9 @@ class SlicedWasserstein:
         scope="table-level",
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         nums = [n for n, cm in meta.columns.items() if cm.dtype is ColumnType.NUMERIC]
@@ -130,7 +133,7 @@ class SlicedWasserstein:
                     "least 2 real rows and 1 synthetic row."
                 ),
             )
-        rng = np.random.default_rng(42)
+        rng = np.random.default_rng(self.random_state)
         d = X_real.shape[1]
         n_proj = 50
         dirs = rng.normal(size=(n_proj, d))

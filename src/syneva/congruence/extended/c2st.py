@@ -25,6 +25,9 @@ class C2ST:
         scope="table-level",
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         # StratifiedKFold needs n_splits members of each class to fill every fold
@@ -46,9 +49,11 @@ class C2ST:
         X = np.vstack([X_real, X_syn])
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
         aucs: list[float] = []
-        cv = StratifiedKFold(n_splits=_N_SPLITS, shuffle=True, random_state=42)
+        cv = StratifiedKFold(n_splits=_N_SPLITS, shuffle=True, random_state=self.random_state)
         for train, test in cv.split(X, y):
-            clf = LogisticRegression(max_iter=1000, random_state=42).fit(X[train], y[train])
+            clf = LogisticRegression(max_iter=1000, random_state=self.random_state).fit(
+                X[train], y[train]
+            )
             aucs.append(float(roc_auc_score(y[test], clf.predict_proba(X[test])[:, 1])))
         auc = float(np.mean(aucs))
         # ideal AUC ~ 0.5 (indistinguishable). Score = 1 - 2*|auc - 0.5|.

@@ -22,6 +22,9 @@ class PMSE:
         scope="table-level",
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         if len(real) == 0 or len(synthetic) == 0:
@@ -40,7 +43,7 @@ class PMSE:
         # encode_pair scales only the numeric columns; scale the one-hot columns too
         X = StandardScaler().fit_transform(X)
         # A classifier failure propagates; the runner records it as a metric error.
-        clf = LogisticRegression(max_iter=1000, random_state=42).fit(X, y)
+        clf = LogisticRegression(max_iter=1000, random_state=self.random_state).fit(X, y)
         p = clf.predict_proba(X)[:, 1]
         c = len(X_syn) / len(X)
         pmse = float(np.mean((p - c) ** 2))
