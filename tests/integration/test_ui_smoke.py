@@ -12,7 +12,9 @@ def test_ui_pipeline_end_to_end():
     assert isinstance(real, pd.DataFrame)
 
     rows = core.metadata_rows(Metadata.infer(real))
-    rows[[r["column"] for r in rows].index("income")]["sensitive"] = True
+    by_col = {r["column"]: r for r in rows}
+    by_col["income"]["sensitive"] = True
+    by_col["sex"]["quasi_identifier"] = True
     meta = core.metadata_from_editor(rows)
 
     names = ["ks_statistic", "tvd", "dcr", "k_anonymity"]

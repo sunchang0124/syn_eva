@@ -53,7 +53,15 @@ def _sidebar() -> dict | None:
                 "dtype": st.column_config.SelectboxColumn(
                     options=["numeric", "categorical", "datetime", "boolean", "id"]
                 ),
-                "sensitive": st.column_config.CheckboxColumn(),
+                "quasi_identifier": st.column_config.CheckboxColumn(
+                    "quasi-identifier",
+                    help="An attribute an attacker could link on (age, zip, sex, ...). "
+                    "k-anonymity groups on these columns.",
+                ),
+                "sensitive": st.column_config.CheckboxColumn(
+                    help="An attribute whose disclosure is the harm (diagnosis, income, ...). "
+                    "Attribute disclosure tries to infer these columns.",
+                ),
             },
             hide_index=True,
             key="meta_editor",

@@ -18,13 +18,15 @@ class KAnonymity:
     )
 
     def compute(self, real, synthetic, meta) -> MetricResult:
-        qi = [n for n, cm in meta.columns.items() if cm.sensitive]
+        # Equivalence classes over the quasi-identifiers (Sweeney, 2002). Sensitive
+        # attributes play no part: they are what the classes protect, not what links them.
+        qi = [n for n, cm in meta.columns.items() if cm.quasi_identifier]
         if not qi:
             return MetricResult(
                 spec=self.spec,
                 skip_reason=(
-                    "No column is marked sensitive=True, so there are no quasi-identifiers to group"
-                    " on."
+                    "No column is marked quasi_identifier=True, so there are no quasi-identifiers"
+                    " to group on."
                 ),
             )
         groups = synthetic.groupby(qi, dropna=False).size()

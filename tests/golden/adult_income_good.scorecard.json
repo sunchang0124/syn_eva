@@ -5,6 +5,7 @@
         "categories": null,
         "dtype": "numeric",
         "name": "age",
+        "quasi_identifier": true,
         "sensitive": false,
         "value_range": null
       },
@@ -12,6 +13,7 @@
         "categories": null,
         "dtype": "categorical",
         "name": "education",
+        "quasi_identifier": true,
         "sensitive": false,
         "value_range": null
       },
@@ -19,6 +21,7 @@
         "categories": null,
         "dtype": "categorical",
         "name": "high_income",
+        "quasi_identifier": false,
         "sensitive": false,
         "value_range": null
       },
@@ -26,6 +29,7 @@
         "categories": null,
         "dtype": "numeric",
         "name": "hours_per_week",
+        "quasi_identifier": false,
         "sensitive": false,
         "value_range": null
       },
@@ -33,6 +37,7 @@
         "categories": null,
         "dtype": "numeric",
         "name": "income",
+        "quasi_identifier": false,
         "sensitive": true,
         "value_range": null
       },
@@ -40,7 +45,8 @@
         "categories": null,
         "dtype": "categorical",
         "name": "sex",
-        "sensitive": true,
+        "quasi_identifier": true,
+        "sensitive": false,
         "value_range": null
       }
     },
@@ -120,7 +126,7 @@
       "scalars": {
         "min_k": 1.0,
         "score": 0.2,
-        "unique_groups": 500.0
+        "unique_groups": 239.0
       },
       "skip_reason": null,
       "spec": {

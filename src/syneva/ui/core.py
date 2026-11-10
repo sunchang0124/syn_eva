@@ -39,7 +39,12 @@ def load_table(file: Any) -> pd.DataFrame:
 def metadata_rows(meta: Metadata) -> list[dict]:
     """Flatten Metadata into editor rows (one dict per column)."""
     return [
-        {"column": name, "dtype": cm.dtype.value, "sensitive": bool(cm.sensitive)}
+        {
+            "column": name,
+            "dtype": cm.dtype.value,
+            "quasi_identifier": bool(cm.quasi_identifier),
+            "sensitive": bool(cm.sensitive),
+        }
         for name, cm in meta.columns.items()
     ]
 
@@ -51,6 +56,7 @@ def metadata_from_editor(rows: list[dict]) -> Metadata:
             name=r["column"],
             dtype=ColumnType(r["dtype"]),
             sensitive=bool(r["sensitive"]),
+            quasi_identifier=bool(r["quasi_identifier"]),
         )
         for r in rows
     }
