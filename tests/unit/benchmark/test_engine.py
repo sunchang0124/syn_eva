@@ -314,3 +314,41 @@ def test_comparison_notes_survive_a_json_round_trip(tmp_path):
     assert loaded.overall == res.overall
     assert loaded.c_scores == res.c_scores
     assert loaded.ranking() == res.ranking()
+
+
+def test_with_one_candidate_scores_match_its_report():
+    report = _report(congruence__ks=0.6, congruence__tvd=0.2, compliance__dcr=0.9)
+    res = BenchmarkResult(reports={"only": report})
+    assert res.c_scores == {"only": report.aggregated}
+    assert res.overall["only"] == pytest.approx((0.4 + 0.9) / 2)
+
+
+def test_a_metric_missing_from_a_report_is_noted_as_not_run():
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6),
+            "B": _report(congruence__ks=0.7, congruence__tvd=0.1),
+        }
+    )
+    assert res.compared_metrics() == ["ks"]
+    assert res.notes == ["tvd not compared: not run for A"]
+
+
+def test_notes_passed_in_are_not_changed_in_place():
+    mine = ["hand-written note"]
+    res = BenchmarkResult(
+        reports={
+            "A": _report(congruence__ks=0.6, compliance__dcr=None),
+            "B": _report(congruence__ks=0.7, compliance__dcr=0.1),
+        },
+        notes=mine,
+    )
+    assert mine == ["hand-written note"]
+    assert res.notes == ["hand-written note", "dcr not compared: failed for A"]
+
+
+def test_changing_the_returned_score_matrix_does_not_change_the_result():
+    res = BenchmarkResult(reports={"A": _report(congruence__ks=0.6)})
+    res.score_matrix["A"]["ks"] = 0.0
+    assert res.score_matrix == {"A": {"ks": 0.6}}
+    assert res.overall == {"A": 0.6}
