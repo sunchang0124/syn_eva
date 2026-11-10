@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 from sklearn.neighbors import NearestNeighbors
 
+import syneva.core.neighbors as neighbors
 from syneva.compliance._encode import encode_pair
 from syneva.core.metadata import Metadata
 from syneva.core.neighbors import Neighbors
@@ -145,3 +146,110 @@ def test_gower_real_cap_does_not_change_the_scale(same_distribution_with_outlier
     # The real rows the cap kept (same draw as Neighbors makes).
     kept = np.random.default_rng(42).choice(len(real), 100, replace=False)
     assert np.allclose(capped.real_to_syn(1), full.real_to_syn(1)[kept])
+
+
+def _spy_gower(monkeypatch):
+    calls = []
+    original = neighbors.gower_matrix
+
+    def spy(a, b, *args, **kwargs):
+        calls.append((len(a), len(b)))
+        return original(a, b, *args, **kwargs)
+
+    monkeypatch.setattr(neighbors, "gower_matrix", spy)
+    return calls
+
+
+def test_gower_builds_no_matrix_until_one_is_needed(monkeypatch):
+    calls = _spy_gower(monkeypatch)
+    real, syn, meta = _data()
+    holdout = real.iloc[:30]
+    Neighbors(real, syn, meta, distance="gower", holdout=holdout)
+    assert calls == []
+
+
+def test_gower_builds_each_matrix_once(monkeypatch):
+    calls = _spy_gower(monkeypatch)
+    real, syn, meta = _data()  # 60 real, 40 synthetic
+    nb = Neighbors(real, syn, meta, distance="gower")
+    nb.real_self(1)
+    nb.real_self(2)
+    nb.real_to_syn(1)
+    nb.syn_to_real(2)  # reads the transpose of real x synthetic
+    nb.real_to_syn_index()
+    # real x real, then real x synthetic; synthetic x synthetic is never needed here.
+    assert calls == [(60, 60), (60, 40)]
+
+
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_results_are_cached_and_read_only(distance):
+    real, syn, meta = _data()
+    nb = Neighbors(real, syn, meta, distance=distance)
+    first = nb.real_self(1)
+    assert nb.real_self(1) is first
+    assert nb.real_self(2) is not first
+    with pytest.raises(ValueError, match="read-only"):
+        first[0] = 0.0
+
+
+def test_gower_ignores_changes_to_the_caller_frames_after_construction():
+    real, syn, meta = _data()
+    expected = Neighbors(real, syn, meta, distance="gower").real_self(1)
+    nb = Neighbors(real, syn, meta, distance="gower")
+    real["x"] *= 2  # before any matrix is built
+    assert np.allclose(nb.real_self(1), expected)
+
+
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_holdout_to_syn_is_nearest_synthetic_distance(distance):
+    real, syn, meta = _data()
+    holdout = real.iloc[:20]
+    nb = Neighbors(real, syn, meta, distance=distance, holdout=holdout)
+    # The holdout rows are the first real rows, so their distances match real_to_syn.
+    assert np.allclose(nb.holdout_to_syn(1), nb.real_to_syn(1)[:20])
+
+
+def test_resolve_builds_when_nothing_is_injected():
+    real, syn, meta = _data()
+    nb = Neighbors.resolve(None, real, syn, meta, distance="gower")
+    assert nb.distance == "gower"
+
+
+def test_resolve_returns_a_matching_injected_instance():
+    real, syn, meta = _data()
+    holdout = real.iloc[:20]
+    injected = Neighbors(real, syn, meta, distance="gower", holdout=holdout)
+    # A gower holdout doesn't change distances, so a holdout-free metric can share it.
+    assert Neighbors.resolve(injected, real, syn, meta, distance="gower") is injected
+    resolved = Neighbors.resolve(injected, real, syn, meta, distance="gower", holdout=holdout)
+    assert resolved is injected
+
+
+@pytest.mark.parametrize(
+    ("built", "asked", "match"),
+    [
+        ({"distance": "euclidean"}, {"distance": "gower"}, "distance"),
+        ({"distance": "euclidean"}, {"holdout": True}, "has none"),
+        ({"holdout": True}, {}, "has one"),
+        ({}, {"rows": 50}, "rows"),
+    ],
+)
+def test_resolve_rejects_a_mismatched_injected_instance(built, asked, match):
+    real, syn, meta = _data()
+    holdout = real.iloc[:20]
+    injected = Neighbors(
+        real,
+        syn,
+        meta,
+        distance=built.get("distance", "euclidean"),
+        holdout=holdout if built.get("holdout") else None,
+    )
+    with pytest.raises(ValueError, match=match):
+        Neighbors.resolve(
+            injected,
+            real.iloc[: asked.get("rows", len(real))],
+            syn,
+            meta,
+            distance=asked.get("distance", "euclidean"),
+            holdout=holdout if asked.get("holdout") else None,
+        )
