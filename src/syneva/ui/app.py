@@ -46,6 +46,11 @@ def _sidebar() -> dict | None:
                 return None
 
         st.header("2 · Column metadata")
+        st.caption(
+            "The privacy metrics need two roles. Tick **quasi-identifier** for what an "
+            "attacker might already know about a person, and **sensitive** for what they "
+            "must not learn. A column can be both. Hover a column header for details."
+        )
         inferred_rows = core.metadata_rows(Metadata.infer(real))
         edited = st.data_editor(
             inferred_rows,
@@ -55,12 +60,17 @@ def _sidebar() -> dict | None:
                 ),
                 "quasi_identifier": st.column_config.CheckboxColumn(
                     "quasi-identifier",
-                    help="An attribute an attacker could link on (age, zip, sex, ...). "
-                    "k-anonymity groups on these columns.",
+                    help="Information an attacker could already know about a person and use "
+                    "to find their row, such as age, sex or postcode. None of these names "
+                    "anyone, but together they can narrow the table to a few people. "
+                    "k-anonymity checks how many synthetic rows share each combination of "
+                    "these columns.",
                 ),
                 "sensitive": st.column_config.CheckboxColumn(
-                    help="An attribute whose disclosure is the harm (diagnosis, income, ...). "
-                    "Attribute disclosure tries to infer these columns.",
+                    help="Information that would harm a person if revealed, such as a "
+                    "diagnosis or income. Attribute disclosure tests whether an attacker who "
+                    "matches someone on the quasi-identifiers can correctly guess these "
+                    "columns.",
                 ),
             },
             hide_index=True,
