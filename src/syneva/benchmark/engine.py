@@ -101,6 +101,10 @@ class BenchmarkResult:
         notes += [
             f"{name} has no scored metrics and ranks last" for name, row in sm.items() if not row
         ]
+        if len(sm) > 1 and not compared:
+            notes.append(
+                "no metric was scored by every candidate, so candidates are ordered by name"
+            )
         return notes
 
     def _status(self, candidate: str, metric: str) -> str:

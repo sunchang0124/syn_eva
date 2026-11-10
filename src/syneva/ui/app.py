@@ -305,8 +305,6 @@ def _render_benchmark(result, normalization: str) -> None:
             row[c] = round(score, 3)
         summary.append(row)
     st.dataframe(summary, use_container_width=True, hide_index=True)
-    for note in result.notes:
-        st.caption(note)
 
     html_str = core.leaderboard_html_str(result, normalization=normalization)
     components.html(html_str, height=900, scrolling=True)

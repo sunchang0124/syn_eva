@@ -352,3 +352,24 @@ def test_changing_the_returned_score_matrix_does_not_change_the_result():
     res.score_matrix["A"]["ks"] = 0.0
     assert res.score_matrix == {"A": {"ks": 0.6}}
     assert res.overall == {"A": 0.6}
+
+
+def test_a_ranking_with_no_shared_metric_says_it_orders_by_name():
+    res = BenchmarkResult(
+        reports={
+            "B": _report(congruence__ks=0.9, congruence__tvd="skip"),
+            "A": _report(congruence__ks="skip", congruence__tvd=0.1),
+        }
+    )
+    assert res.compared_metrics() == []
+    assert [name for _, name, _ in res.ranking()] == ["A", "B"]
+    assert "no metric was scored by every candidate, so candidates are ordered by name" in (
+        res.notes
+    )
+
+
+def test_a_ranking_with_shared_metrics_adds_no_name_order_note():
+    res = BenchmarkResult(
+        reports={"A": _report(congruence__ks=0.6), "B": _report(congruence__ks=0.7)}
+    )
+    assert res.notes == []

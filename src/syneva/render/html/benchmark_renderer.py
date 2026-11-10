@@ -66,4 +66,7 @@ def render_leaderboard(
         bars=bars,
         drilldowns=drilldowns,
         notes=result.notes,
+        # Some metric was left out of the comparison, so the leaderboard's scores
+        # differ from each candidate's own scorecard below.
+        partial=result.compared_metrics() != metrics,
     )

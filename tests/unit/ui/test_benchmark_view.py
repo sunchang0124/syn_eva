@@ -44,7 +44,8 @@ _PAGE = textwrap.dedent(
 
 # Runs the page through Streamlit's AppTest in a subprocess, which keeps
 # Streamlit's native-library side effects out of the test process (see
-# test_app_importable.py), and prints every caption.
+# test_app_importable.py), and prints the text of every element: the embedded
+# leaderboard is an iframe whose HTML is its srcdoc.
 _DRIVER = textwrap.dedent(
     """
     import sys
@@ -52,17 +53,26 @@ _DRIVER = textwrap.dedent(
 
     at = AppTest.from_file(sys.argv[1]).run(timeout=60)
     assert not at.exception, at.exception
+    for frame in at.get("iframe"):
+        print("IFRAME:", frame.proto.srcdoc)
     for caption in at.caption:
         print("CAPTION:", caption.value)
+    for markdown in at.markdown:
+        print("MARKDOWN:", markdown.value)
     """
 )
 
 
-def test_benchmark_view_shows_metrics_left_out_of_the_comparison(tmp_path):
+def test_benchmark_view_shows_metrics_left_out_of_the_comparison_once(tmp_path):
     page = tmp_path / "page.py"
     page.write_text(_PAGE, encoding="utf-8")
     proc = subprocess.run(
         [sys.executable, "-c", _DRIVER, str(page)], capture_output=True, text=True, timeout=120
     )
     assert proc.returncode == 0, proc.stderr
-    assert "dcr not compared: failed for A" in proc.stdout
+    # Shown by the embedded leaderboard, which escapes names, and nowhere else.
+    iframe = proc.stdout.partition("\nCAPTION:")[0]
+    iframe = iframe.partition("\nMARKDOWN:")[0]
+    assert iframe.startswith("IFRAME:")
+    assert iframe.count("dcr not compared: failed for A") == 1
+    assert proc.stdout.count("dcr not compared: failed for A") == 1
