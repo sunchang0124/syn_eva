@@ -225,11 +225,14 @@ def test_resolve_returns_a_matching_injected_instance():
     assert resolved is injected
 
 
-def test_resolve_ignores_the_seed_for_euclidean():
-    # Only a capped gower instance samples rows, so a euclidean seed changes nothing.
+@pytest.mark.parametrize("distance", ["euclidean", "gower"])
+def test_resolve_ignores_the_seed_when_no_rows_were_sampled(distance):
+    # Only a capped gower instance samples rows; otherwise the seed changes nothing.
     real, syn, meta = _data()
-    injected = Neighbors(real, syn, meta, random_state=7)
-    assert Neighbors.resolve(injected, real, syn, meta, random_state=42) is injected
+    injected = Neighbors(real, syn, meta, distance=distance, random_state=7)
+    assert not injected.capped
+    resolved = Neighbors.resolve(injected, real, syn, meta, distance=distance, random_state=42)
+    assert resolved is injected
 
 
 @pytest.mark.parametrize(
@@ -239,7 +242,12 @@ def test_resolve_ignores_the_seed_for_euclidean():
         ({"distance": "euclidean"}, {"holdout": True}, "has none"),
         ({"holdout": True}, {}, "has one"),
         ({}, {"rows": 50}, "rows"),
-        ({"distance": "gower", "random_state": 7}, {"distance": "gower"}, "random_state"),
+        # A capped gower instance: the seed chose which rows it kept.
+        (
+            {"distance": "gower", "random_state": 7, "cap": 10},
+            {"distance": "gower"},
+            "random_state",
+        ),
     ],
 )
 def test_resolve_rejects_a_mismatched_injected_instance(built, asked, match):
@@ -252,6 +260,7 @@ def test_resolve_rejects_a_mismatched_injected_instance(built, asked, match):
         distance=built.get("distance", "euclidean"),
         holdout=holdout if built.get("holdout") else None,
         random_state=built.get("random_state", 42),
+        cap=built.get("cap", 2000),
     )
     with pytest.raises(ValueError, match=match):
         Neighbors.resolve(

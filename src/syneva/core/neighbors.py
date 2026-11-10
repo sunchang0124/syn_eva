@@ -118,9 +118,9 @@ class Neighbors:
                 f"injected Neighbors was built for {injected._source_rows} (real, synthetic) "
                 f"rows, but the metric was given {(len(real), len(synthetic))}"
             )
-        if distance == "gower" and injected.random_state != random_state:
-            # The seed picks which rows a capped gower instance keeps; euclidean
-            # never samples, so its seed changes nothing.
+        if injected.capped and injected.random_state != random_state:
+            # The seed picks which rows a capped gower instance keeps. An uncapped
+            # instance (and every euclidean one) sampled nothing, so its seed is moot.
             raise ValueError(
                 f"injected Neighbors uses random_state={injected.random_state}, "
                 f"but the metric uses random_state={random_state}"

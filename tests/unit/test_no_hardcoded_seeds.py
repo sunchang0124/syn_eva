@@ -32,6 +32,8 @@ _NEEDS_RANDOM_STATE = {
     "TSNE",
     "train_test_split",
 }
+# Splitters that are random only when asked to shuffle.
+_SHUFFLING_SPLITTERS = {"KFold", "StratifiedKFold", "GroupKFold", "RepeatedKFold"}
 # np.random attributes that build or describe a generator rather than draw from the
 # hidden global one.
 _GENERATOR_API = {"default_rng", "RandomState", "Generator", "SeedSequence", "BitGenerator"}
@@ -75,6 +77,16 @@ def _violations(tree: ast.AST) -> list[tuple[int, str]]:
                 kw.arg == "random_state" for kw in node.keywords
             ):
                 found.append((node.lineno, f"{name}(...) without random_state"))
+            if (
+                name in _SHUFFLING_SPLITTERS
+                and any(
+                    kw.arg == "shuffle"
+                    and not (isinstance(kw.value, ast.Constant) and kw.value.value is False)
+                    for kw in node.keywords
+                )
+                and not any(kw.arg == "random_state" for kw in node.keywords)
+            ):
+                found.append((node.lineno, f"{name}(shuffle=...) without random_state"))
             if name in _SEEDED_CONSTRUCTORS:
                 if node.args and _is_int_literal(node.args[0]):
                     found.append((node.lineno, f"{name}({ast.unparse(node.args[0])}) literal"))
@@ -114,7 +126,9 @@ def f(random_state: int = 42, *, seed: int = 0):
     LogisticRegression(max_iter=1000)
     train_test_split(X, y, random_state=random_state)
     StratifiedKFold(n_splits=5)
+    KFold(n_splits=5, shuffle=True)
+    StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
 """
     lines = sorted(line for line, _ in _violations(ast.parse(code)))
-    # StratifiedKFold without shuffle is deterministic and needs no seed.
-    assert lines == [4, 5, 6, 7, 7, 8, 9, 12]
+    # A splitter without shuffle is deterministic and needs no seed.
+    assert lines == [4, 5, 6, 7, 7, 8, 9, 12, 15]

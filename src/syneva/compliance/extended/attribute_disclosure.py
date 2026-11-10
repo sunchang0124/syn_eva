@@ -28,6 +28,9 @@ class AttributeDisclosure:
 
     def __init__(self, distance: str = "euclidean", random_state: int = 42) -> None:
         self.distance = distance
+        # Only euclidean Neighbors are built here, and they never sample rows, so the
+        # seed can't change this metric; it is taken so the runner's seed reaches every
+        # Neighbors consistently.
         self.random_state = random_state
 
     def compute(

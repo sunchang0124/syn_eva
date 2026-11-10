@@ -24,9 +24,10 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   hardcoded seed of 42, so a seed sweep repeated the same splits, subsamples and
   projections and `RunInfo.random_state` reported a seed that was never used.
   Each of these, and every metric that builds distances (`dcr`, `nndr`,
-  `epsilon_identifiability`, `mia_auc`, `alpha_precision_beta_recall`,
-  `authenticity`, `nn_adversarial_accuracy`, `attribute_disclosure`), now takes
-  `random_state` (default 42), so results at the default seed are unchanged.
+  `epsilon_identifiability`, `alpha_precision_beta_recall`, `authenticity`,
+  `nn_adversarial_accuracy`), now takes `random_state` (default 42), so results
+  at the default seed are unchanged. `mia_auc` and `attribute_disclosure` take
+  it too, though their euclidean distances never sample rows.
   `minority_utility_gap` now also passes its seed to its classifier.
 
 ## [0.1.0rc1] - 2026-06-12

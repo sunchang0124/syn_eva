@@ -32,6 +32,8 @@ class MembershipInferenceAttack:
         # Shared by the runner; checked and otherwise built in compute (Neighbors.resolve).
         # Always euclidean: the attack has no distance option.
         self.neighbors = neighbors
+        # Euclidean Neighbors never sample rows, so the seed can't change this metric;
+        # it is taken so the runner's seed reaches every Neighbors consistently.
         self.random_state = random_state
 
     def compute(self, real, synthetic, meta) -> MetricResult:
