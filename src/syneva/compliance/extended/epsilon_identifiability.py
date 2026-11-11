@@ -22,10 +22,16 @@ class EpsilonIdentifiability:
         scope="table-level",
     )
 
-    def __init__(self, distance: str = "euclidean", neighbors: Neighbors | None = None) -> None:
+    def __init__(
+        self,
+        distance: str = "euclidean",
+        neighbors: Neighbors | None = None,
+        random_state: int = 42,
+    ) -> None:
         self.distance = distance
         # Shared by the runner; checked and otherwise built in compute (Neighbors.resolve).
         self.neighbors = neighbors
+        self.random_state = random_state
 
     def compute(
         self,
@@ -34,7 +40,14 @@ class EpsilonIdentifiability:
         meta: Metadata,
     ) -> MetricResult:
         assert real is not None
-        nb = Neighbors.resolve(self.neighbors, real, synthetic, meta, distance=self.distance)
+        nb = Neighbors.resolve(
+            self.neighbors,
+            real,
+            synthetic,
+            meta,
+            distance=self.distance,
+            random_state=self.random_state,
+        )
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) < 1:
             return MetricResult(
                 spec=self.spec,

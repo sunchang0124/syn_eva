@@ -23,6 +23,9 @@ class PCAScatterMetric:
         scoring=False,  # visualization only
     )
 
+    def __init__(self, random_state: int = 42) -> None:
+        self.random_state = random_state
+
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         X_real, X_syn = encode_pair(real, synthetic, meta)
@@ -31,7 +34,7 @@ class PCAScatterMetric:
                 spec=self.spec,
                 skip_reason="The PCA plot needs at least 2 encodable columns.",
             )
-        pca = PCA(n_components=2, random_state=42).fit(np.vstack([X_real, X_syn]))
+        pca = PCA(n_components=2, random_state=self.random_state).fit(np.vstack([X_real, X_syn]))
         return MetricResult(
             spec=self.spec,
             plot_payload=PCAScatter(

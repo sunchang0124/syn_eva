@@ -32,16 +32,24 @@ class NNDR:
         distance: str = "euclidean",
         holdout: pd.DataFrame | None = None,
         neighbors: Neighbors | None = None,
+        random_state: int = 42,
     ) -> None:
         self.distance = distance
         self.holdout = holdout
         # Shared by the runner; checked and otherwise built in compute (Neighbors.resolve).
         self.neighbors = neighbors
+        self.random_state = random_state
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
         nb = Neighbors.resolve(
-            self.neighbors, real, synthetic, meta, distance=self.distance, holdout=self.holdout
+            self.neighbors,
+            real,
+            synthetic,
+            meta,
+            distance=self.distance,
+            holdout=self.holdout,
+            random_state=self.random_state,
         )
         if nb.n_features == 0 or len(real) < 2 or len(synthetic) == 0:
             return MetricResult(

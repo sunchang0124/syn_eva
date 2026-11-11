@@ -209,8 +209,8 @@ def evaluate_with(
     # by the real data only and caps real and synthetic before the holdout, so one
     # instance, with the holdout when there is one, serves every gower metric.
     # A failed build is kept and re-raised, so later metrics don't repeat it.
-    # Neighbors keeps its default seed (42) for the gower cap rather than taking
-    # random_state, so evaluate() matches each metric run on its own.
+    # It is seeded with the run's random_state, which every distance metric also
+    # takes, so evaluate() matches each metric run on its own with the same seed.
     shared_neighbors: dict[bool, Neighbors | Exception] = {}
 
     def neighbors_for(with_holdout: bool) -> Neighbors:
@@ -225,6 +225,7 @@ def evaluate_with(
                     metadata,
                     distance=distance,
                     holdout=holdout if with_holdout else None,
+                    random_state=random_state,
                 )
             except Exception as e:
                 shared_neighbors[with_holdout] = e

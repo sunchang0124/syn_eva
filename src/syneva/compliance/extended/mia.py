@@ -23,12 +23,18 @@ class MembershipInferenceAttack:
     )
 
     def __init__(
-        self, holdout: pd.DataFrame | None = None, neighbors: Neighbors | None = None
+        self,
+        holdout: pd.DataFrame | None = None,
+        neighbors: Neighbors | None = None,
+        random_state: int = 42,
     ) -> None:
         self.holdout = holdout
         # Shared by the runner; checked and otherwise built in compute (Neighbors.resolve).
         # Always euclidean: the attack has no distance option.
         self.neighbors = neighbors
+        # Euclidean Neighbors never sample rows, so the seed can't change this metric;
+        # it is taken so the runner's seed reaches every Neighbors consistently.
+        self.random_state = random_state
 
     def compute(self, real, synthetic, meta) -> MetricResult:
         assert real is not None
@@ -47,7 +53,14 @@ class MembershipInferenceAttack:
                     "the holdout upload in the UI) to run it."
                 ),
             )
-        nb = Neighbors.resolve(self.neighbors, real, synthetic, meta, holdout=self.holdout)
+        nb = Neighbors.resolve(
+            self.neighbors,
+            real,
+            synthetic,
+            meta,
+            holdout=self.holdout,
+            random_state=self.random_state,
+        )
         if nb.n_features == 0 or len(synthetic) < 1 or len(self.holdout) < 1 or len(real) < 1:
             return MetricResult(
                 spec=self.spec,

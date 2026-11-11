@@ -44,6 +44,7 @@ class Neighbors:
         if distance not in _VALID:
             raise ValueError(f"unknown distance '{distance}'; use one of {_VALID}")
         self.distance = distance
+        self.random_state = random_state
         self.capped = False
         self._has_holdout = holdout is not None
         # Source sizes, checked by resolve() against the frames a metric is given.
@@ -97,13 +98,16 @@ class Neighbors:
         *,
         distance: str = "euclidean",
         holdout: pd.DataFrame | None = None,
+        random_state: int = 42,
     ) -> Neighbors:
         """The Neighbors a metric should use: `injected` (shared by the runner) when
         given, else one built for these frames. An injected instance must match what
         the metric would build itself, or its results would differ from a standalone
         run."""
         if injected is None:
-            return cls(real, synthetic, meta, distance=distance, holdout=holdout)
+            return cls(
+                real, synthetic, meta, distance=distance, holdout=holdout, random_state=random_state
+            )
         if injected.distance != distance:
             raise ValueError(
                 f"injected Neighbors uses '{injected.distance}' distance, "
@@ -113,6 +117,13 @@ class Neighbors:
             raise ValueError(
                 f"injected Neighbors was built for {injected._source_rows} (real, synthetic) "
                 f"rows, but the metric was given {(len(real), len(synthetic))}"
+            )
+        if injected.capped and injected.random_state != random_state:
+            # The seed picks which rows a capped gower instance keeps. An uncapped
+            # instance (and every euclidean one) sampled nothing, so its seed is moot.
+            raise ValueError(
+                f"injected Neighbors uses random_state={injected.random_state}, "
+                f"but the metric uses random_state={random_state}"
             )
         if holdout is not None and not injected._has_holdout:
             raise ValueError("the metric has a holdout, but the injected Neighbors has none")

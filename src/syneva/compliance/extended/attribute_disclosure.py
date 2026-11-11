@@ -26,8 +26,12 @@ class AttributeDisclosure:
         scope="table-level",
     )
 
-    def __init__(self, distance: str = "euclidean") -> None:
+    def __init__(self, distance: str = "euclidean", random_state: int = 42) -> None:
         self.distance = distance
+        # Only euclidean Neighbors are built here, and they never sample rows, so the
+        # seed can't change this metric; it is taken so the runner's seed reaches every
+        # Neighbors consistently.
+        self.random_state = random_state
 
     def compute(
         self,
@@ -59,7 +63,9 @@ class AttributeDisclosure:
         nb = (
             None
             if self.distance == "gower"
-            else Neighbors(real, synthetic, qi_meta, distance=self.distance)
+            else Neighbors(
+                real, synthetic, qi_meta, distance=self.distance, random_state=self.random_state
+            )
         )
         if (nb is not None and nb.n_features == 0) or len(synthetic) == 0:
             return MetricResult(

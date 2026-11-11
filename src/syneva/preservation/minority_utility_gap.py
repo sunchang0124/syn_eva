@@ -19,9 +19,10 @@ from syneva.utility._models import _build_preprocessor
 from syneva.utility.task import UtilityTask, resolve_task_type
 
 
-def _make_model(meta, features: list[str]) -> Pipeline:
+def _make_model(meta, features: list[str], random_state: int) -> Pipeline:
     pre = _build_preprocessor(meta, features)
-    return Pipeline([("pre", pre), ("clf", LogisticRegression(max_iter=1000))])
+    clf = LogisticRegression(max_iter=1000, random_state=random_state)
+    return Pipeline([("pre", pre), ("clf", clf)])
 
 
 def _labels(y: pd.Series, dtype) -> pd.Series:
@@ -99,8 +100,12 @@ class MinorityUtilityGap:
             if y_syn.nunique() < 2 or y_train_real.nunique() < 2:
                 notes.append(f"task '{t.target}' skipped (constant target in training data)")
                 continue
-            model_syn = _make_model(meta, features).fit(synthetic[features], y_syn)
-            model_real = _make_model(meta, features).fit(train_real[features], y_train_real)
+            model_syn = _make_model(meta, features, self.random_state).fit(
+                synthetic[features], y_syn
+            )
+            model_real = _make_model(meta, features, self.random_state).fit(
+                train_real[features], y_train_real
+            )
             pred_syn = model_syn.predict(eval_real[features])
             pred_real = model_real.predict(eval_real[features])
             overall_syn = balanced_accuracy_score(y_eval, pred_syn)
