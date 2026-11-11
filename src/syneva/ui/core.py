@@ -64,14 +64,15 @@ def metadata_from_editor(rows: list[dict]) -> Metadata:
     return Metadata(columns=cols)
 
 
-def edited_column_types(rows: list[dict], df: pd.DataFrame) -> dict[Any, ColumnType]:
+def edited_column_types(rows: list[dict], inferred_rows: list[dict]) -> dict[Any, ColumnType]:
     """Each column's type as edited in the metadata editor, falling back to the
-    inferred type where a row's dtype is blank or invalid or its name was changed.
+    inferred type (from `inferred_rows`, the rows the editor started from) where a
+    row's dtype is blank or invalid or its name was changed.
 
     The sidebar reads this on every rerun, unlike metadata_from_editor, which only
     runs when the user starts a run and can report a bad row there.
     """
-    types = {name: col.dtype for name, col in Metadata.infer(df).columns.items()}
+    types = {row["column"]: ColumnType(row["dtype"]) for row in inferred_rows}
     for row in rows:
         if row.get("column") not in types:
             continue

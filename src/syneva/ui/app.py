@@ -193,22 +193,24 @@ def _sidebar() -> dict | None:
             sg_cols = st.multiselect("Subgroup condition column(s)", options=list(real.columns))
             # Follow the types as edited above, not the pandas dtype: a bool column is
             # numeric to pandas, but SubgroupSpec only takes a range on NUMERIC columns.
-            types = core.edited_column_types(edited, real)
+            types = core.edited_column_types(edited, inferred_rows)
             conditions: dict = {}
             for col in sg_cols:
                 if core.subgroup_condition_kind(types[col]) == "range":
                     # Read the column as SubgroupSpec.matches does, so one re-typed
                     # from text still gets numeric bounds.
                     values = pd.to_numeric(real[col], errors="coerce").dropna()
+                    if values.empty:
+                        st.warning(
+                            f"'{col}' is marked numeric but holds no numbers, so it has "
+                            "no range to pick. Mark it categorical to pick values instead."
+                        )
+                        continue
                     lo = st.number_input(
-                        f"'{col}' min",
-                        value=float(values.min()) if len(values) else 0.0,
-                        key=f"sg_lo_{col}",
+                        f"'{col}' min", value=float(values.min()), key=f"sg_lo_{col}"
                     )
                     hi = st.number_input(
-                        f"'{col}' max",
-                        value=float(values.max()) if len(values) else 0.0,
-                        key=f"sg_hi_{col}",
+                        f"'{col}' max", value=float(values.max()), key=f"sg_hi_{col}"
                     )
                     conditions[col] = (lo, hi)
                 else:

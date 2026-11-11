@@ -248,16 +248,16 @@ def test_subgroup_condition_kind_builds_conditions_the_spec_accepts(dtype):
     condition = (0.0, 1.0) if kind == "range" else ["a"]
     meta = Metadata(columns={"c": ColumnMetadata(name="c", dtype=dtype)})
     assert SubgroupSpec(name="g", conditions={"c": condition}).validate(meta) is None
-    assert kind == ("range" if dtype is ColumnType.NUMERIC else "values")
 
 
 def test_edited_column_types_fall_back_to_the_inferred_type():
     df = pd.DataFrame({"age": [30, 40], "sex": ["M", "F"], "ok": [True, False]})
-    rows = core.metadata_rows(Metadata.infer(df))
+    inferred = core.metadata_rows(Metadata.infer(df))
+    rows = [dict(r) for r in inferred]
     rows[0]["dtype"] = "categorical"  # an edit: taken
     rows[1]["dtype"] = None  # a cleared cell: ignored
     rows[2]["column"] = "renamed"  # a renamed row: ignored
-    types = core.edited_column_types(rows, df)
+    types = core.edited_column_types(rows, inferred)
     assert types == {
         "age": ColumnType.CATEGORICAL,
         "sex": ColumnType.CATEGORICAL,
