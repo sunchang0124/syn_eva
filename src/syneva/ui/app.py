@@ -16,6 +16,22 @@ from syneva.ui import core, reload_notice
 from syneva.utility.task import UtilityTask
 
 
+def _random_state_input() -> int:
+    """The run's seed. Both modes share the key, so the value carries over."""
+    return int(
+        st.number_input(
+            "Random seed",
+            # numpy accepts seeds in [0, 2**32 - 1].
+            min_value=0,
+            max_value=2**32 - 1,
+            value=42,
+            step=1,
+            key="random_state",
+            help="Seeds the splits, subsamples and projections. Same seed, same scores.",
+        )
+    )
+
+
 def _sidebar() -> dict | None:
     """Render sidebar controls and return configuration dict, or None to abort."""
     with st.sidebar:
@@ -200,6 +216,7 @@ def _sidebar() -> dict | None:
         else:
             st.caption("Select a subgroup metric to configure subgroups.")
 
+        random_state = _random_state_input()
         run = st.button("Run evaluation", type="primary")
 
     return {
@@ -214,6 +231,7 @@ def _sidebar() -> dict | None:
         "subgroup_specs": subgroup_specs,
         "holdout": holdout,
         "preset": None if profile == "Custom" else profile,
+        "random_state": random_state,
         "run": run,
     }
 
@@ -305,6 +323,7 @@ def _benchmark_sidebar() -> dict | None:
             index=0,
             key="bm_norm",
         )
+        random_state = _random_state_input()
         run = st.button("Run benchmark", type="primary", key="bm_run")
 
     return {
@@ -314,6 +333,7 @@ def _benchmark_sidebar() -> dict | None:
         "edited": edited,
         "preset": None if profile == "Custom" else profile,
         "normalization": normalization,
+        "random_state": random_state,
         "run": run,
     }
 
@@ -367,6 +387,7 @@ def main() -> None:
                         subgroup_specs=cfg["subgroup_specs"],
                         holdout=cfg["holdout"],
                         preset=cfg["preset"],
+                        random_state=cfg["random_state"],
                     )
                 except (SynevaError, ValueError) as e:
                     st.error(f"Evaluation failed: {e}")
@@ -393,6 +414,7 @@ def main() -> None:
                         meta,
                         holdout=cfg["holdout"],
                         preset=cfg["preset"],
+                        random_state=cfg["random_state"],
                     ),
                     cfg["normalization"],
                 )

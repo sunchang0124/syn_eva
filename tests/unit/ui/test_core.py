@@ -187,6 +187,16 @@ def test_run_benchmark_ranks_good_first():
     assert ranked[0] == "good"
 
 
+def test_run_benchmark_runs_every_candidate_at_the_given_random_state():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet")
+    good = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet")
+    res = core.run_benchmark(
+        real, {"good": good}, Metadata.infer(real), preset="fast", random_state=7
+    )
+    assert res.random_state == 7
+    assert res.reports["good"].run_info.random_state == 7
+
+
 def test_leaderboard_html_str_matches_renderer():
     from syneva.render.html.benchmark_renderer import render_leaderboard
 

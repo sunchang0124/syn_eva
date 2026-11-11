@@ -110,3 +110,33 @@ def test_benchmark_prints_metrics_left_out_of_the_comparison(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr
     assert "correlation_difference not compared: skipped for constant" in proc.stdout
+
+
+def _benchmark_random_state(tmp_path, *seed_args):
+    out = tmp_path / "bench"
+    proc = _run(
+        [
+            "--real",
+            str(_REAL),
+            "--metadata",
+            str(_META),
+            "--candidate",
+            f"good={_GOOD}",
+            "--preset",
+            "fast",
+            "--out",
+            str(out),
+            *seed_args,
+        ]
+    )
+    assert proc.returncode == 0, proc.stderr
+    loaded = json.loads((out / "benchmark.json").read_text(encoding="utf-8"))
+    return loaded["random_state"], loaded["reports"]["good"]["run_info"]["random_state"]
+
+
+def test_benchmark_runs_at_the_given_random_state(tmp_path):
+    assert _benchmark_random_state(tmp_path, "--random-state", "7") == (7, 7)
+
+
+def test_benchmark_defaults_to_random_state_42(tmp_path):
+    assert _benchmark_random_state(tmp_path) == (42, 42)

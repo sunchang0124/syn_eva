@@ -16,6 +16,10 @@ from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.presets import _UNSET
 from syneva.ui import reload_notice
 
+# numpy accepts seeds in [0, 2**32 - 1].
+_MAX_SEED = 2**32 - 1
+_RANDOM_STATE_HELP = "seed for the splits, subsamples and projections; same seed, same scores"
+
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
 
 
@@ -60,6 +64,7 @@ def evaluate(
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
     preset: str | None = typer.Option(None, help="evaluation preset: fast | full | privacy"),
     pdf: bool = typer.Option(False, help="also write scorecard.pdf"),
+    random_state: int = typer.Option(42, min=0, max=_MAX_SEED, help=_RANDOM_STATE_HELP),
 ) -> None:
     out.mkdir(parents=True, exist_ok=True)
     try:
@@ -76,6 +81,7 @@ def evaluate(
             cs=(tuple(c.strip() for c in cs.split(",")) if cs else _UNSET),
             run_utility=(True if run_utility else _UNSET),
             preset=preset,
+            random_state=random_state,
         )
         rep.to_json(out / "scorecard.json")
         rep.to_html(out / "scorecard.html")
@@ -101,6 +107,7 @@ def benchmark(
     cs: str | None = typer.Option(None, help="comma-separated Cs to restrict to"),
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
     normalization: str = typer.Option("absolute", help="ranking: absolute|linear|normal|quantile"),
+    random_state: int = typer.Option(42, min=0, max=_MAX_SEED, help=_RANDOM_STATE_HELP),
 ) -> None:
     candidates: dict[str, pd.DataFrame] = {}
     for entry in candidate:
@@ -129,6 +136,7 @@ def benchmark(
             tiers=(tuple(t.strip() for t in tiers.split(",")) if tiers else _UNSET),
             cs=(tuple(c.strip() for c in cs.split(",")) if cs else _UNSET),
             run_utility=(True if run_utility else _UNSET),
+            random_state=random_state,
         )
         ranked = res.ranking(normalization=normalization)  # fail fast on bad normalization
         res.to_html(out / "leaderboard.html", normalization=normalization)

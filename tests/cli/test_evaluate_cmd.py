@@ -178,3 +178,92 @@ def test_load_metadata_reads_privacy_roles(tmp_path):
     cols = meta.columns
     assert (cols["zip"].quasi_identifier, cols["zip"].sensitive) == (True, False)
     assert (cols["income"].quasi_identifier, cols["income"].sensitive) == (False, True)
+
+
+_REAL = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
+_SYN = Path("tests/fixtures/adult_income_syn_good_500.parquet").resolve()
+_META = Path("tests/fixtures/metadata.json").resolve()
+
+
+def _evaluate_c2st(tmp_path, *seed_args):
+    real, syn, meta = _REAL, _SYN, _META
+    out = tmp_path / "rep"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "syneva.cli.main",
+            "evaluate",
+            "--real",
+            str(real),
+            "--synthetic",
+            str(syn),
+            "--metadata",
+            str(meta),
+            "--tiers",
+            "extended",
+            "--cs",
+            "congruence",
+            "--out",
+            str(out),
+            *seed_args,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
+
+
+def test_evaluate_cli_runs_at_the_given_random_state(tmp_path):
+    import syneva
+    from syneva.cli.main import _load_metadata
+
+    def c2st_in_python(seed):
+        rep = syneva.evaluate(
+            pd.read_parquet(_REAL),
+            pd.read_parquet(_SYN),
+            _load_metadata(_META),
+            tiers=("extended",),
+            cs=("congruence",),
+            random_state=seed,
+        )
+        (result,) = [r for r in rep.results if r.spec.name == "c2st"]
+        assert result.scalars, result.skip_reason
+        return result.scalars
+
+    loaded = _evaluate_c2st(tmp_path, "--random-state", "7")
+    assert loaded["run_info"]["random_state"] == 7
+    (c2st,) = [r for r in loaded["results"] if r["spec"]["name"] == "c2st"]
+    expected = c2st_in_python(7)
+    # Only proves the seed reached c2st if seed 7 scores differently from the default.
+    assert expected != c2st_in_python(42)
+    assert c2st["scalars"] == expected
+
+
+def test_evaluate_cli_defaults_to_random_state_42(tmp_path):
+    assert _evaluate_c2st(tmp_path)["run_info"]["random_state"] == 42
+
+
+def test_evaluate_cli_rejects_a_negative_random_state(tmp_path):
+    syn = _SYN
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "syneva.cli.main",
+            "evaluate",
+            "--synthetic",
+            str(syn),
+            "--random-state",
+            "-1",
+            "--out",
+            str(tmp_path / "rep"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    # A usage error, not a numpy traceback from deep inside a metric.
+    assert proc.returncode == 2, proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert "--random-state" in proc.stderr

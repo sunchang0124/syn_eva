@@ -177,10 +177,13 @@ def run_benchmark(
     *,
     holdout=None,
     preset: str | None = None,
+    random_state: int = 42,
 ):
     """Run the benchmark engine for the UI (mirrors run_report's role)."""
 
-    return syneva.benchmark(real, candidates, metadata, holdout=holdout, preset=preset)
+    return syneva.benchmark(
+        real, candidates, metadata, holdout=holdout, preset=preset, random_state=random_state
+    )
 
 
 def leaderboard_html_str(result, *, normalization: str = "absolute") -> str:
