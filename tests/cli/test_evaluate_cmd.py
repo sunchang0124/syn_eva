@@ -5,6 +5,20 @@ from pathlib import Path
 
 import pandas as pd
 
+_REAL = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
+_SYN = Path("tests/fixtures/adult_income_syn_good_500.parquet").resolve()
+_META = Path("tests/fixtures/metadata.json").resolve()
+
+
+def _evaluate(*args):
+    # utf-8: typer draws its errors with box characters that cp1252 can't decode.
+    return subprocess.run(
+        [sys.executable, "-m", "syneva.cli.main", "evaluate", *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
 
 def test_evaluate_cli_writes_outputs(tmp_path):
     real = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
@@ -180,36 +194,22 @@ def test_load_metadata_reads_privacy_roles(tmp_path):
     assert (cols["income"].quasi_identifier, cols["income"].sensitive) == (False, True)
 
 
-_REAL = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
-_SYN = Path("tests/fixtures/adult_income_syn_good_500.parquet").resolve()
-_META = Path("tests/fixtures/metadata.json").resolve()
-
-
 def _evaluate_c2st(tmp_path, *seed_args):
-    real, syn, meta = _REAL, _SYN, _META
     out = tmp_path / "rep"
-    proc = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "syneva.cli.main",
-            "evaluate",
-            "--real",
-            str(real),
-            "--synthetic",
-            str(syn),
-            "--metadata",
-            str(meta),
-            "--tiers",
-            "extended",
-            "--cs",
-            "congruence",
-            "--out",
-            str(out),
-            *seed_args,
-        ],
-        capture_output=True,
-        text=True,
+    proc = _evaluate(
+        "--real",
+        str(_REAL),
+        "--synthetic",
+        str(_SYN),
+        "--metadata",
+        str(_META),
+        "--tiers",
+        "extended",
+        "--cs",
+        "congruence",
+        "--out",
+        str(out),
+        *seed_args,
     )
     assert proc.returncode == 0, proc.stderr
     return json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
@@ -246,22 +246,8 @@ def test_evaluate_cli_defaults_to_random_state_42(tmp_path):
 
 
 def test_evaluate_cli_rejects_a_negative_random_state(tmp_path):
-    syn = _SYN
-    proc = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "syneva.cli.main",
-            "evaluate",
-            "--synthetic",
-            str(syn),
-            "--random-state",
-            "-1",
-            "--out",
-            str(tmp_path / "rep"),
-        ],
-        capture_output=True,
-        text=True,
+    proc = _evaluate(
+        "--synthetic", str(_SYN), "--random-state", "-1", "--out", str(tmp_path / "rep")
     )
     # A usage error, not a numpy traceback from deep inside a metric.
     assert proc.returncode == 2, proc.stderr

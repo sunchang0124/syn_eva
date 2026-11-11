@@ -5,6 +5,9 @@ import importlib.metadata
 import time
 from dataclasses import asdict, dataclass, field
 
+# The largest seed numpy accepts; seeds run from 0 to this.
+MAX_RANDOM_STATE = 2**32 - 1
+
 _TRACKED = (
     "syneva",
     "pandas",

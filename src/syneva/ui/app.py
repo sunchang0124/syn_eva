@@ -12,6 +12,7 @@ import streamlit.components.v1 as components
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import Metadata
 from syneva.core.metric_info import describe_c
+from syneva.core.run_info import MAX_RANDOM_STATE
 from syneva.ui import core, reload_notice
 from syneva.utility.task import UtilityTask
 
@@ -21,9 +22,8 @@ def _random_state_input() -> int:
     return int(
         st.number_input(
             "Random seed",
-            # numpy accepts seeds in [0, 2**32 - 1].
             min_value=0,
-            max_value=2**32 - 1,
+            max_value=MAX_RANDOM_STATE,
             value=42,
             step=1,
             key="random_state",

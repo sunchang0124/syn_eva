@@ -14,10 +14,9 @@ import syneva
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.presets import _UNSET
+from syneva.core.run_info import MAX_RANDOM_STATE
 from syneva.ui import reload_notice
 
-# numpy accepts seeds in [0, 2**32 - 1].
-_MAX_SEED = 2**32 - 1
 _RANDOM_STATE_HELP = "seed for the splits, subsamples and projections; same seed, same scores"
 
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
@@ -64,7 +63,7 @@ def evaluate(
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
     preset: str | None = typer.Option(None, help="evaluation preset: fast | full | privacy"),
     pdf: bool = typer.Option(False, help="also write scorecard.pdf"),
-    random_state: int = typer.Option(42, min=0, max=_MAX_SEED, help=_RANDOM_STATE_HELP),
+    random_state: int = typer.Option(42, min=0, max=MAX_RANDOM_STATE, help=_RANDOM_STATE_HELP),
 ) -> None:
     out.mkdir(parents=True, exist_ok=True)
     try:
@@ -107,7 +106,7 @@ def benchmark(
     cs: str | None = typer.Option(None, help="comma-separated Cs to restrict to"),
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
     normalization: str = typer.Option("absolute", help="ranking: absolute|linear|normal|quantile"),
-    random_state: int = typer.Option(42, min=0, max=_MAX_SEED, help=_RANDOM_STATE_HELP),
+    random_state: int = typer.Option(42, min=0, max=MAX_RANDOM_STATE, help=_RANDOM_STATE_HELP),
 ) -> None:
     candidates: dict[str, pd.DataFrame] = {}
     for entry in candidate:
