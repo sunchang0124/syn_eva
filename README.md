@@ -59,6 +59,10 @@ generator) to enable the membership-inference attack and the holdout variants
 of DCR/NNDR. Without a holdout, MIA is skipped and excluded from the
 compliance score.
 
+Pass `--random-state 7` (default 42) to seed the splits, subsamples and
+projections; the same seed gives the same scores. `syn-eva benchmark` takes it
+too, and the web UI has a "Random seed" input in the sidebar.
+
 ## Web UI
 
 A local Streamlit app for upload → pick evaluators → scorecard:

@@ -7,6 +7,9 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 ### Added
 - Streamlit web UI (`syn-eva ui`, optional `[ui]` extra): upload real/synthetic
   data, edit column metadata, select evaluators, and view/download the scorecard.
+- `syn-eva evaluate` and `syn-eva benchmark` take `--random-state`, and the
+  Streamlit sidebar has a "Random seed" input in both modes (#93). Both default
+  to 42, so runs that don't set them are unchanged.
 
 ### Changed
 - Column metadata has a new `quasi_identifier` role, separate from `sensitive`
