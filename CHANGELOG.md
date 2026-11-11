@@ -18,6 +18,9 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- `Metadata.infer`, and so `evaluate` without explicit metadata, no longer
+  crashes on column labels that aren't strings, such as the `0, 1, ...` of a
+  DataFrame built from a NumPy array or read with `header=None` (#35).
 - `evaluate(random_state=...)` now controls every random component of a run
   (#42). `c2st`, `discriminative_score`, `sliced_wasserstein`, `mmd`,
   `hitting_rate`, `pmse`, `pca_scatter` and the shared Gower subsampling used a

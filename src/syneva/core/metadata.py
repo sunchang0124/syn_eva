@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Hashable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -78,8 +79,9 @@ class Metadata:
             raise MetadataError(f"primary_key '{self.primary_key}' not in DataFrame")
 
 
-def _infer_column_type(df: pd.DataFrame, name: str) -> ColumnType:
-    if _ID_PATTERN.match(name):
+def _infer_column_type(df: pd.DataFrame, name: Hashable) -> ColumnType:
+    # Labels needn't be strings: pd.DataFrame(ndarray) labels its columns 0, 1, ...
+    if _ID_PATTERN.match(str(name)):
         return ColumnType.ID
     s = df[name]
     if is_bool_dtype(s):
