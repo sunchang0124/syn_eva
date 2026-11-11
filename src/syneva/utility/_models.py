@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
     HistGradientBoostingClassifier,
@@ -33,9 +34,27 @@ def _as_object(X: pd.DataFrame | np.ndarray) -> pd.DataFrame:
     return X.astype(object).where(X.notna(), np.nan)
 
 
-def _build_preprocessor(meta: Metadata, features: list[str]) -> ColumnTransformer:
-    num = [f for f in features if meta.columns[f].dtype in _NUMERIC]
-    cat = [f for f in features if meta.columns[f].dtype in _CATEGORICAL]
+class _StrLabels(TransformerMixin, BaseEstimator):
+    """Relabel a frame's columns as str(label).
+
+    sklearn reads integer column labels as positions and rejects a mix of string and
+    non-string labels, so the preprocessor selects columns by str(label). This step
+    skips sklearn's input checks on purpose: they are what reject mixed labels.
+    """
+
+    def fit(self, X: pd.DataFrame, y=None) -> _StrLabels:
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        return X.set_axis([str(c) for c in X.columns], axis=1)
+
+
+def _build_preprocessor(meta: Metadata, features: list) -> ColumnTransformer:
+    labels = [str(f) for f in features]
+    if len(set(labels)) != len(labels):
+        raise ValueError(f"features {features} collide once their labels are read as text")
+    num = [str(f) for f in features if meta.columns[f].dtype in _NUMERIC]
+    cat = [str(f) for f in features if meta.columns[f].dtype in _CATEGORICAL]
     # keep_empty_features keeps an all-missing column as a constant one, so every
     # input feature always maps to a fixed output block (see source_columns)
     return ColumnTransformer(
@@ -70,16 +89,17 @@ def _build_preprocessor(meta: Metadata, features: list[str]) -> ColumnTransforme
     )
 
 
-def source_columns(pre: ColumnTransformer) -> list[str]:
+def source_columns(pre: ColumnTransformer, features: list) -> list:
     """Return the original feature behind each output column of a fitted
-    `_build_preprocessor`.
+    `_build_preprocessor` built for ``features``.
 
     A numeric feature yields one entry and a categorical feature one per one-hot
     category, so the result is as long as the transformed matrix. Columns are matched
     by position, not by the names sklearn reports, and each block is checked against
     the transformer's actual output width.
     """
-    out: list[str] = []
+    by_label = {str(f): f for f in features}
+    out: list = []
     for name, trans, cols in pre.transformers_:
         if name == "remainder" or len(cols) == 0:
             continue
@@ -94,17 +114,26 @@ def source_columns(pre: ColumnTransformer) -> list[str]:
                 f"cannot map '{name}' outputs to features: expected "
                 f"{width.stop - width.start} columns, derived {len(block)}"
             )
-        out.extend(block)
+        out.extend(by_label[c] for c in block)
     return out
 
 
-def build_pipeline(task_type: str, meta: Metadata, features: list[str], random_state: int):
-    pre = _build_preprocessor(meta, features)
+def _pipeline(meta: Metadata, features: list, model) -> Pipeline:
+    return Pipeline(
+        [
+            ("labels", _StrLabels()),
+            ("pre", _build_preprocessor(meta, features)),
+            ("model", model),
+        ]
+    )
+
+
+def build_pipeline(task_type: str, meta: Metadata, features: list, random_state: int):
     if task_type == "classification":
         model = RandomForestClassifier(n_estimators=100, random_state=random_state, n_jobs=1)
     else:
         model = RandomForestRegressor(n_estimators=100, random_state=random_state, n_jobs=1)
-    return Pipeline([("pre", pre), ("model", model)])
+    return _pipeline(meta, features, model)
 
 
 def build_panel_pipelines(
@@ -128,10 +157,7 @@ def build_panel_pipelines(
             ),
             "hist_gbdt": HistGradientBoostingRegressor(random_state=random_state),
         }
-    return {
-        name: Pipeline([("pre", _build_preprocessor(meta, features)), ("model", est)])
-        for name, est in estimators.items()
-    }
+    return {name: _pipeline(meta, features, est) for name, est in estimators.items()}
 
 
 def select_features(

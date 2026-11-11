@@ -30,7 +30,7 @@ def _per_feature_importance(pipe, features: list[str]) -> np.ndarray:
     Processing Systems 26, 431-439.
     """
     totals = dict.fromkeys(features, 0.0)
-    src = source_columns(pipe.named_steps["pre"])
+    src = source_columns(pipe.named_steps["pre"], features)
     for col, imp in zip(src, pipe.named_steps["model"].feature_importances_, strict=True):
         totals[col] += float(imp)
     return np.array([totals[f] for f in features])
