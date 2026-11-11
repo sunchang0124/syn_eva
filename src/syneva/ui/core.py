@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 
@@ -61,6 +62,30 @@ def metadata_from_editor(rows: list[dict]) -> Metadata:
         for r in rows
     }
     return Metadata(columns=cols)
+
+
+def edited_column_types(rows: list[dict], df: pd.DataFrame) -> dict[Any, ColumnType]:
+    """Each column's type as edited in the metadata editor, falling back to the
+    inferred type where a row's dtype is blank or invalid or its name was changed.
+
+    The sidebar reads this on every rerun, unlike metadata_from_editor, which only
+    runs when the user starts a run and can report a bad row there.
+    """
+    types = {name: col.dtype for name, col in Metadata.infer(df).columns.items()}
+    for row in rows:
+        if row.get("column") not in types:
+            continue
+        with contextlib.suppress(ValueError):
+            types[row["column"]] = ColumnType(row.get("dtype"))
+    return types
+
+
+def subgroup_condition_kind(dtype: ColumnType) -> Literal["range", "values"]:
+    """Which subgroup condition a column of this type takes: a (lo, hi) range for a
+    numeric column, a list of values for any other. This is the rule
+    SubgroupSpec.validate enforces, so a builder that follows it can't produce a
+    spec the preservation metrics reject."""
+    return "range" if dtype is ColumnType.NUMERIC else "values"
 
 
 def metric_catalog() -> list[dict]:
