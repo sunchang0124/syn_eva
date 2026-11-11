@@ -3,6 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import click
 import pandas as pd
 
 _REAL = Path("tests/fixtures/adult_income_real_500.parquet").resolve()
@@ -251,5 +252,7 @@ def test_evaluate_cli_rejects_a_negative_random_state(tmp_path):
     )
     # A usage error, not a numpy traceback from deep inside a metric.
     assert proc.returncode == 2, proc.stderr
-    assert "Traceback" not in proc.stderr
-    assert "--random-state" in proc.stderr
+    # On CI typer colours the option name piece by piece, so drop the styling first.
+    stderr = click.unstyle(proc.stderr)
+    assert "Traceback" not in stderr
+    assert "--random-state" in stderr
