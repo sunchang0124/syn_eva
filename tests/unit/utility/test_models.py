@@ -13,7 +13,7 @@ def _fit(df: pd.DataFrame, meta: Metadata, target, features=None):
 
 
 def _assert_maps_every_feature(pipe, features) -> list:
-    src = source_columns(pipe.named_steps["pre"])
+    src = source_columns(pipe.named_steps["pre"], features)
     assert len(src) == len(pipe.named_steps["model"].feature_importances_)
     assert set(src) == set(features)
     return src
@@ -66,20 +66,31 @@ def test_pipeline_accepts_nullable_dtypes(real_df, metadata):
     _assert_maps_every_feature(pipe, select_features(metadata, "high_income", None))
 
 
-def test_source_columns_matches_by_position_not_name():
-    # Non-string labels make sklearn report placeholder names (x0, x1, ...)
+def test_source_columns_maps_integer_labels_back_to_the_features():
+    # The target comes first, so label 1 is the first feature, not the second
     rng = np.random.default_rng(0)
-    df = pd.DataFrame({0: rng.normal(size=50), 1: rng.choice(["a", "b", "c"], 50)})
-    df[2] = (df[0] > 0).astype(int)
+    df = pd.DataFrame({1: rng.normal(size=50), 2: rng.choice(["a", "b", "c"], 50)})
+    df.insert(0, 0, (df[1] > 0).astype(int))
     meta = Metadata(
         columns={
-            0: ColumnMetadata(name=0, dtype=ColumnType.NUMERIC),  # pyright: ignore[reportArgumentType]
-            1: ColumnMetadata(name=1, dtype=ColumnType.CATEGORICAL),  # pyright: ignore[reportArgumentType]
+            0: ColumnMetadata(name=0, dtype=ColumnType.CATEGORICAL),  # pyright: ignore[reportArgumentType]
+            1: ColumnMetadata(name=1, dtype=ColumnType.NUMERIC),  # pyright: ignore[reportArgumentType]
             2: ColumnMetadata(name=2, dtype=ColumnType.CATEGORICAL),  # pyright: ignore[reportArgumentType]
         }
     )
-    pipe = _fit(df, meta, 2, features=[0, 1])
-    assert source_columns(pipe.named_steps["pre"]) == [0, 1, 1, 1]
+    pipe = _fit(df, meta, 0, features=[1, 2])
+    assert source_columns(pipe.named_steps["pre"], [1, 2]) == [1, 2, 2, 2]
+
+
+def test_pipeline_rejects_features_whose_labels_collide_as_text():
+    meta = Metadata(
+        columns={
+            1: ColumnMetadata(name=1, dtype=ColumnType.NUMERIC),  # pyright: ignore[reportArgumentType]
+            "1": ColumnMetadata(name="1", dtype=ColumnType.NUMERIC),
+        }
+    )
+    with pytest.raises(ValueError, match="collide"):
+        build_pipeline("classification", meta, [1, "1"], 0)
 
 
 def test_source_columns_rejects_unexpected_output_width(real_df, metadata):
@@ -88,7 +99,7 @@ def test_source_columns_rejects_unexpected_output_width(real_df, metadata):
     pipe.set_params(pre__cat__oh__drop="if_binary")  # sex now encodes to 1 column, not 2
     pipe.fit(real_df[features], real_df["high_income"])
     with pytest.raises(RuntimeError, match="cannot map 'cat'"):
-        source_columns(pipe.named_steps["pre"])
+        source_columns(pipe.named_steps["pre"], features)
 
 
 _MIXED = Metadata(

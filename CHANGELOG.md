@@ -20,7 +20,11 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 ### Fixed
 - `Metadata.infer`, and so `evaluate` without explicit metadata, no longer
   crashes on column labels that aren't strings, such as the `0, 1, ...` of a
-  DataFrame built from a NumPy array or read with `header=None` (#35).
+  DataFrame built from a NumPy array or read with `header=None` (#35). The
+  utility metrics (`tstr_suite`, `model_panel_utility`, `multi_target_utility`,
+  `feature_importance_spearman`) also work on such frames: their models read
+  integer labels as column positions, which picked the wrong columns or failed,
+  and rejected a mix of string and non-string labels.
 - `evaluate(random_state=...)` now controls every random component of a run
   (#42). `c2st`, `discriminative_score`, `sliced_wasserstein`, `mmd`,
   `hitting_rate`, `pmse`, `pca_scatter` and the shared Gower subsampling used a
