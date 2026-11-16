@@ -26,9 +26,10 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   η², and each Pearson difference is capped at 1, so a reversed relationship is
   still penalised but no pair contributes more than 1, the most a categorical
   pair can. Scores for this metric change: η² put numeric–categorical pairs on a
-  squared scale (shrinking differences between small values and enlarging them
-  between large ones), and a few pairs that flipped sign could push the mean
-  difference above 1 and clip the score to 0.
+  squared scale (shrinking a difference when η₁ + η₂ < 1 and enlarging it when
+  η₁ + η₂ > 1), and a Pearson pair that flipped sign could count up to twice as
+  much as any other pair; when such pairs made up most of the scored pairs, the
+  score was clipped to 0.
 - The UI's subgroup builder now chooses between a min/max range and a value list
   from the column types in the metadata editor, not the pandas dtype (#36). A
   bool column, or a number column re-typed as categorical, used to get a range

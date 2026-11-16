@@ -26,8 +26,8 @@ square-root scale. For a two-level category, $\eta$ equals the absolute
 point-biserial correlation, so it is directly comparable to $|r|$ and $V$.
 ($\eta^2$ is a share of variance, like $r^2$. Because
 $|\eta_1^2 - \eta_2^2| = |\eta_1 - \eta_2|\,(\eta_1 + \eta_2)$, a difference on
-that squared scale shrinks when both values are small and grows when they are
-large, so these pairs would not be comparable with the others.)
+that squared scale shrinks when $\eta_1 + \eta_2 < 1$ and grows when
+$\eta_1 + \eta_2 > 1$, so these pairs would not be comparable with the others.)
 
 For each pair the difference is
 
@@ -39,19 +39,24 @@ where $a$ is the pair's association measure. $V$ and $\eta$ differences are
 already at most 1. For Pearson pairs the sign is kept, so a synthetic dataset
 that reverses a relationship is penalised: $r$ going from $0.4$ to $-0.4$ gives
 $d = 0.8$. Without the cap a sign flip could reach 2, so one reversed pair would
-count up to twice as much as the worst categorical pair, and a few reversed
-pairs would push the score to 0 for every badly broken dataset alike. The cap
-is a design choice of this package ([#38](https://github.com/sunchang0124/syn_eva/issues/38)):
-any reversal with $|r_\text{real} - r_\text{syn}| \ge 1$ counts as the worst
-possible pair.
+count up to twice as much as the worst categorical pair. When such pairs made up
+most of the scored pairs, the mean difference could also exceed 1 and the score
+would be clipped to 0, so those badly broken datasets would all score the same.
+The cap is a design choice of this package
+([#38](https://github.com/sunchang0124/syn_eva/issues/38)): any Pearson pair
+with $|r_\text{real} - r_\text{syn}| \ge 1$ counts as the worst possible pair.
 
 The score is $1 - \bar d$, where $\bar d$ is the mean of $d$ over all scored pairs.
 Because every $d$ lies in $[0, 1]$, so does the score.
 
 A pair is left out, with a note, when its association is undefined in the real
-or the synthetic data: a constant numeric column, or a categorical column with a
-single level. The metric is skipped when no pair is left. Columns that are
-neither numeric nor categorical are not used.
+or the synthetic data:
+
+- a numeric column in the pair is constant;
+- a categorical column in the pair has a single level.
+
+The metric is skipped when no pair is left. Columns that are neither numeric
+nor categorical are not used.
 
 ## When to use it
 
