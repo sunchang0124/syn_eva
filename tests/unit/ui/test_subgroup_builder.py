@@ -70,7 +70,7 @@ _PAGE = textwrap.dedent(
 
 # Unticks the default metrics, ticks subgroup_fidelity, picks the columns given as
 # arguments for the subgroup and prints the subgroup inputs that appear with their
-# values, and any sidebar warnings. With --run it also picks True for is_female,
+# values, and any sidebar warnings and notes. With --run it also picks True for is_female,
 # runs the evaluation and prints what run_report saw.
 _DRIVER = textwrap.dedent(
     """
@@ -78,7 +78,9 @@ _DRIVER = textwrap.dedent(
     import sys
     from streamlit.testing.v1 import AppTest
 
-    page, run_it, columns = sys.argv[1], sys.argv[2] == "--run", sys.argv[3:]
+    page, mode, columns = sys.argv[1], sys.argv[2], sys.argv[3:]
+    assert mode in ("--run", "--no-run"), mode
+    run_it = mode == "--run"
     at = AppTest.from_file(page).run(timeout=60)
     (clear,) = [b for b in at.button if b.label == "Clear"]
     at = clear.click().run(timeout=60)
@@ -98,7 +100,9 @@ _DRIVER = textwrap.dedent(
         seen = at.session_state["seen"]
     assert not at.exception, at.exception
     warnings = [w.value for w in at.sidebar.warning]
-    print(json.dumps({"inputs": inputs, "warnings": warnings, "seen": seen}, default=str))
+    infos = [i.value for i in at.sidebar.info]
+    out = {"inputs": inputs, "warnings": warnings, "infos": infos, "seen": seen}
+    print(json.dumps(out, default=str))
     """
 )
 
@@ -142,3 +146,11 @@ def test_a_numeric_column_with_no_numbers_is_flagged_not_given_made_up_bounds(tm
     out = _drive(tmp_path, "--no-run", "job", retype_numeric="job")
     assert out["inputs"] == {}
     assert any("'job'" in w and "no numbers" in w for w in out["warnings"])
+
+
+def test_a_subgroup_missing_a_column_with_no_numbers_is_not_built_from_the_rest(tmp_path):
+    # Dropping 'job' and keeping 'age' alone would score a wider subgroup than the
+    # one picked, under the user's name. So no subgroup is built at all.
+    out = _drive(tmp_path, "--no-run", "job", "age", retype_numeric="job")
+    assert any("'job'" in w for w in out["warnings"])
+    assert any("No subgroup defined" in i for i in out["infos"])

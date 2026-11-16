@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -188,6 +187,7 @@ def _sidebar() -> dict | None:
         subgroup_specs = None
         if preservation_subgroup_selected:
             from syneva import SubgroupSpec
+            from syneva.preservation.spec import range_values
 
             sg_name = st.text_input("Subgroup name", value="subgroup 1")
             sg_cols = st.multiselect("Subgroup condition column(s)", options=list(real.columns))
@@ -195,16 +195,19 @@ def _sidebar() -> dict | None:
             # numeric to pandas, but SubgroupSpec only takes a range on NUMERIC columns.
             types = core.edited_column_types(edited, inferred_rows)
             conditions: dict = {}
+            unusable: list = []
             for col in sg_cols:
                 if core.subgroup_condition_kind(types[col]) == "range":
                     # Read the column as SubgroupSpec.matches does, so one re-typed
                     # from text still gets numeric bounds.
-                    values = pd.to_numeric(real[col], errors="coerce").dropna()
+                    values = range_values(real[col]).dropna()
                     if values.empty:
                         st.warning(
                             f"'{col}' is marked numeric but holds no numbers, so it has "
-                            "no range to pick. Mark it categorical to pick values instead."
+                            "no range to pick and the subgroup can't be built. Mark it "
+                            "categorical to pick values, or remove it from the subgroup."
                         )
+                        unusable.append(col)
                         continue
                     lo = st.number_input(
                         f"'{col}' min", value=float(values.min()), key=f"sg_lo_{col}"
@@ -221,7 +224,9 @@ def _sidebar() -> dict | None:
                     )
                     if vals:
                         conditions[col] = vals
-            if conditions:
+            # Without an unusable column the subgroup would be wider than the one
+            # picked, so build none rather than score the wrong rows under its name.
+            if conditions and not unusable:
                 subgroup_specs = [SubgroupSpec(name=sg_name, conditions=conditions)]
             else:
                 st.info("No subgroup defined — only the automatic preservation metrics will run.")

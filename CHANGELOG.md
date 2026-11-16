@@ -24,7 +24,10 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 - The UI's subgroup builder now chooses between a min/max range and a value list
   from the column types in the metadata editor, not the pandas dtype (#36). A
   bool column, or a number column re-typed as categorical, used to get a range
-  that the subgroup metrics rejected, so the subgroup was never evaluated.
+  that the subgroup metrics rejected, so the subgroup was never evaluated. A
+  text column re-typed as numeric gets its bounds from the numbers in it, and one
+  with no numbers at all is flagged in the sidebar; while it is picked, no
+  subgroup is built, rather than one without it that would cover more rows.
 - `Metadata.infer`, and so `evaluate` without explicit metadata, no longer
   crashes on column labels that aren't strings, such as the `0, 1, ...` of a
   DataFrame built from a NumPy array or read with `header=None` (#35). The
