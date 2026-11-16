@@ -7,6 +7,12 @@ import pandas as pd
 from syneva.core.metadata import ColumnType, Metadata
 
 
+def range_values(column: pd.Series) -> pd.Series:
+    """The column as a range condition reads it: as numbers, with anything that
+    isn't one as NaN, so it falls outside every range."""
+    return pd.to_numeric(column, errors="coerce")
+
+
 @dataclass
 class SubgroupSpec:
     """Declares a subgroup of rows for the preservation metrics: a display name
@@ -40,7 +46,7 @@ class SubgroupSpec:
         mask = pd.Series(True, index=df.index)
         for col, cond in self.conditions.items():
             if isinstance(cond, tuple):
-                v = pd.to_numeric(df[col], errors="coerce")
+                v = range_values(df[col])
                 lo, hi = cond
                 if lo is not None:
                     mask &= v >= lo
