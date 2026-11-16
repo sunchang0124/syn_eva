@@ -116,7 +116,8 @@ class CorrelationDifference:
             )
 
         mean_diff = sum(v["abs_corr_diff"] for v in per_column.values()) / len(per_column)
-        score = float(max(0.0, min(1.0, 1.0 - mean_diff)))
+        # Every pair difference is in [0, 1], so the score is too; no clipping needed.
+        score = 1.0 - mean_diff
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "mean_abs_corr_diff": mean_diff},
