@@ -254,7 +254,7 @@ def test_mistyped_holdout_raises():
         )
 
 
-def _meta_x(dtype):
+def _metadata_with_x_as(dtype):
     return Metadata(
         columns={
             "x": ColumnMetadata(name="x", dtype=dtype),
@@ -271,7 +271,7 @@ def test_mistyped_holdout_raises_with_explicit_metadata():
             reg,
             real=_df(),
             synthetic=_df(),
-            metadata=_meta_x(ColumnType.NUMERIC),
+            metadata=_metadata_with_x_as(ColumnType.NUMERIC),
             holdout=_mistyped_holdout(),
             tiers=("core",),
             data_type="static",
@@ -285,7 +285,7 @@ def test_numeric_holdout_column_declared_categorical_is_accepted():
         reg,
         real=_df(),
         synthetic=_df(),
-        metadata=_meta_x(ColumnType.CATEGORICAL),
+        metadata=_metadata_with_x_as(ColumnType.CATEGORICAL),
         holdout=_df(),
         tiers=("core",),
         data_type="static",
