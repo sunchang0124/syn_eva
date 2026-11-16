@@ -24,8 +24,10 @@ The correlation ratio is $\eta = \sqrt{SS_\text{between} / SS_\text{total}}$:
 the share of the numeric column's spread that the categories explain, on the
 square-root scale. For a two-level category, $\eta$ equals the absolute
 point-biserial correlation, so it is directly comparable to $|r|$ and $V$.
-($\eta^2$ would be a share of variance, like $r^2$, and would make differences
-in these pairs look smaller.)
+($\eta^2$ is a share of variance, like $r^2$. Because
+$|\eta_1^2 - \eta_2^2| = |\eta_1 - \eta_2|\,(\eta_1 + \eta_2)$, a difference on
+that squared scale shrinks when both values are small and grows when they are
+large, so these pairs would not be comparable with the others.)
 
 For each pair the difference is
 
