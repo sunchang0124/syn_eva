@@ -28,8 +28,12 @@ def _cramers_v(s1: pd.Series, s2: pd.Series) -> float | None:
     return math.sqrt(chi2 / denom) if denom > 0 else 0.0  # pyright: ignore[reportOperatorIssue]  # scipy result types are untyped
 
 
-def _eta_squared(num: pd.Series, cat: pd.Series) -> float | None:
-    """Correlation ratio η² (numeric explained by categorical)."""
+def _correlation_ratio(num: pd.Series, cat: pd.Series) -> float | None:
+    """Correlation ratio η of a numeric column on a categorical one, in [0, 1].
+
+    η (not η²) keeps this on the same scale as |Pearson r| and Cramér's V: for a
+    two-level category, η equals the absolute point-biserial correlation.
+    """
     grand_mean = num.mean()
     ss_total = float(((num - grand_mean) ** 2).sum())
     if ss_total == 0:
@@ -37,7 +41,7 @@ def _eta_squared(num: pd.Series, cat: pd.Series) -> float | None:
         return None
     groups = num.groupby(cat).agg(["mean", "count"])
     ss_between = float(((groups["mean"] - grand_mean) ** 2 * groups["count"]).sum())
-    return ss_between / ss_total
+    return math.sqrt(ss_between / ss_total)
 
 
 def _pair_assoc(df: pd.DataFrame, a: str, b: str, ta: ColumnType, tb: ColumnType) -> float | None:
@@ -52,7 +56,7 @@ def _pair_assoc(df: pd.DataFrame, a: str, b: str, ta: ColumnType, tb: ColumnType
     if {ta, tb} == {ColumnType.NUMERIC, ColumnType.CATEGORICAL}:
         num_col = a if ta is ColumnType.NUMERIC else b
         cat_col = b if ta is ColumnType.NUMERIC else a
-        return _eta_squared(df[num_col], df[cat_col])
+        return _correlation_ratio(df[num_col], df[cat_col])
     return None
 
 
@@ -98,7 +102,10 @@ class CorrelationDifference:
                     "constant column or single category)"
                 )
                 continue
-            per_column[f"{a}|{b}"] = {"abs_corr_diff": abs(c_real - c_syn)}
+            # Cramér's V and η lie in [0, 1], so their differences do too. Pearson r
+            # lies in [-1, 1] and a sign flip can differ by up to 2; capping at 1
+            # keeps the sign penalty while no pair outweighs the worst V/η pair.
+            per_column[f"{a}|{b}"] = {"abs_corr_diff": min(abs(c_real - c_syn), 1.0)}
 
         if not per_column:
             return MetricResult(
@@ -109,7 +116,8 @@ class CorrelationDifference:
             )
 
         mean_diff = sum(v["abs_corr_diff"] for v in per_column.values()) / len(per_column)
-        score = float(max(0.0, min(1.0, 1.0 - mean_diff)))
+        # Every pair difference is in [0, 1], so the score is too; no clipping needed.
+        score = 1.0 - mean_diff
         return MetricResult(
             spec=self.spec,
             scalars={"score": score, "mean_abs_corr_diff": mean_diff},
