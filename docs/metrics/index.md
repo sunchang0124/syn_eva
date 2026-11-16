@@ -9,6 +9,8 @@ the maths in two sentences, and a primary citation.
 - [wasserstein](wasserstein.md)
 - [correlation_difference](correlation_difference.md)
 - [pmse](pmse.md)
+- [quantile_mse](quantile_mse.md)
+- [dimension_wise_means](dimension_wise_means.md)
 - [sliced_wasserstein](sliced_wasserstein.md) (extended)
 - [jsd](jsd.md) (extended)
 - [c2st](c2st.md) (extended)

@@ -8,7 +8,12 @@ from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
-_EPS = 1e-12
+
+def _skip_reason(constant: list[str]) -> str:
+    if constant:
+        names = ", ".join(f"'{n}'" for n in constant)
+        return f"No numeric column can be compared; skipped as constant in the real data: {names}."
+    return "No numeric column has enough values to compare."
 
 
 @registry.register
@@ -31,6 +36,7 @@ class DimensionWiseMeans:
         assert real is not None
         per_column: dict[str, dict[str, float]] = {}
         notes: list[str] = []
+        constant: list[str] = []
         for name, cm in meta.columns.items():
             if cm.dtype is not ColumnType.NUMERIC:
                 continue
@@ -39,14 +45,19 @@ class DimensionWiseMeans:
             if len(r) < 2 or len(s) < 2:
                 notes.append(f"column '{name}' skipped (need >=2 values for std)")
                 continue
-            d = abs(float(r.mean()) - float(s.mean())) / (float(r.std()) + _EPS)
+            if r.min() == r.max():
+                # No spread in the real column to standardise by.
+                notes.append(f"column '{name}' skipped (constant in the real data)")
+                constant.append(name)
+                continue
+            d = abs(float(r.mean()) - float(s.mean())) / float(r.std())
             per_column[name] = {"std_mean_diff": d}
         if not per_column:
             return MetricResult(
                 spec=self.spec,
                 per_column={},
                 notes=notes,
-                skip_reason="No numeric column has enough values to compare.",
+                skip_reason=_skip_reason(constant),
             )
         mean_d = sum(v["std_mean_diff"] for v in per_column.values()) / len(per_column)
         score = float(min(1.0, max(0.0, 1.0 - mean_d)))

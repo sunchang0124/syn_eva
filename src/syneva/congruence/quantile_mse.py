@@ -9,8 +9,14 @@ from syneva.core.metadata import ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import registry
 
-_EPS = 1e-12
 _QUANTILES = np.arange(0.05, 1.0, 0.05)
+
+
+def _skip_reason(constant: list[str]) -> str:
+    if constant:
+        names = ", ".join(f"'{n}'" for n in constant)
+        return f"No numeric column can be compared; skipped as constant in the real data: {names}."
+    return "No numeric column has values to compare."
 
 
 @registry.register
@@ -33,6 +39,7 @@ class QuantileMSE:
         assert real is not None
         per_column: dict[str, dict[str, float]] = {}
         notes: list[str] = []
+        constant: list[str] = []
         for name, cm in meta.columns.items():
             if cm.dtype is not ColumnType.NUMERIC:
                 continue
@@ -41,7 +48,12 @@ class QuantileMSE:
             if len(r) == 0 or len(s) == 0:
                 notes.append(f"column '{name}' skipped (empty after NaN-drop)")
                 continue
-            scale = float(np.std(r)) + _EPS
+            if r.min() == r.max():
+                # No spread in the real column to standardise by.
+                notes.append(f"column '{name}' skipped (constant in the real data)")
+                constant.append(name)
+                continue
+            scale = float(np.std(r))
             qr = np.quantile(r, _QUANTILES)
             qs = np.quantile(s, _QUANTILES)
             qmse = float(np.mean(((qr - qs) / scale) ** 2))
@@ -51,7 +63,7 @@ class QuantileMSE:
                 spec=self.spec,
                 per_column={},
                 notes=notes,
-                skip_reason="No numeric column has values to compare.",
+                skip_reason=_skip_reason(constant),
             )
         mean_qmse = sum(v["quantile_mse"] for v in per_column.values()) / len(per_column)
         score = float(min(1.0, max(0.0, 1.0 - np.sqrt(mean_qmse))))
