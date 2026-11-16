@@ -21,6 +21,13 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- `quantile_mse` and `dimension_wise_means` now skip a numeric column that is
+  constant in the real data, with a note (#39). Both standardise by the real
+  standard deviation, so such a column used to be divided by `1e-12`, and any
+  synthetic difference, even float noise, brought the score for all columns to
+  0. Scores for data without constant real columns are unchanged up to rounding
+  (the `1e-12` term is gone). If every numeric column is constant, the metric
+  is skipped and the reason names them.
 - `correlation_difference` now compares every column pair on the same 0-to-1
   scale (#38). Numeric–categorical pairs use the correlation ratio η instead of
   η², and each Pearson difference is capped at 1, so a reversed relationship is
