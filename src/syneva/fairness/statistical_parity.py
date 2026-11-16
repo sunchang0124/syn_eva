@@ -34,6 +34,33 @@ def _spd(
 @registry.register
 @dataclass
 class StatisticalParity:
+    """Whether the synthetic data keeps the real data's statistical parity gap.
+
+    For each fairness spec, the statistical parity difference (SPD) is the gap in
+    favorable-outcome rate between protected groups (Calders & Verwer, 2010;
+    Dwork et al., 2012). With more than two groups it is the largest gap, max - min
+    over the group rates (Žliobaitė, 2017). The groups are the protected values that
+    have a non-null outcome in the real data. ``parity_drift`` is
+    ``|SPD_synthetic - SPD_real|`` and the score is ``1 - mean drift`` over specs.
+
+    SPD is undefined for a group with no rows, so a real group that is missing from
+    the synthetic data gives that spec the maximum drift of 1.0, with a note. Groups
+    that occur only in the synthetic data are ignored.
+
+    References
+    ----------
+    Calders, T., & Verwer, S. (2010). Three naive Bayes approaches for
+    discrimination-free classification. *Data Mining and Knowledge Discovery*,
+    21(2), 277-292.
+
+    Dwork, C., Hardt, M., Pitassi, T., Reingold, O., & Zemel, R. (2012). Fairness
+    through awareness. In *Proceedings of the 3rd Innovations in Theoretical
+    Computer Science Conference* (pp. 214-226).
+
+    Žliobaitė, I. (2017). Measuring discrimination in algorithmic decision making.
+    *Data Mining and Knowledge Discovery*, 31(4), 1060-1089.
+    """
+
     spec: ClassVar[MetricSpec] = MetricSpec(
         name="statistical_parity",
         c="fairness",
