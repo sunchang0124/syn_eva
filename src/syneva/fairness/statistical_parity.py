@@ -10,10 +10,18 @@ from syneva.core.registry import registry
 from syneva.fairness.spec import FairnessSpec
 
 
-def _spd(df: pd.DataFrame, protected: str, outcome: str, favorable: object) -> float:
+def _groups(df: pd.DataFrame, protected: str, outcome: str) -> list[object]:
+    """Protected-attribute values that have at least one row with a non-null outcome."""
+    return list(df[[protected, outcome]].dropna()[protected].unique())
+
+
+def _spd(
+    df: pd.DataFrame, protected: str, outcome: str, favorable: object, groups: list[object]
+) -> float:
+    """Largest gap in favorable-outcome rate between the given groups present in ``df``."""
     sub = df[[protected, outcome]].dropna()
     rates = []
-    for g in sub[protected].unique():
+    for g in groups:
         gy = sub[sub[protected] == g][outcome]
         if len(gy) == 0:
             continue
@@ -55,9 +63,20 @@ class StatisticalParity:
                 favorable = max(
                     pd.concat([real[sp.outcome], synthetic[sp.outcome]]).dropna().unique()
                 )
-            spd_r = _spd(real, sp.protected_attribute, sp.outcome, favorable)
-            spd_s = _spd(synthetic, sp.protected_attribute, sp.outcome, favorable)
-            drift = abs(spd_s - spd_r)
+            # Groups are defined by the real data; synthetic-only groups are ignored.
+            groups = _groups(real, sp.protected_attribute, sp.outcome)
+            spd_r = _spd(real, sp.protected_attribute, sp.outcome, favorable, groups)
+            spd_s = _spd(synthetic, sp.protected_attribute, sp.outcome, favorable, groups)
+            present = set(_groups(synthetic, sp.protected_attribute, sp.outcome))
+            missing = sorted((g for g in groups if g not in present), key=str)
+            if missing:
+                drift = 1.0
+                notes.append(
+                    f"spec {sp.protected_attribute}->{sp.outcome}: synthetic is missing "
+                    f"protected group(s) {missing}; parity_drift set to 1.0"
+                )
+            else:
+                drift = abs(spd_s - spd_r)
             per_column[f"{sp.protected_attribute}|{sp.outcome}"] = {
                 "spd_synthetic": spd_s,
                 "spd_real": spd_r,
