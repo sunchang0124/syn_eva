@@ -20,7 +20,9 @@ d = \frac{\left|\bar x_\text{real} - \bar x_\text{syn}\right|}{s_\text{real}} .
 $$
 
 The score is $\max(0,\ 1 - \bar d)$, where $\bar d$ is the mean of $d$ over the
-scored columns.
+scored columns. This adapts the dimension-wise probability comparison of Choi
+et al. (2017), which compares per-feature proportions of binary features, to
+standardised differences in the means of numeric columns.
 
 Missing values are dropped column by column. A column is left out, with a note,
 when:
