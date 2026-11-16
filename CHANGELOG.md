@@ -21,6 +21,13 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- `correlation_difference` now compares every column pair on the same 0-to-1
+  scale (#38). Numeric–categorical pairs use the correlation ratio η instead of
+  η², and each Pearson difference is capped at 1, so a reversed relationship is
+  still penalised but no single pair can outweigh the worst categorical pair or
+  push the score down to 0 by itself. Scores for this metric change: η² made
+  numeric–categorical differences look smaller than they are, and the old score
+  was clipped to 0 when a few pairs flipped sign.
 - The UI's subgroup builder now chooses between a min/max range and a value list
   from the column types in the metadata editor, not the pandas dtype (#36). A
   bool column, or a number column re-typed as categorical, used to get a range

@@ -198,37 +198,37 @@
       "notes": [],
       "per_column": {
         "age|education": {
-          "abs_corr_diff": 0.0018732937137249748
+          "abs_corr_diff": 0.008707604623014578
         },
         "age|high_income": {
-          "abs_corr_diff": 0.00371033653632407
+          "abs_corr_diff": 0.01025733238626314
         },
         "age|hours_per_week": {
-          "abs_corr_diff": 0.008932230454166516
+          "abs_corr_diff": 0.008932230454166676
         },
         "age|income": {
-          "abs_corr_diff": 0.014511895104386663
+          "abs_corr_diff": 0.014511895104386774
         },
         "age|sex": {
-          "abs_corr_diff": 0.00023265953169786333
+          "abs_corr_diff": 0.002473452569166
         },
         "education|high_income": {
           "abs_corr_diff": 0.06177873434832665
         },
         "education|hours_per_week": {
-          "abs_corr_diff": 0.0010986947585927395
+          "abs_corr_diff": 0.01104913333490904
         },
         "education|income": {
-          "abs_corr_diff": 0.06645943213964445
+          "abs_corr_diff": 0.05932792712532875
         },
         "hours_per_week|high_income": {
-          "abs_corr_diff": 0.0016737629796863937
+          "abs_corr_diff": 0.015254525863580351
         },
         "hours_per_week|income": {
-          "abs_corr_diff": 0.0005415652551668919
+          "abs_corr_diff": 0.0005415652551667063
         },
         "income|high_income": {
-          "abs_corr_diff": 0.012525110050266908
+          "abs_corr_diff": 0.016686024705494074
         },
         "sex|education": {
           "abs_corr_diff": 0.009332976629395112
@@ -237,15 +237,15 @@
           "abs_corr_diff": 0.012059797665856908
         },
         "sex|hours_per_week": {
-          "abs_corr_diff": 0.00025357964657334465
+          "abs_corr_diff": 0.008065601978722848
         },
         "sex|income": {
-          "abs_corr_diff": 6.718918945979166e-06
+          "abs_corr_diff": 0.00010388441819728089
         }
       },
       "scalars": {
-        "mean_abs_corr_diff": 0.012999385848850362,
-        "score": 0.9870006141511496
+        "mean_abs_corr_diff": 0.01593884576413166,
+        "score": 0.9840611542358684
       },
       "skip_reason": null,
       "spec": {
