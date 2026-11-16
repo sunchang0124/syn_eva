@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from syneva.preservation.spec import SubgroupSpec
     from syneva.utility.task import UtilityTask
 
-from syneva.core.errors import MetricError, SchemaError, SynevaError
+from syneva.core.errors import MetadataError, MetricError, SchemaError, SynevaError
 from syneva.core.metadata import Metadata
 from syneva.core.metric import MetricResult
 from syneva.core.presets import _UNSET, get_preset
@@ -173,6 +173,12 @@ def evaluate_with(
     metadata.validate_against(synthetic)
     if real is not None:
         metadata.validate_against(real)
+    if holdout is not None:
+        try:
+            metadata.validate_against(holdout)
+        except MetadataError as e:
+            # all three frames share column names, so say which one is wrong
+            raise MetadataError(f"holdout: {e}") from e
 
     info = RunInfo.capture(random_state=random_state)
     selected = reg.select(tiers=list(tiers), data_type=data_type, cs=cs)
