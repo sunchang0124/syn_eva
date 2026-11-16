@@ -21,6 +21,14 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- `statistical_parity` now gives a fairness spec the maximum `parity_drift` of
+  1.0, with a note, when a protected group from the real data is missing from
+  the synthetic data (#40). It used to compare only the groups present in each
+  frame, so erasing a group scored as a smaller gap: 0.7 for a two-group spec,
+  and up to 1.0 when the remaining groups happened to keep the real gap. Groups
+  are now taken from the real data, and groups that appear only in the
+  synthetic data are ignored. Scores where every real group is present are
+  unchanged.
 - `quantile_mse` and `dimension_wise_means` now skip a numeric column that is
   constant in the real data, with a note (#39). Both standardise by the real
   standard deviation, so such a column used to be divided by `1e-12`, and any

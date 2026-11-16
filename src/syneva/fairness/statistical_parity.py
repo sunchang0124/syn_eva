@@ -10,10 +10,18 @@ from syneva.core.registry import registry
 from syneva.fairness.spec import FairnessSpec
 
 
-def _spd(df: pd.DataFrame, protected: str, outcome: str, favorable: object) -> float:
+def _groups(df: pd.DataFrame, protected: str, outcome: str) -> list[object]:
+    """Protected-attribute values that have at least one row with a non-null outcome."""
+    return list(df[[protected, outcome]].dropna()[protected].unique())
+
+
+def _spd(
+    df: pd.DataFrame, protected: str, outcome: str, favorable: object, groups: list[object]
+) -> float:
+    """Largest gap in favorable-outcome rate between the given groups present in ``df``."""
     sub = df[[protected, outcome]].dropna()
     rates = []
-    for g in sub[protected].unique():
+    for g in groups:
         gy = sub[sub[protected] == g][outcome]
         if len(gy) == 0:
             continue
@@ -26,6 +34,33 @@ def _spd(df: pd.DataFrame, protected: str, outcome: str, favorable: object) -> f
 @registry.register
 @dataclass
 class StatisticalParity:
+    """Whether the synthetic data keeps the real data's statistical parity gap.
+
+    For each fairness spec, the statistical parity difference (SPD) is the gap in
+    favorable-outcome rate between protected groups (Calders & Verwer, 2010;
+    Dwork et al., 2012). With more than two groups it is the largest gap, max - min
+    over the group rates (Žliobaitė, 2017). The groups are the protected values that
+    have a non-null outcome in the real data. ``parity_drift`` is
+    ``|SPD_synthetic - SPD_real|`` and the score is ``1 - mean drift`` over specs.
+
+    SPD is undefined for a group with no rows, so a real group that is missing from
+    the synthetic data gives that spec the maximum drift of 1.0, with a note. Groups
+    that occur only in the synthetic data are ignored.
+
+    References
+    ----------
+    Calders, T., & Verwer, S. (2010). Three naive Bayes approaches for
+    discrimination-free classification. *Data Mining and Knowledge Discovery*,
+    21(2), 277-292.
+
+    Dwork, C., Hardt, M., Pitassi, T., Reingold, O., & Zemel, R. (2012). Fairness
+    through awareness. In *Proceedings of the 3rd Innovations in Theoretical
+    Computer Science Conference* (pp. 214-226).
+
+    Žliobaitė, I. (2017). Measuring discrimination in algorithmic decision making.
+    *Data Mining and Knowledge Discovery*, 31(4), 1060-1089.
+    """
+
     spec: ClassVar[MetricSpec] = MetricSpec(
         name="statistical_parity",
         c="fairness",
@@ -55,9 +90,20 @@ class StatisticalParity:
                 favorable = max(
                     pd.concat([real[sp.outcome], synthetic[sp.outcome]]).dropna().unique()
                 )
-            spd_r = _spd(real, sp.protected_attribute, sp.outcome, favorable)
-            spd_s = _spd(synthetic, sp.protected_attribute, sp.outcome, favorable)
-            drift = abs(spd_s - spd_r)
+            # Groups are defined by the real data; synthetic-only groups are ignored.
+            groups = _groups(real, sp.protected_attribute, sp.outcome)
+            spd_r = _spd(real, sp.protected_attribute, sp.outcome, favorable, groups)
+            spd_s = _spd(synthetic, sp.protected_attribute, sp.outcome, favorable, groups)
+            present = set(_groups(synthetic, sp.protected_attribute, sp.outcome))
+            missing = sorted((g for g in groups if g not in present), key=str)
+            if missing:
+                drift = 1.0
+                notes.append(
+                    f"spec {sp.protected_attribute}->{sp.outcome}: synthetic is missing "
+                    f"protected group(s) {missing}; parity_drift set to 1.0"
+                )
+            else:
+                drift = abs(spd_s - spd_r)
             per_column[f"{sp.protected_attribute}|{sp.outcome}"] = {
                 "spd_synthetic": spd_s,
                 "spd_real": spd_r,
