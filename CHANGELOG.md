@@ -21,6 +21,16 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- `pmse` now scores data that can't be told apart from the real data at about
+  1, whatever the table's shape (#61). The in-sample classifier fits noise, so
+  pMSE sits above 0 even for two samples from one distribution; with 200 rows
+  per side and three 30-level categorical columns, a perfect generator scored
+  0.80. The score is now rescaled between a permutation estimate of that null
+  value and the maximum `c(1-c)`, and two scalars are added: `pmse_null` and
+  `pmse_ratio` (pMSE over its null). **The score scale changes**, so `pmse`
+  scores are not comparable with earlier versions. The metric is now skipped
+  when the classifier has at least as many parameters as rows, because it can
+  then fit any labelling. It runs 20 extra logistic fits per evaluation.
 - The `novelty_rate` description and hint said it measured synthetic rows that
   are not duplicates of each other (#43). It measures synthetic rows that are
   not exact copies of a real row, which is `1 - identical_match_rate` and
