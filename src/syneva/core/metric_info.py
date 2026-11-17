@@ -43,7 +43,7 @@ METRIC_INFO: dict[str, str] = {
     # Coverage — variety and novelty
     "category_coverage": "Whether the synthetic data includes every category present in the real data.",
     "range_coverage": "Whether numeric values span the same range as the real data.",
-    "novelty_rate": "The share of synthetic rows that are not exact duplicates of each other.",
+    "novelty_rate": "The share of synthetic rows that are not exact copies of a real row.",
     "entropy_ratio": "Whether categories are as varied as in the real data.",
     "alpha_precision_beta_recall": "Whether synthetic points land where real ones do and also cover the real spread.",
     "authenticity": "The share of synthetic rows that are not near-copies of a real row.",
@@ -96,7 +96,7 @@ RAW_HINT: dict[str, str] = {
     "mmd": "0 = identical distributions, larger = more different. Lower is better.",
     "category_coverage": "Fraction of real categories present in the synthetic data, 0 to 1. Higher is better.",
     "range_coverage": "Fraction of the real numeric range that is covered, 0 to 1. Higher is better.",
-    "novelty_rate": "Fraction of non-duplicate rows, 0 to 1. Higher is better.",
+    "novelty_rate": "Fraction of synthetic rows not copied from a real row (1 - identical_match_rate), 0 to 1. Higher is better.",
     "entropy_ratio": "Synthetic-to-real variety ratio, 0 to 1. Higher (closer to 1) is better.",
     "alpha_precision_beta_recall": "Two fractions from 0 to 1 (precision and recall). Higher is better on both.",
     "authenticity": "Fraction of rows that are not near-copies, 0 to 1. Higher is better.",

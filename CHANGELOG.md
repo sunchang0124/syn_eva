@@ -21,6 +21,12 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- The `novelty_rate` description and hint said it measured synthetic rows that
+  are not duplicates of each other (#43). It measures synthetic rows that are
+  not exact copies of a real row, which is `1 - identical_match_rate` and
+  matches how novelty is defined for generative models. The description, hint
+  and metric page now say so, and the page explains that the `duplicates`
+  scalar counts copies of real rows. Scores are unchanged.
 - `evaluate` now validates the holdout against the column metadata, as it
   already did for the real and synthetic data (#41). A holdout whose column
   types don't match, such as a numeric `age` read as text because it contains
