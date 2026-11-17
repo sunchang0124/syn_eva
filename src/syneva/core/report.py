@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import numbers
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -52,7 +53,7 @@ class Report:
         )
 
     def to_json(self, path: str | Path) -> None:
-        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
+        Path(path).write_text(dumps_strict_json(self.to_dict()), encoding="utf-8")
 
     def to_html(self, path: str | Path, *, interactive: bool = False) -> None:
         from syneva.render.html.renderer import render_html
@@ -120,6 +121,35 @@ def _result_to_dict(r: MetricResult) -> dict:
     }
 
 
+def _non_finite_to_none(obj):
+    """Copy of ``obj`` with every NaN or infinite number replaced by None."""
+    if isinstance(obj, dict):
+        return {k: _non_finite_to_none(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_non_finite_to_none(v) for v in obj]
+    if (
+        isinstance(obj, numbers.Real)
+        and not isinstance(obj, numbers.Integral)
+        and not math.isfinite(obj)
+    ):
+        return None
+    return obj
+
+
+def dumps_strict_json(d: dict) -> str:
+    """Serialize a report or benchmark dict as valid JSON (RFC 8259).
+
+    NaN and infinity have no JSON form; the default writer emits bare ``NaN`` /
+    ``Infinity`` tokens that strict parsers reject, so they are written as null.
+    ``allow_nan=False`` makes any value that slips through fail loudly instead.
+    """
+    return json.dumps(_non_finite_to_none(d), indent=2, default=str, allow_nan=False)
+
+
+def _null_to_nan(v):
+    return math.nan if v is None else v
+
+
 def _result_from_dict(d: dict) -> MetricResult:
     s = d["spec"]
     spec = MetricSpec(
@@ -132,13 +162,22 @@ def _result_from_dict(d: dict) -> MetricResult:
         scoring=s.get("scoring", True),
     )
     err = MetricError(d["error"]) if d.get("error") else None
+    scalars = d.get("scalars")
+    per_column = d.get("per_column")
+    # Files store NaN and infinity as null (#109); read them back as NaN.
+    if scalars is not None:
+        scalars = {k: _null_to_nan(v) for k, v in scalars.items()}
+    if per_column is not None:
+        per_column = {
+            col: {k: _null_to_nan(v) for k, v in vals.items()} for col, vals in per_column.items()
+        }
     # A saved file can hold a non-finite score (written before #76, or edited), so
     # loaded results get the same check as freshly computed ones.
     return reject_non_finite_score(
         MetricResult(
             spec=spec,
-            scalars=d.get("scalars"),
-            per_column=d.get("per_column"),
+            scalars=scalars,
+            per_column=per_column,
             notes=d.get("notes") or [],
             error=err,
             skip_reason=d.get("skip_reason"),

@@ -174,7 +174,8 @@ def test_loaded_skipped_failed_and_non_scoring_results_are_unchanged():
     assert loaded["info"].scalars is not None and math.isnan(loaded["info"].scalars["value"])
 
 
-@pytest.mark.parametrize("scalars", [{}, {"score": None}])
+# A null score is how a non-finite one is written (#109), so it is not "other".
+@pytest.mark.parametrize("scalars", [{}, {"score": "n/a"}])
 def test_loading_does_not_validate_beyond_non_finite_scores(scalars):
     # Only NaN and infinite numbers are rejected on load; other malformed values
     # load as before instead of making the whole file unreadable.
@@ -182,3 +183,75 @@ def test_loading_does_not_validate_beyond_non_finite_scores(scalars):
     loaded = Report.from_dict(rep.to_dict()).results[0]
     assert loaded.scalars == scalars
     assert loaded.error is None
+
+
+def _strict_loads(text: str):
+    """Parse JSON the way strict parsers do: bare NaN / Infinity tokens are errors."""
+
+    def reject(token):
+        raise ValueError(f"invalid JSON token {token}")
+
+    return json.loads(text, parse_constant=reject)
+
+
+def _report_with_non_finite_values() -> Report:
+    return _report_with(
+        MetricResult(
+            spec=_spec("m"),
+            scalars={"score": 0.5, "p": float("nan")},
+            per_column={"a": {"hi": float("inf"), "lo": float("-inf"), "ok": 0.25}},
+        )
+    )
+
+
+# Issue #109: json.dumps writes NaN / Infinity tokens by default, which RFC 8259
+# doesn't allow, so strict parsers rejected the whole file.
+def test_to_json_writes_strict_json_with_null_for_non_finite_values(tmp_path):
+    _report_with_non_finite_values().to_json(tmp_path / "r.json")
+    data = _strict_loads((tmp_path / "r.json").read_text(encoding="utf-8"))
+    result = data["results"][0]
+    assert result["scalars"] == {"score": 0.5, "p": None}
+    assert result["per_column"] == {"a": {"hi": None, "lo": None, "ok": 0.25}}
+
+
+def test_null_in_scalars_and_per_column_reads_back_as_nan(tmp_path):
+    _report_with_non_finite_values().to_json(tmp_path / "r.json")
+    data = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))
+    r = Report.from_dict(data).results[0]
+    assert r.error is None  # only a secondary scalar was non-finite: still scored
+    assert r.scalars is not None and r.scalars["score"] == 0.5
+    assert math.isnan(r.scalars["p"])
+    assert r.per_column is not None
+    assert math.isnan(r.per_column["a"]["hi"]) and math.isnan(r.per_column["a"]["lo"])
+    assert r.per_column["a"]["ok"] == 0.25
+
+
+def test_non_finite_score_round_trips_to_a_failed_metric(tmp_path):
+    rep = _report_with(
+        MetricResult(spec=_spec("ok"), scalars={"score": 0.9}),
+        MetricResult(spec=_spec("bad"), scalars={"score": float("nan")}),
+    )
+    # A report built directly can hold a NaN score; writing it gives "score": null.
+    rep.to_json(tmp_path / "r.json")
+    loaded = Report.from_dict(json.loads((tmp_path / "r.json").read_text(encoding="utf-8")))
+    bad = next(r for r in loaded.results if r.spec.name == "bad")
+    assert bad.scalars is None
+    assert "bad returned a non-finite score" in str(bad.error)
+    assert loaded.aggregated == {"congruence": 0.9}
+
+
+def test_files_with_bare_nan_tokens_from_older_versions_still_load():
+    # what json.dumps wrote before #109
+    old_text = json.dumps(_report_with_non_finite_values().to_dict())
+    assert "NaN" in old_text and "Infinity" in old_text
+    r = Report.from_dict(json.loads(old_text)).results[0]
+    assert r.error is None
+    assert r.scalars is not None and math.isnan(r.scalars["p"])
+    assert r.per_column is not None and r.per_column["a"]["hi"] == float("inf")
+
+
+def test_ui_report_json_is_strict_json():
+    from syneva.ui import core
+
+    data = _strict_loads(core.report_json_str(_report_with_non_finite_values()))
+    assert data["results"][0]["scalars"]["p"] is None

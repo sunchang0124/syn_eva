@@ -395,3 +395,35 @@ def test_a_loaded_non_finite_score_counts_as_failed_in_the_ranking(tmp_path):
     assert "mia_auc" not in loaded.score_matrix["A"]
     assert loaded.overall == pytest.approx(failed.overall)
     assert loaded.ranking() == pytest.approx(failed.ranking())
+
+
+def _strict_loads(text: str):
+    def reject(token):
+        raise ValueError(f"invalid JSON token {token}")
+
+    return json.loads(text, parse_constant=reject)
+
+
+def _benchmark_with_nan_secondary_scalar() -> BenchmarkResult:
+    report = _report(compliance__dcr=0.8)
+    report.results[0].scalars = {"score": 0.8, "p": float("nan")}
+    return BenchmarkResult(reports={"A": report, "B": _report(compliance__dcr=0.9)})
+
+
+# Issue #109: the benchmark file used bare NaN tokens, which strict parsers reject.
+def test_benchmark_json_is_strict_and_round_trips(tmp_path):
+    saved = _benchmark_with_nan_secondary_scalar()
+    saved.to_json(tmp_path / "b.json")
+    data = _strict_loads((tmp_path / "b.json").read_text(encoding="utf-8"))
+    assert data["reports"]["A"]["results"][0]["scalars"]["p"] is None
+    loaded = BenchmarkResult.from_json(tmp_path / "b.json")
+    scalars = loaded.reports["A"].results[0].scalars
+    assert scalars is not None and math.isnan(scalars["p"])
+    assert loaded.ranking() == pytest.approx(saved.ranking())
+
+
+def test_ui_benchmark_json_is_strict_json():
+    from syneva.ui import core
+
+    data = _strict_loads(core.benchmark_json_str(_benchmark_with_nan_secondary_scalar()))
+    assert data["reports"]["A"]["results"][0]["scalars"]["p"] is None

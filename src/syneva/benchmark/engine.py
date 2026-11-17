@@ -8,7 +8,7 @@ import pandas as pd
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import Metadata
 from syneva.core.presets import _UNSET
-from syneva.core.report import Report, _normalize_scalars, is_scored
+from syneva.core.report import Report, _normalize_scalars, dumps_strict_json, is_scored
 from syneva.core.runner import evaluate
 
 
@@ -231,10 +231,9 @@ class BenchmarkResult:
         )
 
     def to_json(self, path) -> None:
-        import json
         from pathlib import Path
 
-        Path(path).write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
+        Path(path).write_text(dumps_strict_json(self.to_dict()), encoding="utf-8")
 
     def to_html(self, path, *, normalization: str = "absolute", interactive: bool = False) -> None:
         from pathlib import Path
