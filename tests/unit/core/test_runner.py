@@ -4,7 +4,8 @@ import math
 import pandas as pd
 import pytest
 
-from syneva.core.errors import SchemaError, SynevaError
+from syneva.core.errors import MetadataError, SchemaError, SynevaError
+from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
 from syneva.core.registry import MetricRegistry
 from syneva.core.runner import evaluate_with
@@ -232,3 +233,61 @@ def test_empty_holdout_raises():
             tiers=("core",),
             data_type="static",
         )
+
+
+def _mistyped_holdout():
+    # numeric x read as object because one value is a placeholder string
+    return pd.DataFrame({"x": [1, "unknown", 3], "y": ["a", "b", "c"]})
+
+
+def test_mistyped_holdout_raises():
+    reg = MetricRegistry()
+    reg.register(_OkMetric)
+    with pytest.raises(MetadataError, match=r"holdout: column 'x' declared numeric"):
+        evaluate_with(
+            reg,
+            real=_df(),
+            synthetic=_df(),
+            holdout=_mistyped_holdout(),
+            tiers=("core",),
+            data_type="static",
+        )
+
+
+def _metadata_with_x_as(dtype):
+    return Metadata(
+        columns={
+            "x": ColumnMetadata(name="x", dtype=dtype),
+            "y": ColumnMetadata(name="y", dtype=ColumnType.CATEGORICAL),
+        }
+    )
+
+
+def test_mistyped_holdout_raises_with_explicit_metadata():
+    reg = MetricRegistry()
+    reg.register(_OkMetric)
+    with pytest.raises(MetadataError, match=r"holdout: column 'x'"):
+        evaluate_with(
+            reg,
+            real=_df(),
+            synthetic=_df(),
+            metadata=_metadata_with_x_as(ColumnType.NUMERIC),
+            holdout=_mistyped_holdout(),
+            tiers=("core",),
+            data_type="static",
+        )
+
+
+def test_numeric_holdout_column_declared_categorical_is_accepted():
+    reg = MetricRegistry()
+    reg.register(_OkMetric)
+    rep = evaluate_with(
+        reg,
+        real=_df(),
+        synthetic=_df(),
+        metadata=_metadata_with_x_as(ColumnType.CATEGORICAL),
+        holdout=_df(),
+        tiers=("core",),
+        data_type="static",
+    )
+    assert len(rep.results) == 1

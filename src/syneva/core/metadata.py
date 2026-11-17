@@ -71,7 +71,9 @@ class Metadata:
             if meta.dtype is ColumnType.ID:
                 continue
             if meta.dtype is ColumnType.NUMERIC and actual is not ColumnType.NUMERIC:
-                raise MetadataError(f"column '{name}' declared {meta.dtype} but is {actual}")
+                raise MetadataError(
+                    f"column '{name}' declared {meta.dtype.value} but is {actual.value}"
+                )
             if meta.dtype is ColumnType.CATEGORICAL and actual is ColumnType.NUMERIC:
                 # numeric → categorical is allowed (coercion), the reverse is not
                 continue
