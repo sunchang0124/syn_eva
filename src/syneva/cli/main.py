@@ -22,7 +22,8 @@ from syneva.ui import reload_notice
 _RANDOM_STATE_HELP = "seed for the splits, subsamples and projections; same seed, same scores"
 _METRIC_OPTION_HELP = (
     "set one of a metric's own options as metric.option=value (repeatable); the value "
-    "is read as JSON, otherwise as text. Example: ci_overlap.use_real_se=true"
+    "is read as JSON, otherwise as text, and must match a true/false or number option. "
+    "Example: ci_overlap.use_real_se=true"
 )
 
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
@@ -72,33 +73,36 @@ def _parse_metric_options(entries: list[str] | None) -> dict[str, dict[str, Any]
         try:
             value = json.loads(raw)
         except json.JSONDecodeError:
-            _check_text_fits(metric, option, raw)
             value = raw
+        _check_type_fits(metric, option, value, raw)
         options.setdefault(metric, {})[option] = value
     return options
 
 
-def _check_text_fits(metric: str, option: str, raw: str) -> None:
-    """Reject text for an option whose default is a bool or number.
+def _check_type_fits(metric: str, option: str, value: Any, raw: str) -> None:
+    """Reject a value of the wrong type for an option whose default is a bool or number.
 
     Text such as "False" or "yes" would reach the metric as a non-empty string,
-    which reads as true. Unknown metrics and options are left to evaluate()'s own
-    checks, which name the valid choices.
+    which reads as true; a 1.5 or true would reach an option that counts something.
+    Unknown metrics and options, and options without a bool or number default, are
+    left to evaluate()'s own checks, which name the valid choices.
     """
     cls = next((c for c in registry.metrics() if c.spec.name == metric), None)
     param = inspect.signature(cls).parameters.get(option) if cls is not None else None
     default = param.default if param is not None else None
     if isinstance(default, bool):
-        expects = "true or false"
+        expects, fits = "true or false", isinstance(value, bool)
     elif isinstance(default, int):
-        expects = "a whole number"
+        expects, fits = "a whole number", isinstance(value, int) and not isinstance(value, bool)
     elif isinstance(default, float):
         expects = "a number"
+        fits = isinstance(value, (int, float)) and not isinstance(value, bool)
     else:
         return
-    raise typer.BadParameter(
-        f"'{metric}.{option}' expects {expects}, got '{raw}'", param_hint="--metric-option"
-    )
+    if not fits:
+        raise typer.BadParameter(
+            f"'{metric}.{option}' expects {expects}, got '{raw}'", param_hint="--metric-option"
+        )
 
 
 @app.callback()

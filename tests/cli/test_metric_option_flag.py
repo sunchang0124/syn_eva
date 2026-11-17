@@ -5,9 +5,9 @@ CLI passes on without running any metric. The recorder then raises, which the CL
 reports as a syneva error.
 """
 
-import re
 from pathlib import Path
 
+import click
 import pytest
 from typer.testing import CliRunner
 
@@ -33,11 +33,10 @@ def seen(monkeypatch):
 
 
 def _flat(output: str) -> str:
-    """The error text without typer's box or colours, so a message wrapped across
+    """The error text without colours or typer's box, so a message wrapped across
     lines matches. Rich colours its output under GitHub Actions even without a
     terminal, which puts escape codes inside a wrapped message."""
-    plain = re.sub(r"\[[0-9;]*m", "", output)
-    return " ".join(plain.replace("│", " ").split())
+    return " ".join(click.unstyle(output).replace("│", " ").split())
 
 
 def _evaluate(tmp_path, *options):
@@ -128,9 +127,14 @@ def test_repeated_option_is_rejected(tmp_path, seen, run):
         ("ci_overlap.use_real_se=yes", "true or false"),
         ("ci_overlap.use_real_se=", "true or false"),
         ("pmse.n_permutations=ten", "a whole number"),
+        ('ci_overlap.use_real_se="False"', "true or false"),
+        ("ci_overlap.use_real_se=1", "true or false"),
+        ("pmse.n_permutations=1.5", "a whole number"),
+        ("pmse.n_permutations=true", "a whole number"),
+        ('pmse.n_permutations="5"', "a whole number"),
     ],
 )
-def test_text_for_a_bool_or_number_option_is_rejected(tmp_path, seen, entry, expects):
+def test_wrong_type_for_a_bool_or_number_option_is_rejected(tmp_path, seen, entry, expects):
     # Kept as text, "False" or "yes" would be a non-empty string, which a metric
     # reads as true: the opposite of what was asked.
     result = _evaluate(tmp_path, entry)
@@ -139,9 +143,9 @@ def test_text_for_a_bool_or_number_option_is_rejected(tmp_path, seen, entry, exp
     assert seen == []
 
 
-def test_quoted_text_is_still_passed_on_as_text(tmp_path, seen):
-    _evaluate(tmp_path, 'ci_overlap.use_real_se="False"')
-    assert seen[0]["metric_options"] == {"ci_overlap": {"use_real_se": "False"}}
+def test_quoted_text_is_passed_on_for_an_option_of_unknown_type(tmp_path, seen):
+    _evaluate(tmp_path, 'custom.opt="5"')
+    assert seen[0]["metric_options"] == {"custom": {"opt": "5"}}
 
 
 def test_spaces_around_names_and_value_are_ignored(tmp_path, seen):

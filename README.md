@@ -65,9 +65,9 @@ too, and the web UI has a "Random seed" input in the sidebar.
 
 Pass `--metric-option metric.option=value` to set one of a metric's own
 options; repeat it for more. The value is read as JSON (`true`, `5`, `1.5`),
-otherwise as plain text; to pass a number as text, quote it for the shell too
-(`'"5"'`). Text for an option that takes true/false or a number is rejected.
-For example,
+otherwise as plain text. For an option that takes true/false or a number, a
+value of another type is rejected, so `use_real_se=False` (Python spelling)
+fails instead of being read as the text "False". For example,
 `--metric-option ci_overlap.use_real_se=true` builds both confidence intervals
 from the real data's standard error, so the score no longer depends on the
 number of synthetic rows. `syn-eva benchmark` takes it too, and the options
