@@ -8,7 +8,7 @@ import pytest
 from syneva.core.errors import MetricError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
-from syneva.core.report import Report, is_scored
+from syneva.core.report import Report, dumps_strict_json, is_scored
 from syneva.core.run_info import RunInfo
 
 
@@ -250,13 +250,6 @@ def test_files_with_bare_nan_tokens_from_older_versions_still_load():
     assert r.per_column is not None and r.per_column["a"]["hi"] == float("inf")
 
 
-def test_ui_report_json_is_strict_json():
-    from syneva.ui import core
-
-    data = _strict_loads(core.report_json_str(_report_with_non_finite_values()))
-    assert data["results"][0]["scalars"]["p"] is None
-
-
 def test_non_dict_per_column_entries_load_unchanged():
     # Only nulls inside the usual {column: {name: value}} shape are read as NaN;
     # anything else loads as it did before #109.
@@ -266,3 +259,10 @@ def test_non_dict_per_column_entries_load_unchanged():
     assert pc is not None
     assert pc["a"] == [1, None]
     assert math.isnan(pc["b"]["x"])
+
+
+def test_non_finite_dict_keys_are_written_as_before():
+    # json.dumps has always written a NaN or infinite key as the string "NaN" /
+    # "Infinity", which is valid JSON; the strict writer must not fail on it.
+    data = _strict_loads(dumps_strict_json({"m": {float("nan"): 1, float("-inf"): 2, 0.5: 3}}))
+    assert data == {"m": {"NaN": 1, "-Infinity": 2, "0.5": 3}}

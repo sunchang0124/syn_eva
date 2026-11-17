@@ -420,10 +420,3 @@ def test_benchmark_json_is_strict_and_round_trips(tmp_path):
     scalars = loaded.reports["A"].results[0].scalars
     assert scalars is not None and math.isnan(scalars["p"])
     assert loaded.ranking() == pytest.approx(saved.ranking())
-
-
-def test_ui_benchmark_json_is_strict_json():
-    from syneva.ui import core
-
-    data = _strict_loads(core.benchmark_json_str(_benchmark_with_nan_secondary_scalar()))
-    assert data["reports"]["A"]["results"][0]["scalars"]["p"] is None

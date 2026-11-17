@@ -121,19 +121,29 @@ def _result_to_dict(r: MetricResult) -> dict:
     }
 
 
+def _is_non_finite(x) -> bool:
+    return (
+        isinstance(x, numbers.Real) and not isinstance(x, numbers.Integral) and not math.isfinite(x)
+    )
+
+
+def _non_finite_key(k):
+    # Keys are strings in JSON, so "NaN" / "Infinity" keys are valid; json.dumps has
+    # always spelled them that way, but allow_nan=False would make them an error.
+    if not _is_non_finite(k):
+        return k
+    if math.isnan(k):
+        return "NaN"
+    return "Infinity" if k > 0 else "-Infinity"
+
+
 def _non_finite_to_none(obj):
-    """Copy of ``obj`` with every NaN or infinite number replaced by None."""
+    """Copy of ``obj`` with every NaN or infinite value replaced by None."""
     if isinstance(obj, dict):
-        return {k: _non_finite_to_none(v) for k, v in obj.items()}
+        return {_non_finite_key(k): _non_finite_to_none(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [_non_finite_to_none(v) for v in obj]
-    if (
-        isinstance(obj, numbers.Real)
-        and not isinstance(obj, numbers.Integral)
-        and not math.isfinite(obj)
-    ):
-        return None
-    return obj
+    return None if _is_non_finite(obj) else obj
 
 
 def dumps_strict_json(d: dict) -> str:
@@ -146,8 +156,9 @@ def dumps_strict_json(d: dict) -> str:
     return json.dumps(_non_finite_to_none(d), indent=2, default=str, allow_nan=False)
 
 
-def _null_to_nan(v):
-    return math.nan if v is None else v
+def _nulls_to_nan(values: dict) -> dict:
+    """Copy of a flat ``{name: value}`` mapping with null values read as NaN."""
+    return {k: math.nan if v is None else v for k, v in values.items()}
 
 
 def _result_from_dict(d: dict) -> MetricResult:
@@ -166,10 +177,10 @@ def _result_from_dict(d: dict) -> MetricResult:
     per_column = d.get("per_column")
     # Files store NaN and infinity as null (#109); read them back as NaN.
     if scalars is not None:
-        scalars = {k: _null_to_nan(v) for k, v in scalars.items()}
+        scalars = _nulls_to_nan(scalars)
     if per_column is not None:
         per_column = {
-            col: {k: _null_to_nan(v) for k, v in vals.items()} if isinstance(vals, dict) else vals
+            col: _nulls_to_nan(vals) if isinstance(vals, dict) else vals
             for col, vals in per_column.items()
         }
     # A saved file can hold a non-finite score (written before #76, or edited), so
