@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, cast
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
 
@@ -20,6 +20,18 @@ from syneva.core.registry import registry as _default_registry
 from syneva.core.report import Report, reject_non_finite_score
 from syneva.core.run_info import RunInfo
 
+# Constructor arguments the runner fills itself, mapped to the evaluate() argument
+# that sets each one (None: built by the runner, with no argument of its own).
+_RUNNER_ARGS: dict[str, str | None] = {
+    "tasks": "utility_tasks",
+    "specs": "fairness_specs",
+    "subgroup_specs": "subgroup_specs",
+    "distance": "distance",
+    "holdout": "holdout",
+    "random_state": "random_state",
+    "neighbors": None,
+}
+
 
 def _instantiate(
     cls,
@@ -30,6 +42,7 @@ def _instantiate(
     holdout,
     random_state,
     neighbors_for=None,
+    options=None,
 ):
     """Instantiate a metric, passing only the kwargs its constructor accepts.
 
@@ -56,6 +69,8 @@ def _instantiate(
     shares_distance = "distance" in params or distance == "euclidean"
     if "neighbors" in params and neighbors_for is not None and shares_distance:
         kwargs["neighbors"] = neighbors_for("holdout" in params and holdout is not None)
+    # Never overrides a runner-filled argument: _check_metric_options rejects those.
+    kwargs.update(options or {})
     return cls(**kwargs)
 
 
@@ -77,6 +92,7 @@ def evaluate(
     preset: str | None = None,
     random_state: int = 42,
     nan_policy: Literal["drop", "explicit_na", "raise"] = "drop",
+    metric_options: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Report:
     """Evaluate synthetic tabular data against real data, return a Report."""
     return evaluate_with(
@@ -97,6 +113,7 @@ def evaluate(
         preset=preset,
         random_state=random_state,
         nan_policy=nan_policy,
+        metric_options=metric_options,
     )
 
 
@@ -120,6 +137,7 @@ def evaluate_with(
     random_state: int = 42,
     nan_policy: str = "drop",
     # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
+    metric_options: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Report:
     # Imported here: at module load, neighbors pulls in syneva.compliance, whose
     # metrics import neighbors back before it has finished loading.
@@ -144,6 +162,11 @@ def evaluate_with(
     if distance not in ("euclidean", "gower"):
         raise SynevaError(f"unknown distance '{distance}'; use 'euclidean' or 'gower'")
 
+    metric_options = _merge_metric_options(
+        preset_obj.metric_options if preset_obj is not None else {}, metric_options or {}
+    )
+    _check_metric_options(reg, metric_options)
+
     if real is not None:
         _check_schema(real, synthetic)
 
@@ -165,6 +188,7 @@ def evaluate_with(
             raise MetadataError(f"holdout: {e}") from e
 
     info = RunInfo.capture(random_state=random_state)
+    info.metric_options = metric_options
     selected = reg.select(tiers=list(tiers), data_type=data_type, cs=cs)
     if real is None:
         selected = [c for c in selected if not c.spec.requires_real]
@@ -245,6 +269,7 @@ def evaluate_with(
                 holdout,
                 random_state,
                 neighbors_for=neighbors_for if real is not None else None,
+                options=metric_options.get(cls.spec.name),
             )
             results.append(reject_non_finite_score(inst.compute(real, synthetic, metadata)))
         except Exception as e:
@@ -260,6 +285,47 @@ def evaluate_with(
 
     info.finish()
     return Report(metadata=metadata, results=results, run_info=info)
+
+
+def _check_metric_options(
+    reg: MetricRegistry, metric_options: Mapping[str, Mapping[str, Any]]
+) -> None:
+    """Reject unknown metrics and options, and options the runner sets, before any metric runs."""
+    by_name = {cls.spec.name: cls for cls in reg.metrics()}
+    for name, options in metric_options.items():
+        if name not in by_name:
+            raise SynevaError(f"metric_options: unknown metric '{name}'; valid: {sorted(by_name)}")
+        accepted = _metric_options_of(by_name[name])
+        for option in options:
+            if option in _RUNNER_ARGS:
+                source = _RUNNER_ARGS[option]
+                how = (
+                    f"use evaluate()'s own '{source}' argument"
+                    if source is not None
+                    else "the runner builds it"
+                )
+                raise SynevaError(
+                    f"metric_options: '{name}' option '{option}' is set for every metric; {how}"
+                )
+            if option not in accepted:
+                valid = f"valid: {accepted}" if accepted else "it accepts none"
+                raise SynevaError(f"metric_options: '{name}' has no option '{option}'; {valid}")
+
+
+def _merge_metric_options(
+    base: Mapping[str, Mapping[str, Any]], override: Mapping[str, Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Merge per metric, so an override replaces only the options it names."""
+    merged = {name: dict(opts) for name, opts in base.items()}
+    for name, opts in override.items():
+        merged.setdefault(name, {}).update(opts)
+    return merged
+
+
+def _metric_options_of(cls) -> list[str]:
+    """The constructor options a user may set through metric_options."""
+    params = inspect.signature(cls).parameters
+    return [p for p in params if p not in _RUNNER_ARGS]
 
 
 def _check_not_empty(

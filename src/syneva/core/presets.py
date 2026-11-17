@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any
 
 from syneva.core.errors import SynevaError
 
@@ -16,6 +18,8 @@ class Preset:
     run_utility: bool
     run_fairness: bool
     distance: str
+    # Per-metric constructor options; explicit evaluate() options override them.
+    metric_options: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
 
 
 PRESETS: dict[str, Preset] = {

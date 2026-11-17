@@ -7,6 +7,7 @@ import pytest
 from syneva.core.errors import MetadataError, SchemaError, SynevaError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
+from syneva.core.presets import Preset
 from syneva.core.registry import MetricRegistry
 from syneva.core.runner import evaluate_with
 
@@ -291,3 +292,194 @@ def test_numeric_holdout_column_declared_categorical_is_accepted():
         data_type="static",
     )
     assert len(rep.results) == 1
+
+
+class _ScaledMetric:
+    """Reports its `factor` option as the score, so a test can see what it was given."""
+
+    spec = MetricSpec(
+        name="scaled",
+        c="congruence",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+
+    def __init__(self, factor: float = 0.5, random_state: int = 42) -> None:
+        if not 0 <= factor <= 1:
+            raise ValueError(f"factor must be in [0, 1], got {factor}")
+        self.factor = factor
+
+    def compute(self, real, synthetic, meta):
+        return MetricResult(spec=self.spec, scalars={"score": self.factor})
+
+
+def _run_with_options(*metrics, **kwargs):
+    reg = MetricRegistry()
+    for m in metrics:
+        reg.register(m)
+    if "preset" not in kwargs:
+        kwargs.setdefault("tiers", ("core",))
+    return evaluate_with(reg, real=_df(), synthetic=_df(), data_type="static", **kwargs)
+
+
+def test_metric_options_reach_the_metric():
+    rep = _run_with_options(_ScaledMetric, metric_options={"scaled": {"factor": 0.25}})
+    assert rep.results[0].scalars == {"score": 0.25}
+
+
+def test_metric_options_default_leaves_constructor_defaults():
+    rep = _run_with_options(_ScaledMetric)
+    assert rep.results[0].scalars == {"score": 0.5}
+
+
+class _RecordingMetric:
+    """Records that it ran, so a test can check validation happened before any metric."""
+
+    ran = False
+    spec = MetricSpec(
+        name="recording",
+        c="congruence",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+
+    def compute(self, real, synthetic, meta):
+        type(self).ran = True
+        return MetricResult(spec=self.spec, scalars={"score": 1.0})
+
+
+def test_metric_options_unknown_metric_raises_before_running():
+    _RecordingMetric.ran = False
+    with pytest.raises(SynevaError, match=r"unknown metric 'scaledd'.*recording.*scaled"):
+        _run_with_options(
+            _RecordingMetric, _ScaledMetric, metric_options={"scaledd": {"factor": 0.25}}
+        )
+    assert _RecordingMetric.ran is False
+
+
+def test_metric_options_unknown_option_raises_before_running():
+    _RecordingMetric.ran = False
+    with pytest.raises(SynevaError, match=r"'scaled' has no option 'facter'.*\['factor'\]"):
+        _run_with_options(
+            _RecordingMetric, _ScaledMetric, metric_options={"scaled": {"facter": 0.25}}
+        )
+    assert _RecordingMetric.ran is False
+
+
+def test_metric_options_for_metric_without_options_lists_none():
+    with pytest.raises(SynevaError, match=r"'recording' has no option 'x'.*accepts none"):
+        _run_with_options(_RecordingMetric, metric_options={"recording": {"x": 1}})
+
+
+def test_metric_options_runner_controlled_option_points_to_evaluate_argument():
+    with pytest.raises(SynevaError, match=r"'random_state'.*evaluate\(\)'s own 'random_state'"):
+        _run_with_options(_ScaledMetric, metric_options={"scaled": {"random_state": 1}})
+
+
+def test_metric_options_fairness_specs_option_names_its_evaluate_argument():
+    class _SpecMetric(_ScaledMetric):
+        spec = MetricSpec(
+            name="spec_metric",
+            c="fairness",
+            tier="core",
+            data_types=frozenset({"static"}),
+            requires_real=True,
+            scope="table-level",
+        )
+
+        def __init__(self, specs=None) -> None:
+            self.factor = 0.5
+
+    with pytest.raises(SynevaError, match=r"'specs'.*evaluate\(\)'s own 'fairness_specs'"):
+        _run_with_options(_SpecMetric, _ScaledMetric, metric_options={"spec_metric": {"specs": []}})
+
+
+def test_metric_options_for_unselected_metric_are_allowed():
+    class _ExtendedScaled(_ScaledMetric):
+        spec = MetricSpec(
+            name="extended_scaled",
+            c="congruence",
+            tier="extended",
+            data_types=frozenset({"static"}),
+            requires_real=True,
+            scope="table-level",
+        )
+
+    rep = _run_with_options(
+        _OkMetric, _ExtendedScaled, metric_options={"extended_scaled": {"factor": 0.25}}
+    )
+    assert [r.spec.name for r in rep.results] == ["ok"]
+
+
+def test_metric_options_rejected_value_fails_only_that_metric():
+    rep = _run_with_options(_OkMetric, _ScaledMetric, metric_options={"scaled": {"factor": 2.0}})
+    by_name = {r.spec.name: r for r in rep.results}
+    assert by_name["ok"].scalars == {"score": 0.9}
+    assert by_name["scaled"].error is not None
+    assert "factor must be in [0, 1]" in str(by_name["scaled"].error)
+
+
+def test_metric_options_are_recorded_in_run_info():
+    rep = _run_with_options(_ScaledMetric, metric_options={"scaled": {"factor": 0.25}})
+    assert rep.run_info.metric_options == {"scaled": {"factor": 0.25}}
+
+
+def test_run_info_metric_options_empty_by_default():
+    rep = _run_with_options(_ScaledMetric)
+    assert rep.run_info.metric_options == {}
+
+
+class _TwoOptionMetric:
+    """Scores factor + offset, so a test can see both options it was given."""
+
+    spec = MetricSpec(
+        name="two_option",
+        c="congruence",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+
+    def __init__(self, factor: float = 0.5, offset: float = 0.0) -> None:
+        self.factor = factor
+        self.offset = offset
+
+    def compute(self, real, synthetic, meta):
+        return MetricResult(spec=self.spec, scalars={"score": self.factor + self.offset})
+
+
+@pytest.fixture
+def preset_with_options(monkeypatch):
+    from syneva.core import presets
+
+    preset = Preset(
+        tiers=("core",),
+        cs=None,
+        run_utility=False,
+        run_fairness=False,
+        distance="euclidean",
+        metric_options={"two_option": {"factor": 0.25, "offset": 0.125}},
+    )
+    monkeypatch.setitem(presets.PRESETS, "with_options", preset)
+    return "with_options"
+
+
+def test_preset_metric_options_are_used(preset_with_options):
+    rep = _run_with_options(_TwoOptionMetric, preset=preset_with_options)
+    assert rep.results[0].scalars == {"score": 0.375}
+    assert rep.run_info.metric_options == {"two_option": {"factor": 0.25, "offset": 0.125}}
+
+
+def test_explicit_metric_options_override_preset_per_option(preset_with_options):
+    rep = _run_with_options(
+        _TwoOptionMetric,
+        preset=preset_with_options,
+        metric_options={"two_option": {"offset": 0.5}},
+    )
+    assert rep.results[0].scalars == {"score": 0.75}
+    assert rep.run_info.metric_options == {"two_option": {"factor": 0.25, "offset": 0.5}}
