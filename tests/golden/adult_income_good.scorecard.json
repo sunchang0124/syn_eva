@@ -631,6 +631,7 @@
       "syneva": "PINNED",
       "typer": "PINNED"
     },
+    "metric_options": {},
     "random_state": 42,
     "started_at": 0,
     "warnings": []

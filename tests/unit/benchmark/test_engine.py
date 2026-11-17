@@ -64,6 +64,18 @@ def test_preset_forwarded_to_all(real_df, syn_good_df, syn_shifted_df, metadata)
         assert set(res.c_scores[name]) == {"compliance"}
 
 
+def test_metric_options_forwarded_to_all(real_df, syn_good_df, syn_shifted_df, metadata):
+    options = {"ci_overlap": {"use_real_se": True}}
+    res = benchmark(
+        real_df,
+        {"good": syn_good_df, "shifted": syn_shifted_df},
+        metadata,
+        metric_options=options,
+    )
+    for name in ("good", "shifted"):
+        assert res.reports[name].run_info.metric_options == options
+
+
 def test_ranking_better_candidate_wins_all_modes(real_df, syn_good_df, syn_shifted_df, metadata):
     res = benchmark(real_df, {"good": syn_good_df, "shifted": syn_shifted_df}, metadata)
     for mode in ("absolute", "linear", "normal", "quantile"):

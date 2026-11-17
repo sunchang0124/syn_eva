@@ -10,6 +10,14 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 - `syn-eva evaluate` and `syn-eva benchmark` take `--random-state`, and the
   Streamlit sidebar has a "Random seed" input in both modes (#93). Both default
   to 42, so runs that don't set them are unchanged.
+- `evaluate()` and `benchmark()` take `metric_options`, which sets a metric's
+  own constructor options by metric name (#54), for example
+  `metric_options={"ci_overlap": {"use_real_se": True}}`. Unknown metrics,
+  unknown options, and options that `evaluate()` sets itself (such as
+  `distance` or `random_state`) raise an error before any metric runs, as do
+  values a JSON file can't hold exactly (numpy scalars are converted). The
+  options used are saved in the report's `run_info.metric_options`, so a
+  scorecard records which mode produced it.
 
 ### Changed
 - Column metadata has a new `quasi_identifier` role, separate from `sensitive`

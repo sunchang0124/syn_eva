@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, cast
+import math
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Literal, cast
 
+import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
@@ -20,6 +22,18 @@ from syneva.core.registry import registry as _default_registry
 from syneva.core.report import Report, reject_non_finite_score
 from syneva.core.run_info import RunInfo
 
+# Constructor arguments the runner fills itself, mapped to the evaluate() argument
+# that sets each one (None: built by the runner, with no argument of its own).
+_RUNNER_ARGS: dict[str, str | None] = {
+    "tasks": "utility_tasks",
+    "specs": "fairness_specs",
+    "subgroup_specs": "subgroup_specs",
+    "distance": "distance",
+    "holdout": "holdout",
+    "random_state": "random_state",
+    "neighbors": None,
+}
+
 
 def _instantiate(
     cls,
@@ -30,6 +44,7 @@ def _instantiate(
     holdout,
     random_state,
     neighbors_for=None,
+    options=None,
 ):
     """Instantiate a metric, passing only the kwargs its constructor accepts.
 
@@ -56,6 +71,8 @@ def _instantiate(
     shares_distance = "distance" in params or distance == "euclidean"
     if "neighbors" in params and neighbors_for is not None and shares_distance:
         kwargs["neighbors"] = neighbors_for("holdout" in params and holdout is not None)
+    # Never overrides a runner-filled argument: _check_metric_options rejects those.
+    kwargs.update(options or {})
     return cls(**kwargs)
 
 
@@ -77,6 +94,7 @@ def evaluate(
     preset: str | None = None,
     random_state: int = 42,
     nan_policy: Literal["drop", "explicit_na", "raise"] = "drop",
+    metric_options: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Report:
     """Evaluate synthetic tabular data against real data, return a Report."""
     return evaluate_with(
@@ -97,6 +115,7 @@ def evaluate(
         preset=preset,
         random_state=random_state,
         nan_policy=nan_policy,
+        metric_options=metric_options,
     )
 
 
@@ -120,6 +139,7 @@ def evaluate_with(
     random_state: int = 42,
     nan_policy: str = "drop",
     # nan_policy is reserved for v0.1.x; metrics handle NaNs per their own policy for now
+    metric_options: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Report:
     # Imported here: at module load, neighbors pulls in syneva.compliance, whose
     # metrics import neighbors back before it has finished loading.
@@ -144,6 +164,11 @@ def evaluate_with(
     if distance not in ("euclidean", "gower"):
         raise SynevaError(f"unknown distance '{distance}'; use 'euclidean' or 'gower'")
 
+    metric_options = _merge_metric_options(
+        preset_obj.metric_options if preset_obj is not None else {}, metric_options or {}
+    )
+    _check_metric_options(reg, metric_options)
+
     if real is not None:
         _check_schema(real, synthetic)
 
@@ -165,6 +190,7 @@ def evaluate_with(
             raise MetadataError(f"holdout: {e}") from e
 
     info = RunInfo.capture(random_state=random_state)
+    info.metric_options = metric_options
     selected = reg.select(tiers=list(tiers), data_type=data_type, cs=cs)
     if real is None:
         selected = [c for c in selected if not c.spec.requires_real]
@@ -245,6 +271,7 @@ def evaluate_with(
                 holdout,
                 random_state,
                 neighbors_for=neighbors_for if real is not None else None,
+                options=metric_options.get(cls.spec.name),
             )
             results.append(reject_non_finite_score(inst.compute(real, synthetic, metadata)))
         except Exception as e:
@@ -260,6 +287,86 @@ def evaluate_with(
 
     info.finish()
     return Report(metadata=metadata, results=results, run_info=info)
+
+
+def _check_metric_options(reg: MetricRegistry, metric_options: dict[str, dict[str, Any]]) -> None:
+    """Reject unknown metrics and options, and options the runner sets, before any
+    metric runs. Option values are made plain JSON in place, so run_info saves and
+    reloads exactly the values the metrics were given."""
+    by_name = {cls.spec.name: cls for cls in reg.metrics()}
+    for name, options in metric_options.items():
+        if name not in by_name:
+            raise SynevaError(f"metric_options: unknown metric '{name}'; valid: {sorted(by_name)}")
+        accepted, takes_any = _metric_options_of(by_name[name])
+        valid = f"valid: {accepted}" if accepted else "it accepts none"
+        for option, value in options.items():
+            if option in _RUNNER_ARGS:
+                source = _RUNNER_ARGS[option]
+                how = (
+                    f"use evaluate()'s own '{source}' argument"
+                    if source is not None
+                    else "the runner builds it"
+                )
+                raise SynevaError(
+                    f"metric_options: '{name}' option '{option}' is set by the runner; "
+                    f"{how}; {valid}"
+                )
+            if option not in accepted and not takes_any:
+                raise SynevaError(f"metric_options: '{name}' has no option '{option}'; {valid}")
+            options[option] = _json_option_value(name, option, value)
+
+
+def _json_option_value(name: str, option: str, value: Any) -> Any:
+    """Return `value` as plain JSON, or raise if a JSON round trip would change it.
+
+    Numpy scalars become the matching Python value. A tuple would come back as a
+    list, NaN and infinity as null, and other objects as their str(), so those are
+    rejected rather than recorded wrongly.
+    """
+    if isinstance(value, np.generic):
+        value = value.item()
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, float) and math.isfinite(value):
+        return value
+    if isinstance(value, list):
+        return [_json_option_value(name, option, v) for v in value]
+    if isinstance(value, dict) and all(isinstance(k, str) for k in value):
+        return {k: _json_option_value(name, option, v) for k, v in value.items()}
+    raise SynevaError(
+        f"metric_options: '{name}' option '{option}' must be a JSON value (a bool, a "
+        f"finite number, a string, None, or a list or str-keyed dict of these), so the "
+        f"report records it exactly; got {value!r}"
+    )
+
+
+def _merge_metric_options(
+    base: Mapping[str, Mapping[str, Any]], override: Mapping[str, Mapping[str, Any]]
+) -> dict[str, dict[str, Any]]:
+    """Merge per metric, so an override replaces only the options it names."""
+    merged = {name: _as_options(name, opts) for name, opts in base.items()}
+    for name, opts in override.items():
+        merged.setdefault(name, {}).update(_as_options(name, opts))
+    return merged
+
+
+def _as_options(name: str, options: Any) -> dict[str, Any]:
+    if not isinstance(options, Mapping):
+        raise SynevaError(
+            f"metric_options: '{name}' must map option names to values, "
+            f"got {type(options).__name__}"
+        )
+    return dict(options)
+
+
+def _metric_options_of(cls) -> tuple[list[str], bool]:
+    """The named constructor options a user may set through metric_options, and
+    whether the constructor takes **kwargs (and so accepts any other name)."""
+    params = inspect.signature(cls).parameters.values()
+    named = (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+    accepted = [p.name for p in params if p.kind in named and p.name not in _RUNNER_ARGS]
+    takes_any = any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params)
+    return accepted, takes_any
 
 
 def _check_not_empty(

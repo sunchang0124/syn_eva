@@ -4,6 +4,7 @@ import contextlib
 import importlib.metadata
 import time
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 # The largest seed numpy accepts; seeds run from 0 to this.
 MAX_RANDOM_STATE = 2**32 - 1
@@ -28,6 +29,8 @@ class RunInfo:
     finished_at: float | None
     library_versions: dict[str, str]
     warnings: list[str] = field(default_factory=list)
+    # Per-metric constructor options the run used, keyed by metric name.
+    metric_options: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
     def capture(cls, *, random_state: int) -> RunInfo:

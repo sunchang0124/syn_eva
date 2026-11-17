@@ -44,3 +44,11 @@ def test_preset_is_frozen():
     p = get_preset("fast")
     with pytest.raises(dataclasses.FrozenInstanceError):
         p.tiers = ("extended",)  # frozen dataclass -> FrozenInstanceError
+
+
+def test_builtin_presets_set_no_metric_options():
+    assert all(p.metric_options == {} for p in PRESETS.values())
+
+
+def test_preset_is_hashable():
+    assert all(isinstance(hash(p), int) for p in PRESETS.values())

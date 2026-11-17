@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 import pandas as pd
 
@@ -28,6 +30,7 @@ def benchmark(
     subgroup_specs=None,
     distance=_UNSET,
     random_state: int = 42,
+    metric_options: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> BenchmarkResult:
     if not candidates:
         raise SynevaError("benchmark needs at least one candidate")
@@ -56,6 +59,7 @@ def benchmark(
             subgroup_specs=subgroup_specs,
             distance=distance,
             random_state=random_state,
+            metric_options=metric_options,
         )
     return BenchmarkResult(reports=reports, random_state=random_state)
 

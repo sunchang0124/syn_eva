@@ -266,3 +266,18 @@ def test_non_finite_dict_keys_are_written_as_before():
     # "Infinity", which is valid JSON; the strict writer must not fail on it.
     data = _strict_loads(dumps_strict_json({"m": {float("nan"): 1, float("-inf"): 2, 0.5: 3}}))
     assert data == {"m": {"NaN": 1, "-Infinity": 2, "0.5": 3}}
+
+
+def test_metric_options_survive_json_round_trip(tmp_path):
+    r = _example_report()
+    r.run_info.metric_options = {"ci_overlap": {"use_real_se": True}}
+    path = tmp_path / "report.json"
+    r.to_json(path)
+    loaded = Report.from_dict(json.loads(path.read_text(encoding="utf-8")))
+    assert loaded.run_info.metric_options == {"ci_overlap": {"use_real_se": True}}
+
+
+def test_from_dict_accepts_reports_without_metric_options():
+    d = _example_report().to_dict()
+    del d["run_info"]["metric_options"]
+    assert Report.from_dict(d).run_info.metric_options == {}
