@@ -18,6 +18,13 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   values a JSON file can't hold exactly (numpy scalars are converted). The
   options used are saved in the report's `run_info.metric_options`, so a
   scorecard records which mode produced it.
+- `syn-eva evaluate` and `syn-eva benchmark` take a repeatable
+  `--metric-option metric.option=value` flag that sets `metric_options` from
+  the command line (#55), e.g. `--metric-option ci_overlap.use_real_se=true`.
+  Values are read as JSON, otherwise as text. A malformed or repeated entry,
+  or a value whose type doesn't match a true/false or number option (such as
+  `use_real_se=False`, which would otherwise be the text "False"), is rejected
+  before anything runs.
 
 ### Changed
 - Column metadata has a new `quasi_identifier` role, separate from `sensitive`

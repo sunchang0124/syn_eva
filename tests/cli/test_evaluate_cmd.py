@@ -256,3 +256,38 @@ def test_evaluate_cli_rejects_a_negative_random_state(tmp_path):
     stderr = click.unstyle(proc.stderr)
     assert "Traceback" not in stderr
     assert "--random-state" in stderr
+
+
+def test_evaluate_cli_records_metric_option(tmp_path):
+    out = tmp_path / "report"
+    proc = _evaluate(
+        "--real",
+        str(_REAL),
+        "--synthetic",
+        str(_SYN),
+        "--metadata",
+        str(_META),
+        "--out",
+        str(out),
+        "--metric-option",
+        "ci_overlap.use_real_se=true",
+    )
+    assert proc.returncode == 0, proc.stderr
+    loaded = json.loads((out / "scorecard.json").read_text(encoding="utf-8"))
+    assert loaded["run_info"]["metric_options"] == {"ci_overlap": {"use_real_se": True}}
+
+
+def test_evaluate_cli_unknown_metric_option_is_a_clean_error(tmp_path):
+    proc = _evaluate(
+        "--real",
+        str(_REAL),
+        "--synthetic",
+        str(_SYN),
+        "--out",
+        str(tmp_path / "report"),
+        "--metric-option",
+        "nope.x=1",
+    )
+    assert proc.returncode == 2
+    assert "syneva error: metric_options: unknown metric 'nope'" in proc.stderr
+    assert "Traceback" not in proc.stderr
