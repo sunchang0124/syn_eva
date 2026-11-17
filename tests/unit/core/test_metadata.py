@@ -51,5 +51,7 @@ def test_override_changes_dtype():
 def test_validate_rejects_dtype_mismatch():
     df = pd.DataFrame({"x": ["a", "b"]})
     m = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
-    with pytest.raises(MetadataError):
+    # names the types by their value on every Python version; 3.11+ formats a
+    # str-mixin enum in an f-string as "ColumnType.NUMERIC"
+    with pytest.raises(MetadataError, match=r"^column 'x' declared numeric but is categorical$"):
         m.validate_against(df)
