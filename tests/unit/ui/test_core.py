@@ -355,3 +355,17 @@ def test_run_report_ignores_options_for_metrics_not_selected():
     rep = core.run_report(real, syn, meta, ["ks_statistic"], metric_options=_USE_REAL_SE)
     assert [r.spec.name for r in rep.results] == ["ks_statistic"]
     assert rep.run_info.metric_options == {}
+
+
+def test_describe_metric_options_names_only_metrics_that_ran():
+    # A preset can leave out a metric whose option was set; the results must not
+    # claim that option was used.
+    options = {"ci_overlap": {"use_real_se": True}, "pmse": {"n_permutations": 50}}
+    assert core.describe_metric_options(options, ran={"pmse", "dcr"}) == "pmse.n_permutations = 50"
+    assert core.describe_metric_options(options, ran={"dcr"}) == ""
+
+
+def test_metric_option_catalog_keeps_n_permutations_at_one_or_more():
+    by_key = {(o["metric"], o["option"]): o for o in core.metric_option_catalog()}
+    assert by_key[("pmse", "n_permutations")]["min_value"] == 1
+    assert by_key[("ci_overlap", "use_real_se")]["min_value"] is None

@@ -134,11 +134,16 @@ def metric_option_catalog() -> list[dict]:
     return sorted(out, key=lambda o: (o["display_name"], o["option"]))
 
 
-def describe_metric_options(metric_options: dict[str, dict[str, Any]]) -> str:
-    """One line naming each option used, e.g. "ci_overlap.use_real_se = True"."""
+def describe_metric_options(metric_options: dict[str, dict[str, Any]], ran: set[str]) -> str:
+    """One line naming each option used, e.g. "ci_overlap.use_real_se = True".
+
+    Only metrics in `ran` are named: run_info records every option passed, but a
+    preset can leave out a metric whose option was set, and then it wasn't used.
+    """
     return ", ".join(
         f"{metric}.{option} = {value}"
         for metric, options in metric_options.items()
+        if metric in ran
         for option, value in options.items()
     )
 

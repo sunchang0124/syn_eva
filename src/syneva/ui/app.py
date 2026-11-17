@@ -64,9 +64,15 @@ def _metric_options_input(key_prefix: str) -> dict[str, dict[str, Any]]:
     return chosen
 
 
-def _metric_options_caption(metric_options: dict[str, dict[str, Any]]) -> None:
-    if metric_options:
-        st.caption(f"Metric options: {core.describe_metric_options(metric_options)}")
+def _metric_options_caption(reports) -> None:
+    """Name the metric options used, for metrics that ran in any of `reports`."""
+    if not reports:
+        return
+    ran = {r.spec.name for rep in reports for r in rep.results}
+    # Every report of one run gets the same options.
+    used = core.describe_metric_options(reports[0].run_info.metric_options, ran)
+    if used:
+        st.caption(f"Metric options: {used}")
 
 
 def _sidebar() -> dict | None:
@@ -296,7 +302,7 @@ def _sidebar() -> dict | None:
 def _render_results(report) -> None:
     """Render the scorecard and download buttons."""
     st.subheader("Scorecard")
-    _metric_options_caption(report.run_info.metric_options)
+    _metric_options_caption([report])
     mode_label = st.radio(
         "Results display",
         ["Normalized score (0-1)", "Actual measured values"],
@@ -400,8 +406,7 @@ def _benchmark_sidebar() -> dict | None:
 
 def _render_benchmark(result, normalization: str) -> None:
     st.subheader("Leaderboard")
-    # Every candidate runs with the same options, so any report shows them.
-    _metric_options_caption(next(iter(result.reports.values())).run_info.metric_options)
+    _metric_options_caption(list(result.reports.values()))
     overall = result.overall
     c_scores = result.c_scores
     summary = []
