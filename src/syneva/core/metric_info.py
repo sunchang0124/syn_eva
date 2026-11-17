@@ -11,6 +11,8 @@ scorecard, and the downloadable reports.
   near 0.5). Shown only in the "actual measured values" view.
 - The normalized score is always 0-1 with 1 = ideal (higher is better); that
   direction is conveyed by the score view's banner and verdict badges.
+- OPTION_INFO: the label and help text for each metric option the UI offers.
+  The option's type and default come from the metric's constructor.
 """
 
 from __future__ import annotations
@@ -276,9 +278,11 @@ OPTION_INFO: dict[str, dict[str, OptionInfo]] = {
             label="Use real-data standard error for both intervals",
             help=(
                 "Builds both confidence intervals from the real data's standard error, so "
-                "the score no longer depends on how many synthetic rows there are. A good "
-                "generator typically scores about 0.8 in this mode, not 1: its mean differs "
-                "from the real one by sampling noise."
+                "the score no longer depends on how many synthetic rows there are. The "
+                "score is then 1 - |z| / 3.92, with z the standardised difference in means "
+                "(Snoke et al., 2018). A synthetic set of the real data's size, drawn from "
+                "a model fitted to the real data, gives z ~ N(0, 1) (Raab et al., 2017), "
+                "so a good generator scores about 0.8 on average, not 1."
             ),
         ),
     },
@@ -288,7 +292,7 @@ OPTION_INFO: dict[str, dict[str, OptionInfo]] = {
             help=(
                 "How many shuffles of the real/synthetic labels estimate the pMSE of "
                 "indistinguishable data. More give a steadier reference value but take "
-                "longer. Default 20."
+                "longer."
             ),
             min_value=1,
         ),

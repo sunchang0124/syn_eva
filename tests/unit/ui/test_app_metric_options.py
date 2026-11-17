@@ -68,14 +68,20 @@ _DRIVER = textwrap.dedent(
         at = clear.click().run(timeout=120)
         (profile,) = [s for s in at.selectbox if s.label == "Profile"]
         profile.set_value("fast")
-        if change == "yes":
+        if change in ("yes", "back"):
             at.checkbox(key="opt_ci_overlap_use_real_se").check()
+            if change == "back":
+                at = at.run(timeout=120)
+                at.checkbox(key="opt_ci_overlap_use_real_se").uncheck()
         (run,) = [b for b in at.button if b.label == "Run evaluation"]
     else:
         (profile,) = [s for s in at.selectbox if s.key == "bm_profile"]
         profile.set_value("fast")
-        if change == "yes":
+        if change in ("yes", "back"):
             at.number_input(key="bm_opt_pmse_n_permutations").set_value(50)
+            if change == "back":
+                at = at.run(timeout=120)
+                at.number_input(key="bm_opt_pmse_n_permutations").set_value(20)
         run = at.button(key="bm_run")
     at = run.click().run(timeout=120)
     assert not at.exception, at.exception
@@ -86,15 +92,20 @@ _DRIVER = textwrap.dedent(
     """
 )
 
+
+def _change_arg(change: bool | str) -> str:
+    return change if isinstance(change, str) else ("yes" if change else "no")
+
+
 _SCORECARD = "Single scorecard"
 _BENCHMARK = "Benchmark (compare datasets)"
 
 
-def _drive(tmp_path, mode: str, kind: str, change: bool) -> dict:
+def _drive(tmp_path, mode: str, kind: str, change: bool | str) -> dict:
     page = tmp_path / "page.py"
     page.write_text(_PAGE, encoding="utf-8")
     proc = subprocess.run(
-        [sys.executable, "-c", _DRIVER, str(page), mode, kind, "yes" if change else "no"],
+        [sys.executable, "-c", _DRIVER, str(page), mode, kind, _change_arg(change)],
         capture_output=True,
         text=True,
         timeout=300,
@@ -118,6 +129,11 @@ def test_untouched_options_send_nothing(tmp_path, mode):
     assert not _drive(tmp_path, mode, "record", change=False)["seen"]
 
 
+@pytest.mark.parametrize("mode", [_SCORECARD, _BENCHMARK])
+def test_option_set_back_to_its_default_sends_nothing(tmp_path, mode):
+    assert not _drive(tmp_path, mode, "record", change="back")["seen"]
+
+
 @pytest.mark.parametrize(
     ("mode", "expected"),
     [
@@ -130,6 +146,7 @@ def test_results_show_the_options_used(tmp_path, mode, expected):
     assert expected in captions
 
 
-def test_results_show_no_options_caption_without_options(tmp_path):
-    captions = _drive(tmp_path, _SCORECARD, "real", change=False)["captions"]
+@pytest.mark.parametrize("mode", [_SCORECARD, _BENCHMARK])
+def test_results_show_no_options_caption_without_options(tmp_path, mode):
+    captions = _drive(tmp_path, mode, "real", change=False)["captions"]
     assert not any(c.startswith("Metric options:") for c in captions)

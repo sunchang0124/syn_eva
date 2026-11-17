@@ -346,3 +346,12 @@ def test_run_benchmark_passes_metric_options_to_every_candidate():
         real, {"a": syn, "b": syn}, meta, preset="fast", metric_options=_USE_REAL_SE
     )
     assert all(r.run_info.metric_options == _USE_REAL_SE for r in res.reports.values())
+
+
+def test_run_report_ignores_options_for_metrics_not_selected():
+    # The sidebar shows every option whatever is ticked, and says an option is
+    # used only when its metric runs; the run must not fail over an unticked one.
+    real, syn, meta = _small_frames()
+    rep = core.run_report(real, syn, meta, ["ks_statistic"], metric_options=_USE_REAL_SE)
+    assert [r.spec.name for r in rep.results] == ["ks_statistic"]
+    assert rep.run_info.metric_options == {}

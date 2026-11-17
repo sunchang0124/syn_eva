@@ -183,6 +183,9 @@ def run_report(
     against the default full registry with that preset (which resolves the
     metric tiers/cs/flags), and `selected_names` is ignored.
 
+    `metric_options` for metrics outside the manual selection are ignored, since
+    those metrics don't run.
+
     Note: data_type is fixed to "static" (the only supported kind in v0.1).
     """
     if preset is not None:
@@ -202,6 +205,10 @@ def run_report(
             metric_options=metric_options,
         )
     reg = build_selection_registry(selected_names)
+    # The sidebar offers every option whatever is selected; only the selected
+    # metrics are in this registry, so options for the others are dropped here.
+    if metric_options:
+        metric_options = {m: o for m, o in metric_options.items() if m in selected_names}
     run_utility = any(cls.spec.c == _UTILITY_C for cls in reg.metrics())
     run_fairness = any(cls.spec.c == _FAIRNESS_C for cls in reg.metrics())
     return evaluate_with(
