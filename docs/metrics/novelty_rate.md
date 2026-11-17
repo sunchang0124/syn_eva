@@ -23,14 +23,16 @@ row look new; if every column is an ID column, all columns are kept. Missing
 values are normalised so that two rows with a missing value in the same place
 compare equal. Values must match exactly: `1.0` and `1.0000001` differ.
 
-With $n$ synthetic rows, of which $c$ have a key that occurs in the real data:
+With $n$ synthetic rows, of which $c$ have a key that occurs in the real data,
+`novelty_rate` is
 
 $$
-\text{novelty\_rate} = \frac{n - c}{n} = 1 - \text{identical\_match\_rate} .
+\frac{n - c}{n} .
 $$
 
 Every synthetic row counts, including repeats. The keys are the same ones
-`identical_match_rate` uses, so the two metrics always add up to 1. The metric
+`identical_match_rate` uses, which is $c/n$, so the two metrics always add up
+to 1. The metric
 is skipped when the synthetic data is empty.
 
 ## When to use it
