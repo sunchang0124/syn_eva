@@ -21,6 +21,11 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- Reports and benchmark results loaded from a file now treat a NaN or infinite
+  score as a failed metric, as `evaluate()` has since #76 (#77). Loading used
+  to skip that check, so a NaN score was counted as 0 (or as a perfect 1.0 for
+  a metric without a `score` key) in dimension scores and rankings, with no
+  error shown. Non-finite secondary scalars, such as a NaN p-value, are kept.
 - `pmse` now scores synthetic data that is as close to the real data as a
   second sample would be at about 1, whatever the table's shape (#61). A
   perfect generator used to score as low as 0.80. **The score scale changes**,

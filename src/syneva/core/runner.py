@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import inspect
-import math
 from collections.abc import Sequence
-from dataclasses import replace
 from typing import TYPE_CHECKING, Literal, cast
 
 import pandas as pd
@@ -19,7 +17,7 @@ from syneva.core.metric import MetricResult
 from syneva.core.presets import _UNSET, get_preset
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _default_registry
-from syneva.core.report import Report, _aggregated_scalar, is_scored
+from syneva.core.report import Report, reject_non_finite_score
 from syneva.core.run_info import RunInfo
 
 
@@ -59,20 +57,6 @@ def _instantiate(
     if "neighbors" in params and neighbors_for is not None and shares_distance:
         kwargs["neighbors"] = neighbors_for("holdout" in params and holdout is not None)
     return cls(**kwargs)
-
-
-def _reject_non_finite(r: MetricResult) -> MetricResult:
-    # Aggregation clamps scores with min/max, which turn NaN into 0 or 1 depending
-    # on argument order, so a non-finite score would count silently. Report it as a
-    # failure instead, which is shown in the report and excluded from aggregates.
-    if not is_scored(r):
-        return r
-    v = _aggregated_scalar(r)
-    if math.isfinite(v):
-        return r
-    return replace(
-        r, scalars=None, error=MetricError(f"{r.spec.name} returned a non-finite score ({v})")
-    )
 
 
 def evaluate(
@@ -262,7 +246,7 @@ def evaluate_with(
                 random_state,
                 neighbors_for=neighbors_for if real is not None else None,
             )
-            results.append(_reject_non_finite(inst.compute(real, synthetic, metadata)))
+            results.append(reject_non_finite_score(inst.compute(real, synthetic, metadata)))
         except Exception as e:
             results.append(
                 MetricResult(
