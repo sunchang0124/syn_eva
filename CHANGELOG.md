@@ -27,10 +27,11 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   `'unknown'`, used to be coerced silently, which changed the holdout-based
   `dcr`, `nndr` and `mia_auc` scores with no warning. It now raises
   `MetadataError` with a message starting `holdout:`. Correctly typed holdouts
-  give the same results as before. The type-mismatch message now names the
-  types the same way on every Python version (`declared numeric but is
-  categorical`); on Python 3.11 and later it used to read `declared
-  ColumnType.NUMERIC but is ColumnType.CATEGORICAL`.
+  give the same results as before.
+- The metadata type-mismatch error now names the column types the same way on
+  every Python version: `column 'age' declared numeric but is categorical`. On
+  Python 3.11 and later it read `declared ColumnType.NUMERIC but is
+  ColumnType.CATEGORICAL`, for real, synthetic and holdout data alike.
 - `statistical_parity` now gives a fairness spec the maximum `parity_drift` of
   1.0, with a note, when a protected group from the real data is missing from
   the synthetic data (#40). It used to compare only the groups present in each
