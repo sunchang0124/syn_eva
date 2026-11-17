@@ -63,6 +63,14 @@ Pass `--random-state 7` (default 42) to seed the splits, subsamples and
 projections; the same seed gives the same scores. `syn-eva benchmark` takes it
 too, and the web UI has a "Random seed" input in the sidebar.
 
+Pass `--metric-option metric.option=value` to set one of a metric's own
+options; repeat it for more. The value is read as JSON (`true`, `5`, `1.5`,
+`"text"`), otherwise as plain text. For example,
+`--metric-option ci_overlap.use_real_se=true` builds both confidence intervals
+from the real data's standard error, so the score no longer depends on the
+number of synthetic rows. `syn-eva benchmark` takes it too, and the options
+used are saved in the scorecard's `run_info`.
+
 ## Web UI
 
 A local Streamlit app for upload → pick evaluators → scorecard:

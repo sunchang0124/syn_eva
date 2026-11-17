@@ -140,3 +140,31 @@ def test_benchmark_runs_at_the_given_random_state(tmp_path):
 
 def test_benchmark_defaults_to_random_state_42(tmp_path):
     assert _benchmark_random_state(tmp_path) == (42, 42)
+
+
+def test_benchmark_records_metric_option_for_every_candidate(tmp_path):
+    out = tmp_path / "bench"
+    proc = _run(
+        [
+            "--real",
+            str(_REAL),
+            "--metadata",
+            str(_META),
+            "--candidate",
+            f"good={_GOOD}",
+            "--candidate",
+            f"again={_GOOD}",
+            "--preset",
+            "fast",
+            "--out",
+            str(out),
+            "--metric-option",
+            "pmse.n_permutations=5",
+        ]
+    )
+    assert proc.returncode == 0, proc.stderr
+    loaded = json.loads((out / "benchmark.json").read_text(encoding="utf-8"))
+    for name in ("good", "again"):
+        assert loaded["reports"][name]["run_info"]["metric_options"] == {
+            "pmse": {"n_permutations": 5}
+        }

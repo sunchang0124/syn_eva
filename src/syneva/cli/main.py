@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import pandas as pd
 import typer
@@ -18,6 +18,10 @@ from syneva.core.run_info import MAX_RANDOM_STATE
 from syneva.ui import reload_notice
 
 _RANDOM_STATE_HELP = "seed for the splits, subsamples and projections; same seed, same scores"
+_METRIC_OPTION_HELP = (
+    "set one of a metric's own options as metric.option=value (repeatable); the value "
+    "is read as JSON, otherwise as text. Example: ci_overlap.use_real_se=true"
+)
 
 app = typer.Typer(add_completion=False, help="syneva - 7 Cs scorecard for tabular synthetic data")
 
@@ -46,6 +50,30 @@ def _load_metadata(path: Path | None) -> Metadata | None:
     return Metadata(columns=cols, primary_key=raw.get("primary_key"))
 
 
+def _parse_metric_options(entries: list[str] | None) -> dict[str, dict[str, Any]] | None:
+    """Turn repeated `metric.option=value` entries into evaluate()'s metric_options."""
+    if not entries:
+        return None
+    options: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        key, eq, raw = entry.partition("=")
+        metric, dot, option = key.partition(".")
+        if not (eq and dot and metric and option):
+            raise typer.BadParameter(
+                f"must be metric.option=value, got '{entry}'", param_hint="--metric-option"
+            )
+        if option in options.get(metric, {}):
+            raise typer.BadParameter(
+                f"'{metric}.{option}' is given more than once", param_hint="--metric-option"
+            )
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            value = raw
+        options.setdefault(metric, {})[option] = value
+    return options
+
+
 @app.callback()
 def _main() -> None:
     """syneva command-line interface."""
@@ -64,7 +92,11 @@ def evaluate(
     preset: str | None = typer.Option(None, help="evaluation preset: fast | full | privacy"),
     pdf: bool = typer.Option(False, help="also write scorecard.pdf"),
     random_state: int = typer.Option(42, min=0, max=MAX_RANDOM_STATE, help=_RANDOM_STATE_HELP),
+    metric_option: list[str] | None = typer.Option(
+        None, "--metric-option", help=_METRIC_OPTION_HELP
+    ),
 ) -> None:
+    metric_options = _parse_metric_options(metric_option)
     out.mkdir(parents=True, exist_ok=True)
     try:
         real_df = _load_df(real) if real else None
@@ -81,6 +113,7 @@ def evaluate(
             run_utility=(True if run_utility else _UNSET),
             preset=preset,
             random_state=random_state,
+            metric_options=metric_options,
         )
         rep.to_json(out / "scorecard.json")
         rep.to_html(out / "scorecard.html")
@@ -107,7 +140,11 @@ def benchmark(
     run_utility: bool = typer.Option(False, help="run utility (TSTR) tasks"),
     normalization: str = typer.Option("absolute", help="ranking: absolute|linear|normal|quantile"),
     random_state: int = typer.Option(42, min=0, max=MAX_RANDOM_STATE, help=_RANDOM_STATE_HELP),
+    metric_option: list[str] | None = typer.Option(
+        None, "--metric-option", help=_METRIC_OPTION_HELP
+    ),
 ) -> None:
+    metric_options = _parse_metric_options(metric_option)
     candidates: dict[str, pd.DataFrame] = {}
     for entry in candidate:
         if "=" not in entry:
@@ -136,6 +173,7 @@ def benchmark(
             cs=(tuple(c.strip() for c in cs.split(",")) if cs else _UNSET),
             run_utility=(True if run_utility else _UNSET),
             random_state=random_state,
+            metric_options=metric_options,
         )
         ranked = res.ranking(normalization=normalization)  # fail fast on bad normalization
         res.to_html(out / "leaderboard.html", normalization=normalization)
