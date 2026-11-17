@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -29,6 +30,43 @@ def _random_state_input() -> int:
             help="Seeds the splits, subsamples and projections. Same seed, same scores.",
         )
     )
+
+
+def _metric_options_input(key_prefix: str) -> dict[str, dict[str, Any]]:
+    """The "Advanced metric options" expander. Returns only the options changed from
+    their default, so an untouched expander sends nothing."""
+    chosen: dict[str, dict[str, Any]] = {}
+    with st.expander("Advanced metric options"):
+        st.caption("Each option is used only when its metric runs.")
+        heading = None
+        for o in core.metric_option_catalog():
+            if o["display_name"] != heading:
+                heading = o["display_name"]
+                st.markdown(f"**{heading}**")
+            key = f"{key_prefix}opt_{o['metric']}_{o['option']}"
+            if o["kind"] == "bool":
+                value = st.checkbox(o["label"], value=o["default"], key=key, help=o["help"])
+            else:
+                number = int if o["kind"] == "int" else float
+                low = o["min_value"]
+                value = number(
+                    st.number_input(
+                        o["label"],
+                        value=o["default"],
+                        min_value=None if low is None else number(low),
+                        step=1 if number is int else None,
+                        key=key,
+                        help=o["help"],
+                    )
+                )
+            if value != o["default"]:
+                chosen.setdefault(o["metric"], {})[o["option"]] = value
+    return chosen
+
+
+def _metric_options_caption(metric_options: dict[str, dict[str, Any]]) -> None:
+    if metric_options:
+        st.caption(f"Metric options: {core.describe_metric_options(metric_options)}")
 
 
 def _sidebar() -> dict | None:
@@ -233,6 +271,7 @@ def _sidebar() -> dict | None:
         else:
             st.caption("Select a subgroup metric to configure subgroups.")
 
+        metric_options = _metric_options_input("")
         random_state = _random_state_input()
         run = st.button("Run evaluation", type="primary")
 
@@ -249,6 +288,7 @@ def _sidebar() -> dict | None:
         "holdout": holdout,
         "preset": None if profile == "Custom" else profile,
         "random_state": random_state,
+        "metric_options": metric_options,
         "run": run,
     }
 
@@ -256,6 +296,7 @@ def _sidebar() -> dict | None:
 def _render_results(report) -> None:
     """Render the scorecard and download buttons."""
     st.subheader("Scorecard")
+    _metric_options_caption(report.run_info.metric_options)
     mode_label = st.radio(
         "Results display",
         ["Normalized score (0-1)", "Actual measured values"],
@@ -340,6 +381,7 @@ def _benchmark_sidebar() -> dict | None:
             index=0,
             key="bm_norm",
         )
+        metric_options = _metric_options_input("bm_")
         random_state = _random_state_input()
         run = st.button("Run benchmark", type="primary", key="bm_run")
 
@@ -351,12 +393,15 @@ def _benchmark_sidebar() -> dict | None:
         "preset": None if profile == "Custom" else profile,
         "normalization": normalization,
         "random_state": random_state,
+        "metric_options": metric_options,
         "run": run,
     }
 
 
 def _render_benchmark(result, normalization: str) -> None:
     st.subheader("Leaderboard")
+    # Every candidate runs with the same options, so any report shows them.
+    _metric_options_caption(next(iter(result.reports.values())).run_info.metric_options)
     overall = result.overall
     c_scores = result.c_scores
     summary = []
@@ -405,6 +450,7 @@ def main() -> None:
                         holdout=cfg["holdout"],
                         preset=cfg["preset"],
                         random_state=cfg["random_state"],
+                        metric_options=cfg["metric_options"] or None,
                     )
                 except (SynevaError, ValueError) as e:
                     st.error(f"Evaluation failed: {e}")
@@ -432,6 +478,7 @@ def main() -> None:
                         holdout=cfg["holdout"],
                         preset=cfg["preset"],
                         random_state=cfg["random_state"],
+                        metric_options=cfg["metric_options"] or None,
                     ),
                     cfg["normalization"],
                 )

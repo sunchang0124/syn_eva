@@ -15,6 +15,8 @@ scorecard, and the downloadable reports.
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 C_INFO: dict[str, str] = {
     "congruence": "Do the synthetic data's distributions and column relationships match the real data?",
     "coverage": "Does the synthetic data span the same categories, ranges, and variety as the real data?",
@@ -253,6 +255,44 @@ _SCALAR_ACRONYMS: dict[str, str] = {
     "trtr": "TRTR",
     "pca": "PCA",
     "dp": "DP",
+}
+
+
+class OptionInfo(NamedTuple):
+    """How the UI presents one of a metric's own constructor options."""
+
+    label: str
+    help: str
+    # Lowest value the UI accepts for a number option; None = no bound.
+    min_value: float | None = None
+
+
+# Metric options the UI offers, keyed by metric then option name. The type and
+# default come from the metric's constructor, so they are not repeated here; an
+# option without a row is not shown.
+OPTION_INFO: dict[str, dict[str, OptionInfo]] = {
+    "ci_overlap": {
+        "use_real_se": OptionInfo(
+            label="Use real-data standard error for both intervals",
+            help=(
+                "Builds both confidence intervals from the real data's standard error, so "
+                "the score no longer depends on how many synthetic rows there are. A good "
+                "generator typically scores about 0.8 in this mode, not 1: its mean differs "
+                "from the real one by sampling noise."
+            ),
+        ),
+    },
+    "pmse": {
+        "n_permutations": OptionInfo(
+            label="Permutations for the null pMSE",
+            help=(
+                "How many shuffles of the real/synthetic labels estimate the pMSE of "
+                "indistinguishable data. More give a steadier reference value but take "
+                "longer. Default 20."
+            ),
+            min_value=1,
+        ),
+    },
 }
 
 

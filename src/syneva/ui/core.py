@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import inspect
 import os
 import tempfile
 from pathlib import Path
@@ -10,7 +11,7 @@ import pandas as pd
 
 import syneva
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
-from syneva.core.metric_info import describe_metric, display_name
+from syneva.core.metric_info import OPTION_INFO, describe_metric, display_name
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _global_registry
 from syneva.core.report import Report, dumps_strict_json
@@ -105,6 +106,43 @@ def metric_catalog() -> list[dict]:
     return sorted(out, key=lambda m: (m["c"], m["tier"], m["name"]))
 
 
+def metric_option_catalog() -> list[dict]:
+    """List the metric options the UI offers, with label, help, default and widget kind.
+
+    Labels and help come from OPTION_INFO; the default comes from the metric's
+    constructor, and the widget kind ("bool", "int" or "float") from its type.
+    """
+    by_name = {cls.spec.name: cls for cls in _global_registry.metrics()}
+    out = []
+    for metric, options in OPTION_INFO.items():
+        params = inspect.signature(by_name[metric]).parameters
+        for option, info in options.items():
+            default = params[option].default
+            out.append(
+                {
+                    "metric": metric,
+                    "display_name": display_name(metric),
+                    "option": option,
+                    "label": info.label,
+                    "help": info.help,
+                    "default": default,
+                    "min_value": info.min_value,
+                    # bool before int: a bool is also an int
+                    "kind": "bool" if isinstance(default, bool) else type(default).__name__,
+                }
+            )
+    return sorted(out, key=lambda o: (o["display_name"], o["option"]))
+
+
+def describe_metric_options(metric_options: dict[str, dict[str, Any]]) -> str:
+    """One line naming each option used, e.g. "ci_overlap.use_real_se = True"."""
+    return ", ".join(
+        f"{metric}.{option} = {value}"
+        for metric, options in metric_options.items()
+        for option, value in options.items()
+    )
+
+
 def build_selection_registry(names: list[str]) -> MetricRegistry:
     """Build a registry containing exactly the named metric classes."""
     by_name = {cls.spec.name: cls for cls in _global_registry.metrics()}
@@ -129,6 +167,7 @@ def run_report(
     holdout: pd.DataFrame | None = None,
     preset: str | None = None,
     random_state: int = 42,
+    metric_options: dict[str, dict[str, Any]] | None = None,
 ) -> Report:
     """Run exactly the selected metrics and return a Report.
 
@@ -160,6 +199,7 @@ def run_report(
             holdout=holdout,
             preset=preset,
             random_state=random_state,
+            metric_options=metric_options,
         )
     reg = build_selection_registry(selected_names)
     run_utility = any(cls.spec.c == _UTILITY_C for cls in reg.metrics())
@@ -177,6 +217,7 @@ def run_report(
         subgroup_specs=subgroup_specs,
         holdout=holdout,
         random_state=random_state,
+        metric_options=metric_options,
     )
 
 
@@ -203,11 +244,18 @@ def run_benchmark(
     holdout=None,
     preset: str | None = None,
     random_state: int = 42,
+    metric_options: dict[str, dict[str, Any]] | None = None,
 ):
     """Run the benchmark engine for the UI (mirrors run_report's role)."""
 
     return syneva.benchmark(
-        real, candidates, metadata, holdout=holdout, preset=preset, random_state=random_state
+        real,
+        candidates,
+        metadata,
+        holdout=holdout,
+        preset=preset,
+        random_state=random_state,
+        metric_options=metric_options,
     )
 
 

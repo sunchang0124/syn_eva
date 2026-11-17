@@ -25,6 +25,11 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   or a value whose type doesn't match a true/false or number option (such as
   `use_real_se=False`, which would otherwise be the text "False"), is rejected
   before anything runs.
+- The web UI sidebar has an "Advanced metric options" section in both modes
+  (#56), e.g. a checkbox for `ci_overlap`'s real-data standard error. Only
+  options changed from their default are passed on, so an untouched section
+  gives the same scorecard as before. The results list the options used by
+  the metrics that ran.
 
 ### Changed
 - Column metadata has a new `quasi_identifier` role, separate from `sensitive`
