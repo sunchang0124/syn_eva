@@ -1,10 +1,14 @@
 import json
+import math
 import tempfile
 from pathlib import Path
 
+import pytest
+
+from syneva.core.errors import MetricError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.metric import MetricResult, MetricSpec
-from syneva.core.report import Report
+from syneva.core.report import Report, is_scored
 from syneva.core.run_info import RunInfo
 
 
@@ -97,3 +101,74 @@ def test_from_dict_defaults_quasi_identifier_for_older_reports():
     for c in d["metadata"]["columns"].values():
         c.pop("quasi_identifier", None)
     assert Report.from_dict(d).metadata.columns["x"].quasi_identifier is False
+
+
+def _spec(name: str, scoring: bool = True) -> MetricSpec:
+    return MetricSpec(
+        name=name,
+        c="congruence",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+        scoring=scoring,
+    )
+
+
+def _report_with(*results: MetricResult) -> Report:
+    meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+    return Report(metadata=meta, results=list(results), run_info=RunInfo.capture(random_state=42))
+
+
+# Issue #77: evaluate() rejects non-finite scores (#76), but a loaded report went
+# straight to aggregation, where the clamp counted NaN as 0 (or as 1 when inverted).
+@pytest.mark.parametrize(
+    "scalars",
+    [
+        {"score": float("nan")},
+        {"score": float("inf")},
+        {"score": float("-inf")},
+        # no "score" key: the first scalar is read as a distance and inverted
+        {"distance": float("nan")},
+    ],
+)
+def test_loaded_non_finite_score_becomes_a_failed_metric(scalars):
+    rep = _report_with(
+        MetricResult(spec=_spec("ok"), scalars={"score": 0.9}),
+        MetricResult(spec=_spec("bad"), scalars=scalars),
+    )
+    loaded = Report.from_dict(json.loads(json.dumps(rep.to_dict())))
+    bad = next(r for r in loaded.results if r.spec.name == "bad")
+    assert bad.scalars is None
+    assert "bad returned a non-finite score" in str(bad.error)
+    assert loaded.aggregated == {"congruence": 0.9}
+
+
+def test_directly_built_non_finite_score_is_not_scored():
+    nan = MetricResult(spec=_spec("bad"), scalars={"score": float("nan")})
+    rep = _report_with(MetricResult(spec=_spec("ok"), scalars={"score": 0.9}), nan)
+    assert not is_scored(nan)
+    assert rep.aggregated == {"congruence": 0.9}
+
+
+def test_loaded_non_finite_secondary_scalar_is_kept():
+    rep = _report_with(MetricResult(spec=_spec("m"), scalars={"score": 0.5, "p": float("nan")}))
+    loaded = Report.from_dict(json.loads(json.dumps(rep.to_dict())))
+    r = loaded.results[0]
+    assert r.error is None
+    assert r.scalars is not None and math.isnan(r.scalars["p"])
+    assert loaded.aggregated == {"congruence": 0.5}
+
+
+def test_loaded_skipped_failed_and_non_scoring_results_are_unchanged():
+    rep = _report_with(
+        MetricResult(spec=_spec("skipped"), skip_reason="needs a holdout"),
+        MetricResult(spec=_spec("failed"), error=MetricError("boom")),
+        # not scored, so a NaN here is just a value to show, not a score to reject
+        MetricResult(spec=_spec("info", scoring=False), scalars={"value": float("nan")}),
+    )
+    loaded = {r.spec.name: r for r in Report.from_dict(rep.to_dict()).results}
+    assert loaded["skipped"].skip_reason == "needs a holdout" and loaded["skipped"].error is None
+    assert str(loaded["failed"].error) == "boom"
+    assert loaded["info"].error is None
+    assert loaded["info"].scalars is not None and math.isnan(loaded["info"].scalars["value"])

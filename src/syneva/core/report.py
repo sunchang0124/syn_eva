@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import math
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from syneva.core.errors import MetricError
@@ -131,22 +132,52 @@ def _result_from_dict(d: dict) -> MetricResult:
         scoring=s.get("scoring", True),
     )
     err = MetricError(d["error"]) if d.get("error") else None
-    return MetricResult(
-        spec=spec,
-        scalars=d.get("scalars"),
-        per_column=d.get("per_column"),
-        notes=d.get("notes") or [],
-        error=err,
-        skip_reason=d.get("skip_reason"),
+    # A saved file can hold a non-finite score (written before #76, or edited), so
+    # loaded results get the same check as freshly computed ones.
+    return reject_non_finite_score(
+        MetricResult(
+            spec=spec,
+            scalars=d.get("scalars"),
+            per_column=d.get("per_column"),
+            notes=d.get("notes") or [],
+            error=err,
+            skip_reason=d.get("skip_reason"),
+        )
+    )
+
+
+def reject_non_finite_score(r: MetricResult) -> MetricResult:
+    """Turn a result whose aggregated value is NaN or infinite into a failed metric.
+
+    Aggregation clamps scores with min/max, which turn NaN into 0 or 1 depending
+    on argument order, so a non-finite score would count silently. Reporting it
+    as a failure shows it in the report and excludes it from aggregates.
+    Non-finite secondary scalars (e.g. a NaN p-value) are kept.
+    """
+    # Not is_scored(): that is False for non-finite values, so it would let them through.
+    if not r.spec.scoring or r.scalars is None or r.error is not None:
+        return r
+    v = _aggregated_scalar(r)
+    if math.isfinite(v):
+        return r
+    return replace(
+        r, scalars=None, error=MetricError(f"{r.spec.name} returned a non-finite score ({v})")
     )
 
 
 def is_scored(r: MetricResult) -> bool:
     """Whether a result counts toward dimension scores and benchmark rankings.
 
-    Skipped (scalars=None), failed, and non-scoring results are excluded.
+    Skipped (scalars=None), failed, and non-scoring results are excluded, and so is
+    a non-finite aggregated value, which the clamp in aggregation would otherwise
+    count as 0 or 1.
     """
-    return r.spec.scoring and r.scalars is not None and r.error is None
+    return (
+        r.spec.scoring
+        and r.scalars is not None
+        and r.error is None
+        and math.isfinite(_aggregated_scalar(r))
+    )
 
 
 def _normalize_scalars(r: MetricResult) -> float:

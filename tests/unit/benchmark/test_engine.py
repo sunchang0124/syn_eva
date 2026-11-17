@@ -373,3 +373,25 @@ def test_a_ranking_with_shared_metrics_adds_no_name_order_note():
         reports={"A": _report(congruence__ks=0.6), "B": _report(congruence__ks=0.7)}
     )
     assert res.notes == []
+
+
+def test_a_loaded_non_finite_score_counts_as_failed_in_the_ranking(tmp_path):
+    # Issue #77: a NaN score in a saved benchmark used to be clamped to 0 and
+    # lowered that candidate's ranking value instead of being left out.
+    saved = BenchmarkResult(
+        reports={
+            "A": _report(compliance__dcr=0.8, compliance__mia_auc=float("nan")),
+            "B": _report(compliance__dcr=0.9, compliance__mia_auc=0.2),
+        }
+    )
+    saved.to_json(tmp_path / "b.json")
+    loaded = BenchmarkResult.from_json(tmp_path / "b.json")
+    failed = BenchmarkResult(
+        reports={
+            "A": _report(compliance__dcr=0.8, compliance__mia_auc=None),
+            "B": _report(compliance__dcr=0.9, compliance__mia_auc=0.2),
+        }
+    )
+    assert "mia_auc" not in loaded.score_matrix["A"]
+    assert loaded.overall == pytest.approx(failed.overall)
+    assert loaded.ranking() == pytest.approx(failed.ranking())
