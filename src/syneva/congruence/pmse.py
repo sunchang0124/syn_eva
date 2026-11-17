@@ -48,6 +48,8 @@ class PMSE:
     )
 
     def __init__(self, random_state: int = 42, n_permutations: int = 20) -> None:
+        if n_permutations < 1:
+            raise ValueError(f"n_permutations must be at least 1, got {n_permutations}")
         self.random_state = random_state
         self.n_permutations = n_permutations
 
@@ -77,7 +79,10 @@ class PMSE:
         X = StandardScaler().fit_transform(X)
         # With as many parameters (independent features plus the intercept) as rows,
         # the model can fit any labelling, so pMSE says nothing about the data.
-        n_params = int(np.linalg.matrix_rank(X)) + 1
+        # The rank (an SVD) is only needed when the column count allows a skip.
+        n_params = X.shape[1] + 1
+        if n_params >= len(X):
+            n_params = int(np.linalg.matrix_rank(X)) + 1
         if n_params >= len(X):
             return MetricResult(
                 spec=self.spec,
@@ -92,21 +97,22 @@ class PMSE:
         # Null reference: the pMSE the same model reaches when the real/synthetic
         # labels carry no information, estimated by permuting them (Snoke et al., 2018).
         rng = np.random.default_rng(self.random_state)
-        null = float(
+        null_pmse = float(
             np.mean([self._pmse(X, rng.permutation(y), c) for _ in range(self.n_permutations)])
         )
         # A perfect classifier (p = 0 on real rows, 1 on synthetic) attains the
         # maximum pMSE of c(1 - c), which maps fully separable data to 0.
         max_pmse = c * (1.0 - c)
-        score = float(np.clip(1.0 - (pmse - null) / (max_pmse - null), 0.0, 1.0))
+        score = float(np.clip(1.0 - (pmse - null_pmse) / (max_pmse - null_pmse), 0.0, 1.0))
+        # With only constant features the model fits just the intercept, so pMSE and
+        # its null are both exactly 0: the data can't be told apart.
+        ratio = pmse / null_pmse if null_pmse > 0 else 1.0
         return MetricResult(
             spec=self.spec,
             scalars={
                 "score": score,
                 "pmse": pmse,
-                "pmse_null": null,
-                # With only constant features the model fits just the intercept, so
-                # pMSE and its null are both exactly 0: indistinguishable data.
-                "pmse_ratio": pmse / null if null > 0 else 1.0,
+                "pmse_null": null_pmse,
+                "pmse_ratio": ratio,
             },
         )

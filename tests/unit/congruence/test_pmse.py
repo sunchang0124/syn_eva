@@ -159,3 +159,8 @@ def test_same_random_state_is_reproducible():
     assert PMSE(random_state=7).compute(real, syn, meta).scalars == (
         PMSE(random_state=7).compute(real, syn, meta).scalars
     )
+
+
+def test_zero_permutations_is_rejected():
+    with pytest.raises(ValueError, match="n_permutations"):
+        PMSE(n_permutations=0)
