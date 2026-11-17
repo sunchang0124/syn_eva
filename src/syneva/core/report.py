@@ -169,7 +169,8 @@ def _result_from_dict(d: dict) -> MetricResult:
         scalars = {k: _null_to_nan(v) for k, v in scalars.items()}
     if per_column is not None:
         per_column = {
-            col: {k: _null_to_nan(v) for k, v in vals.items()} for col, vals in per_column.items()
+            col: {k: _null_to_nan(v) for k, v in vals.items()} if isinstance(vals, dict) else vals
+            for col, vals in per_column.items()
         }
     # A saved file can hold a non-finite score (written before #76, or edited), so
     # loaded results get the same check as freshly computed ones.

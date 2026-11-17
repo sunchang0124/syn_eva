@@ -255,3 +255,14 @@ def test_ui_report_json_is_strict_json():
 
     data = _strict_loads(core.report_json_str(_report_with_non_finite_values()))
     assert data["results"][0]["scalars"]["p"] is None
+
+
+def test_non_dict_per_column_entries_load_unchanged():
+    # Only nulls inside the usual {column: {name: value}} shape are read as NaN;
+    # anything else loads as it did before #109.
+    d = _report_with(MetricResult(spec=_spec("m"), scalars={"score": 0.5})).to_dict()
+    d["results"][0]["per_column"] = {"a": [1, None], "b": {"x": None}}
+    pc = Report.from_dict(d).results[0].per_column
+    assert pc is not None
+    assert pc["a"] == [1, None]
+    assert math.isnan(pc["b"]["x"])

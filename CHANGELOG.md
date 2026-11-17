@@ -23,8 +23,8 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
 ### Fixed
 - Report and benchmark JSON files, and the JSON downloads in the web UI, are
   now valid JSON (#109). A NaN or infinite value used to be written as a bare
-  `NaN` or `Infinity` token, which strict parsers such as JavaScript's
-  `JSON.parse` reject. Such values are now written as `null` and read back as
+  `NaN` or `Infinity` token, which is not valid JSON, so strict JSON parsers
+  rejected the file. Such values are now written as `null` and read back as
   NaN; infinite values come back as NaN too. Files written by older versions
   still load.
 - Reports and benchmark results loaded from a file now treat a NaN or infinite
