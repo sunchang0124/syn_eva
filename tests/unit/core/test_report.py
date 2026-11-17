@@ -172,3 +172,13 @@ def test_loaded_skipped_failed_and_non_scoring_results_are_unchanged():
     assert str(loaded["failed"].error) == "boom"
     assert loaded["info"].error is None
     assert loaded["info"].scalars is not None and math.isnan(loaded["info"].scalars["value"])
+
+
+@pytest.mark.parametrize("scalars", [{}, {"score": None}])
+def test_loading_does_not_validate_beyond_non_finite_scores(scalars):
+    # Only NaN and infinite numbers are rejected on load; other malformed values
+    # load as before instead of making the whole file unreadable.
+    rep = _report_with(MetricResult(spec=_spec("odd"), scalars=scalars))
+    loaded = Report.from_dict(rep.to_dict()).results[0]
+    assert loaded.scalars == scalars
+    assert loaded.error is None

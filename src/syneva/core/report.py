@@ -146,6 +146,25 @@ def _result_from_dict(d: dict) -> MetricResult:
     )
 
 
+def _has_score(r: MetricResult) -> bool:
+    """A scoring metric that ran and reported scalars, whatever their values."""
+    return r.spec.scoring and r.scalars is not None and r.error is None
+
+
+def _non_finite_score(r: MetricResult) -> float | None:
+    """The aggregated value if it is a NaN or infinite number, else None.
+
+    Only numbers are checked: other malformed values are left for aggregation to
+    reject, as they were before this check existed.
+    """
+    if not r.scalars:
+        return None
+    v = _aggregated_scalar(r)
+    if isinstance(v, (int, float)) and not math.isfinite(v):
+        return float(v)
+    return None
+
+
 def reject_non_finite_score(r: MetricResult) -> MetricResult:
     """Turn a result whose aggregated value is NaN or infinite into a failed metric.
 
@@ -154,11 +173,7 @@ def reject_non_finite_score(r: MetricResult) -> MetricResult:
     as a failure shows it in the report and excludes it from aggregates.
     Non-finite secondary scalars (e.g. a NaN p-value) are kept.
     """
-    # Not is_scored(): that is False for non-finite values, so it would let them through.
-    if not r.spec.scoring or r.scalars is None or r.error is not None:
-        return r
-    v = _aggregated_scalar(r)
-    if math.isfinite(v):
+    if not _has_score(r) or (v := _non_finite_score(r)) is None:
         return r
     return replace(
         r, scalars=None, error=MetricError(f"{r.spec.name} returned a non-finite score ({v})")
@@ -172,12 +187,7 @@ def is_scored(r: MetricResult) -> bool:
     a non-finite aggregated value, which the clamp in aggregation would otherwise
     count as 0 or 1.
     """
-    return (
-        r.spec.scoring
-        and r.scalars is not None
-        and r.error is None
-        and math.isfinite(_aggregated_scalar(r))
-    )
+    return _has_score(r) and _non_finite_score(r) is None
 
 
 def _normalize_scalars(r: MetricResult) -> float:
