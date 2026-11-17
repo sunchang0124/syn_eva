@@ -19,7 +19,9 @@ class Preset:
     run_fairness: bool
     distance: str
     # Per-metric constructor options; explicit evaluate() options override them.
-    metric_options: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    # Left out of the hash: a dict can't be hashed, and the other fields identify
+    # the preset.
+    metric_options: Mapping[str, Mapping[str, Any]] = field(default_factory=dict, hash=False)
 
 
 PRESETS: dict[str, Preset] = {

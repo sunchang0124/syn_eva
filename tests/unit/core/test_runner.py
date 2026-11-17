@@ -1,6 +1,7 @@
 # tests/unit/core/test_runner.py
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -483,3 +484,46 @@ def test_explicit_metric_options_override_preset_per_option(preset_with_options)
     )
     assert rep.results[0].scalars == {"score": 0.75}
     assert rep.run_info.metric_options == {"two_option": {"factor": 0.25, "offset": 0.5}}
+
+
+@pytest.mark.parametrize("value", [None, "factor", ["factor"]])
+def test_metric_options_value_must_be_a_mapping(value):
+    with pytest.raises(SynevaError, match=r"'scaled' must map option names to values"):
+        _run_with_options(_ScaledMetric, metric_options={"scaled": value})
+
+
+def test_metric_options_runner_controlled_message_lists_accepted_options():
+    with pytest.raises(SynevaError, match=r"valid: \['factor'\]"):
+        _run_with_options(_ScaledMetric, metric_options={"scaled": {"random_state": 1}})
+
+
+def test_metric_options_numpy_scalars_are_recorded_as_plain_values():
+    rep = _run_with_options(_ScaledMetric, metric_options={"scaled": {"factor": np.float64(0.25)}})
+    recorded = rep.run_info.metric_options["scaled"]["factor"]
+    assert recorded == 0.25
+    assert type(recorded) is float
+    assert rep.results[0].scalars == {"score": 0.25}
+
+
+@pytest.mark.parametrize("value", [(0.25,), object(), float("nan"), float("inf")])
+def test_metric_options_value_that_json_cannot_keep_raises(value):
+    with pytest.raises(SynevaError, match=r"'scaled' option 'factor'.*JSON"):
+        _run_with_options(_ScaledMetric, metric_options={"scaled": {"factor": value}})
+
+
+def test_metric_options_accepts_any_name_for_kwargs_constructor():
+    class _KwargsMetric(_ScaledMetric):
+        spec = MetricSpec(
+            name="kwargs_metric",
+            c="congruence",
+            tier="core",
+            data_types=frozenset({"static"}),
+            requires_real=True,
+            scope="table-level",
+        )
+
+        def __init__(self, factor: float = 0.5, **extra) -> None:
+            self.factor = extra.get("override", factor)
+
+    rep = _run_with_options(_KwargsMetric, metric_options={"kwargs_metric": {"override": 0.75}})
+    assert rep.results[0].scalars == {"score": 0.75}

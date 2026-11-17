@@ -14,7 +14,8 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   own constructor options by metric name (#54), for example
   `metric_options={"ci_overlap": {"use_real_se": True}}`. Unknown metrics,
   unknown options, and options that `evaluate()` sets itself (such as
-  `distance` or `random_state`) raise an error before any metric runs. The
+  `distance` or `random_state`) raise an error before any metric runs, as do
+  values a JSON file can't hold exactly (numpy scalars are converted). The
   options used are saved in the report's `run_info.metric_options`, so a
   scorecard records which mode produced it.
 

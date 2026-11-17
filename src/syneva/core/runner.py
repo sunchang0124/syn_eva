@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import inspect
+import math
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
@@ -287,16 +289,17 @@ def evaluate_with(
     return Report(metadata=metadata, results=results, run_info=info)
 
 
-def _check_metric_options(
-    reg: MetricRegistry, metric_options: Mapping[str, Mapping[str, Any]]
-) -> None:
-    """Reject unknown metrics and options, and options the runner sets, before any metric runs."""
+def _check_metric_options(reg: MetricRegistry, metric_options: dict[str, dict[str, Any]]) -> None:
+    """Reject unknown metrics and options, and options the runner sets, before any
+    metric runs. Option values are made plain JSON in place, so run_info saves and
+    reloads exactly the values the metrics were given."""
     by_name = {cls.spec.name: cls for cls in reg.metrics()}
     for name, options in metric_options.items():
         if name not in by_name:
             raise SynevaError(f"metric_options: unknown metric '{name}'; valid: {sorted(by_name)}")
-        accepted = _metric_options_of(by_name[name])
-        for option in options:
+        accepted, takes_any = _metric_options_of(by_name[name])
+        valid = f"valid: {accepted}" if accepted else "it accepts none"
+        for option, value in options.items():
             if option in _RUNNER_ARGS:
                 source = _RUNNER_ARGS[option]
                 how = (
@@ -305,27 +308,65 @@ def _check_metric_options(
                     else "the runner builds it"
                 )
                 raise SynevaError(
-                    f"metric_options: '{name}' option '{option}' is set for every metric; {how}"
+                    f"metric_options: '{name}' option '{option}' is set by the runner; "
+                    f"{how}; {valid}"
                 )
-            if option not in accepted:
-                valid = f"valid: {accepted}" if accepted else "it accepts none"
+            if option not in accepted and not takes_any:
                 raise SynevaError(f"metric_options: '{name}' has no option '{option}'; {valid}")
+            options[option] = _json_option_value(name, option, value)
+
+
+def _json_option_value(name: str, option: str, value: Any) -> Any:
+    """Return `value` as plain JSON, or raise if a JSON round trip would change it.
+
+    Numpy scalars become the matching Python value. A tuple would come back as a
+    list, NaN and infinity as null, and other objects as their str(), so those are
+    rejected rather than recorded wrongly.
+    """
+    if isinstance(value, np.generic):
+        value = value.item()
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, float) and math.isfinite(value):
+        return value
+    if isinstance(value, list):
+        return [_json_option_value(name, option, v) for v in value]
+    if isinstance(value, dict) and all(isinstance(k, str) for k in value):
+        return {k: _json_option_value(name, option, v) for k, v in value.items()}
+    raise SynevaError(
+        f"metric_options: '{name}' option '{option}' must be a JSON value (a bool, a "
+        f"finite number, a string, None, or a list or str-keyed dict of these), so the "
+        f"report records it exactly; got {value!r}"
+    )
 
 
 def _merge_metric_options(
     base: Mapping[str, Mapping[str, Any]], override: Mapping[str, Mapping[str, Any]]
 ) -> dict[str, dict[str, Any]]:
     """Merge per metric, so an override replaces only the options it names."""
-    merged = {name: dict(opts) for name, opts in base.items()}
+    merged = {name: _as_options(name, opts) for name, opts in base.items()}
     for name, opts in override.items():
-        merged.setdefault(name, {}).update(opts)
+        merged.setdefault(name, {}).update(_as_options(name, opts))
     return merged
 
 
-def _metric_options_of(cls) -> list[str]:
-    """The constructor options a user may set through metric_options."""
-    params = inspect.signature(cls).parameters
-    return [p for p in params if p not in _RUNNER_ARGS]
+def _as_options(name: str, options: Any) -> dict[str, Any]:
+    if not isinstance(options, Mapping):
+        raise SynevaError(
+            f"metric_options: '{name}' must map option names to values, "
+            f"got {type(options).__name__}"
+        )
+    return dict(options)
+
+
+def _metric_options_of(cls) -> tuple[list[str], bool]:
+    """The named constructor options a user may set through metric_options, and
+    whether the constructor takes **kwargs (and so accepts any other name)."""
+    params = inspect.signature(cls).parameters.values()
+    named = (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+    accepted = [p.name for p in params if p.kind in named and p.name not in _RUNNER_ARGS]
+    takes_any = any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params)
+    return accepted, takes_any
 
 
 def _check_not_empty(
