@@ -60,3 +60,19 @@ def test_every_active_c_has_a_description():
 def test_describe_unknown_returns_empty():
     assert describe_metric("does_not_exist") == ""
     assert describe_c("does_not_exist") == ""
+
+
+def test_every_option_row_names_a_constructor_option_with_a_scalar_default():
+    import inspect
+
+    from syneva.core.metric_info import OPTION_INFO
+
+    by_name = {c.spec.name: c for c in registry.metrics()}
+    for metric, options in OPTION_INFO.items():
+        assert metric in by_name, f"OPTION_INFO names unknown metric '{metric}'"
+        params = inspect.signature(by_name[metric]).parameters
+        for option, info in options.items():
+            assert option in params, f"'{metric}' has no constructor option '{option}'"
+            default = params[option].default
+            assert type(default) in (bool, int, float), f"{metric}.{option} default {default!r}"
+            assert info.label and info.help

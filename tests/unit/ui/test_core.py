@@ -303,3 +303,69 @@ def test_benchmark_json_str_is_strict_json_with_null_for_nan():
     res = BenchmarkResult(reports={"A": _report_with_nan_secondary_scalar()})
     data = _strict_loads(core.benchmark_json_str(res))
     assert data["reports"]["A"]["results"][0]["scalars"]["p"] is None
+
+
+def test_metric_option_catalog_lists_known_options():
+    by_key = {(o["metric"], o["option"]): o for o in core.metric_option_catalog()}
+    use_real_se = by_key[("ci_overlap", "use_real_se")]
+    assert use_real_se["kind"] == "bool"
+    assert use_real_se["default"] is False
+    assert use_real_se["display_name"] == "Confidence-interval overlap"
+    assert "standard error" in use_real_se["label"]
+    assert "0.8" in use_real_se["help"]
+    n_permutations = by_key[("pmse", "n_permutations")]
+    assert n_permutations["kind"] == "int"
+    assert n_permutations["default"] == 20
+    assert n_permutations["label"] and n_permutations["help"]
+
+
+_USE_REAL_SE = {"ci_overlap": {"use_real_se": True}}
+
+
+def _small_frames():
+    real = pd.read_parquet(f"{FIX}/adult_income_real_500.parquet").head(100)
+    syn = pd.read_parquet(f"{FIX}/adult_income_syn_good_500.parquet").head(100)
+    return real, syn, Metadata.infer(real)
+
+
+def test_run_report_passes_metric_options_for_a_manual_selection():
+    real, syn, meta = _small_frames()
+    rep = core.run_report(real, syn, meta, ["ci_overlap"], metric_options=_USE_REAL_SE)
+    assert rep.run_info.metric_options == _USE_REAL_SE
+
+
+def test_run_report_passes_metric_options_with_a_preset():
+    real, syn, meta = _small_frames()
+    rep = core.run_report(real, syn, meta, [], preset="fast", metric_options=_USE_REAL_SE)
+    assert rep.run_info.metric_options == _USE_REAL_SE
+
+
+def test_run_benchmark_passes_metric_options_to_every_candidate():
+    real, syn, meta = _small_frames()
+    res = core.run_benchmark(
+        real, {"a": syn, "b": syn}, meta, preset="fast", metric_options=_USE_REAL_SE
+    )
+    assert all(r.run_info.metric_options == _USE_REAL_SE for r in res.reports.values())
+
+
+def test_run_report_ignores_options_for_metrics_not_selected():
+    # The sidebar shows every option whatever is ticked, and says an option is
+    # used only when its metric runs; the run must not fail over an unticked one.
+    real, syn, meta = _small_frames()
+    rep = core.run_report(real, syn, meta, ["ks_statistic"], metric_options=_USE_REAL_SE)
+    assert [r.spec.name for r in rep.results] == ["ks_statistic"]
+    assert rep.run_info.metric_options == {}
+
+
+def test_describe_metric_options_names_only_metrics_that_ran():
+    # A preset can leave out a metric whose option was set; the results must not
+    # claim that option was used.
+    options = {"ci_overlap": {"use_real_se": True}, "pmse": {"n_permutations": 50}}
+    assert core.describe_metric_options(options, ran={"pmse", "dcr"}) == "pmse.n_permutations = 50"
+    assert core.describe_metric_options(options, ran={"dcr"}) == ""
+
+
+def test_metric_option_catalog_keeps_n_permutations_at_one_or_more():
+    by_key = {(o["metric"], o["option"]): o for o in core.metric_option_catalog()}
+    assert by_key[("pmse", "n_permutations")]["min_value"] == 1
+    assert by_key[("ci_overlap", "use_real_se")]["min_value"] is None
