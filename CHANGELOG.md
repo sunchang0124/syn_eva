@@ -21,6 +21,13 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- `pmse` now scores synthetic data that is as close to the real data as a
+  second sample would be at about 1, whatever the table's shape (#61). A
+  perfect generator used to score as low as 0.80. **The score scale changes**,
+  so `pmse` scores are not comparable with earlier versions. New scalars
+  `pmse_null` and `pmse_ratio`; the metric is skipped when the classifier has
+  at least as many parameters as rows; each run takes 20 extra classifier
+  fits. See the `pmse` metric page for the method.
 - The `novelty_rate` description and hint said it measured synthetic rows that
   are not duplicates of each other (#43). It measures synthetic rows that are
   not exact copies of a real row, which is `1 - identical_match_rate` and

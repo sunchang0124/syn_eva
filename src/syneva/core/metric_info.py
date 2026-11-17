@@ -84,7 +84,7 @@ RAW_HINT: dict[str, str] = {
     "tvd": "Ranges 0 to 1: 0 = identical frequencies, larger = more different. Lower is better.",
     "wasserstein": "A distance in standardized units: 0 = identical, larger = further apart. Lower is better.",
     "correlation_difference": "Average absolute difference in correlations: 0 = identical structure, larger = more distortion. Lower is better.",
-    "pmse": "0 means the model cannot distinguish real from synthetic; larger = easier to tell apart. Lower is better.",
+    "pmse": "Spread of the classifier's real-vs-synthetic probabilities, 0 to c(1-c). Data that can't be told apart sits near pmse_null; larger = easier to tell apart. Lower is better.",
     "ci_overlap": "Overlap fraction from 0 to 1: 1 = fully overlapping intervals, 0 = disjoint. Higher is better.",
     "hellinger": "Ranges 0 to 1: 0 = identical distributions, larger = more different. Lower is better.",
     "quantile_mse": "Standardized mean squared error across quantiles: 0 = identical, larger = more deviation. Lower is better.",

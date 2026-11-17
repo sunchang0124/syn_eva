@@ -370,8 +370,10 @@
       "notes": [],
       "per_column": null,
       "scalars": {
-        "pmse": 0.0003593614630450688,
-        "score": 0.9985625541478197
+        "pmse": 0.00035936146304506875,
+        "pmse_null": 0.0020374800566860525,
+        "pmse_ratio": 0.17637545057965756,
+        "score": 1.0
       },
       "skip_reason": null,
       "spec": {
