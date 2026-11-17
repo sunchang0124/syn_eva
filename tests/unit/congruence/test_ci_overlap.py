@@ -72,3 +72,51 @@ def test_constant_synthetic_against_varying_real_scores_zero():
     syn = pd.DataFrame({"x": [0.0] * 200})
     r = CIOverlap().compute(real, syn, Metadata.infer(real))
     assert r.per_column["x"]["ci_overlap"] == 0.0
+
+
+# use_real_se: both intervals use the real data's standard error (Raab et al., 2017;
+# Snoke et al., 2018), so Karr's measure becomes 1 - |z| / (2 * 1.96).
+
+
+def test_real_se_is_invariant_to_synthetic_size():
+    real = pd.DataFrame({"x": [-1.0, 1.0] * 100})
+    small = pd.DataFrame({"x": [-0.9, 1.1] * 100})
+    large = pd.DataFrame({"x": [-0.9, 1.1] * 10_000})
+    metric = CIOverlap(use_real_se=True)
+    a = metric.compute(real, small, Metadata.infer(real)).scalars["score"]
+    b = metric.compute(real, large, Metadata.infer(real)).scalars["score"]
+    assert a == pytest.approx(b)
+
+
+def test_real_se_matches_standardised_difference_identity():
+    # Equal-length intervals offset by z standard errors: IO = 1 - |z| / (2 * 1.96).
+    real = pd.DataFrame({"x": [-1.0, 1.0] * 100})
+    syn = pd.DataFrame({"x": [-0.9, 1.1] * 5_000})
+    se_r = float(real["x"].std()) / np.sqrt(len(real))
+    z = (float(syn["x"].mean()) - float(real["x"].mean())) / se_r
+    r = CIOverlap(use_real_se=True).compute(real, syn, Metadata.infer(real))
+    assert r.per_column["x"]["ci_overlap"] == pytest.approx(1 - abs(z) / (2 * 1.96))
+
+
+def test_real_se_nested_same_mean_scores_one():
+    real = pd.DataFrame({"x": [-1.0, 1.0] * 100})
+    syn = pd.DataFrame({"x": [-1.0, 1.0] * 10_000})
+    r = CIOverlap(use_real_se=True).compute(real, syn, Metadata.infer(real))
+    assert r.scalars["score"] == pytest.approx(1.0)
+
+
+def test_real_se_disjoint_means_clamped_to_zero():
+    real = pd.DataFrame({"x": [-1.0, 1.0] * 100})
+    syn = pd.DataFrame({"x": [49.0, 51.0] * 100})
+    r = CIOverlap(use_real_se=True).compute(real, syn, Metadata.infer(real))
+    assert r.scalars["score"] == 0.0
+
+
+def test_default_uses_each_datasets_own_se():
+    real = pd.DataFrame({"x": [-1.0, 1.0] * 100})
+    syn = pd.DataFrame({"x": [-1.0, 1.0] * 10_000})
+    meta = Metadata.infer(real)
+    assert CIOverlap().compute(real, syn, meta).scalars["score"] == pytest.approx(
+        CIOverlap(use_real_se=False).compute(real, syn, meta).scalars["score"]
+    )
+    assert CIOverlap().compute(real, syn, meta).scalars["score"] < 0.6
