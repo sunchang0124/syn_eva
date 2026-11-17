@@ -25,10 +25,15 @@ class PMSE:
     classifier (0). ``pmse_ratio`` is pMSE divided by the null.
 
     The metric is skipped when the model has at least as many parameters as rows:
-    it can then fit any labelling, so pMSE carries no information.
+    a linear classifier can then split the rows in every possible way (Cover,
+    1965), so pMSE carries no information.
 
     References
     ----------
+    Cover, T. M. (1965). Geometrical and statistical properties of systems of linear
+    inequalities with applications in pattern recognition. *IEEE Transactions on
+    Electronic Computers*, EC-14(3), 326-334.
+
     Woo, M.-J., Reiter, J. P., Oganian, A., & Karr, A. F. (2009). Global measures
     of data utility for microdata masked for disclosure limitation. *Journal of
     Privacy and Confidentiality*, 1(1), 111-124.
@@ -77,8 +82,10 @@ class PMSE:
         y = np.concatenate([np.zeros(len(X_real)), np.ones(len(X_syn))])
         # encode_pair scales only the numeric columns; scale the one-hot columns too
         X = StandardScaler().fit_transform(X)
-        # With as many parameters (independent features plus the intercept) as rows,
-        # the model can fit any labelling, so pMSE says nothing about the data.
+        # A linear classifier with an intercept and d independent features can split
+        # N points in general position in every possible way when N <= d + 1 (Cover,
+        # 1965). With that many parameters the model fits any labelling, permuted ones
+        # included, so pMSE says nothing about the data.
         # The rank (an SVD) is only needed when the column count allows a skip.
         n_params = X.shape[1] + 1
         if n_params >= len(X):

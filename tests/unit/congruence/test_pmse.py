@@ -49,13 +49,12 @@ def test_score_normalizes_by_maximum_pmse(n_real, n_syn, max_pmse):
     real = pd.DataFrame({"x": rng.normal(0, 1, n_real)})
     syn = pd.DataFrame({"x": rng.normal(1, 1, n_syn)})
     r = PMSE().compute(real, syn, Metadata.infer(real))
-    s = r.scalars
-    assert s is not None
-    assert 0 < s["score"] < 1
+    scalars = r.scalars
+    assert scalars is not None
+    assert 0 < scalars["score"] < 1
     # rescaled between the permutation null (score 1) and the maximum (score 0)
-    assert s["score"] == pytest.approx(
-        1 - (s["pmse"] - s["pmse_null"]) / (max_pmse - s["pmse_null"])
-    )
+    null = scalars["pmse_null"]
+    assert scalars["score"] == pytest.approx(1 - (scalars["pmse"] - null) / (max_pmse - null))
 
 
 @pytest.mark.parametrize("empty", ["real", "synthetic"])
@@ -164,3 +163,16 @@ def test_same_random_state_is_reproducible():
 def test_zero_permutations_is_rejected():
     with pytest.raises(ValueError, match="n_permutations"):
         PMSE(n_permutations=0)
+
+
+@pytest.mark.parametrize(("n_real", "n_syn"), [(1000, 100), (100, 1000)])
+def test_identically_distributed_unequal_sizes_score_near_one(n_real, n_syn):
+    rng = np.random.default_rng(0)
+
+    def make(n):
+        return pd.DataFrame({"x": rng.normal(0, 1, n), "g": rng.integers(0, 30, n).astype(str)})
+
+    real, syn = make(n_real), make(n_syn)
+    r = PMSE().compute(real, syn, Metadata.infer(real))
+    assert r.scalars is not None
+    assert r.scalars["score"] >= 0.95

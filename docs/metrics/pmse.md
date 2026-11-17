@@ -51,7 +51,7 @@ The metric is skipped when:
 
 - a dataset is empty;
 - no numeric or categorical column is left to classify on;
-- the model has at least as many parameters (independent features plus the intercept) as pooled rows. It can then fit any labelling, shuffled ones included, so pMSE says nothing about the data. This happens with categorical columns that have nearly one level per row.
+- the model has at least as many parameters (independent features plus the intercept) as pooled rows. A linear classifier can then split the rows in every possible way (Cover, 1965), so it fits any labelling, shuffled ones included, and pMSE says nothing about the data. This happens with categorical columns that have nearly one level per row.
 
 If the classifier fails to fit, the error propagates and the run records it as
 a metric error, not a score.
@@ -71,9 +71,14 @@ category frequencies. Keep in mind:
 - `score`: $1 - (\text{pMSE} - \text{pMSE}_0) / (c(1-c) - \text{pMSE}_0)$, clipped to 0 to 1, higher is better.
 - `pmse`: the raw pMSE, from 0 to $c(1-c)$. 0 means the classifier cannot distinguish real from synthetic; lower is better. Its upper bound depends on $c$, so compare raw values only between runs with the same real/synthetic sizes.
 - `pmse_null`: $\text{pMSE}_0$, the permutation estimate of pMSE for data that can't be told apart.
-- `pmse_ratio`: $\text{pMSE} / \text{pMSE}_0$ (Snoke et al., 2018). About 1 means the synthetic data is as close to the real data as a second sample from the same distribution would be; larger is worse. With few features, pMSE for data that can't be told apart varies a lot from sample to sample (its standard deviation is about $\sqrt{2/(k-1)}$ times its mean for $k-1$ independent features; Snoke et al., 2018), so the ratio can land far from 1 by chance. Read it together with `score`.
+- `pmse_ratio`: $\text{pMSE} / \text{pMSE}_0$ (Snoke et al., 2018). About 1 means the synthetic data is as close to the real data as a second sample from the same distribution would be; larger is worse. Well below 1 means the synthetic data is closer to the real data than an independent sample would be, as when synthetic rows are perturbed copies of real ones; check the privacy metrics such as `dcr` in that case. With few features, pMSE for data that can't be told apart varies a lot from sample to sample (its standard deviation is about $\sqrt{2/(k-1)}$ times its mean for $k-1$ independent features; Snoke et al., 2018), so the ratio can land far from 1 by chance. Read it together with `score`.
 
 ## Citation
+
+Cover, T. M. (1965). Geometrical and statistical properties of systems of
+linear inequalities with applications in pattern recognition. *IEEE
+Transactions on Electronic Computers*, EC-14(3), 326–334.
+https://doi.org/10.1109/PGEC.1965.264137
 
 Woo, M.-J., Reiter, J. P., Oganian, A., & Karr, A. F. (2009). Global measures
 of data utility for microdata masked for disclosure limitation. *Journal of
