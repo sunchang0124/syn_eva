@@ -31,6 +31,11 @@ def seen(monkeypatch):
     return calls
 
 
+def _flat(output: str) -> str:
+    """The error text without typer's box, so a message wrapped across lines matches."""
+    return " ".join(output.replace("│", " ").split())
+
+
 def _evaluate(tmp_path, *options):
     args = ["evaluate", "--real", _REAL, "--synthetic", _SYN, "--out", str(tmp_path)]
     for o in options:
@@ -58,8 +63,9 @@ def _benchmark(tmp_path, *options):
     ],
 )
 def test_value_is_read_as_json_or_kept_as_text(tmp_path, seen, raw, expected):
-    _evaluate(tmp_path, f"ci_overlap.use_real_se={raw}")
-    value = seen[0]["metric_options"]["ci_overlap"]["use_real_se"]
+    # An unregistered metric, so no known option type applies; evaluate() rejects it.
+    _evaluate(tmp_path, f"custom.opt={raw}")
+    value = seen[0]["metric_options"]["custom"]["opt"]
     assert value == expected
     assert type(value) is type(expected)
 
@@ -98,14 +104,42 @@ def test_benchmark_passes_metric_options(tmp_path, seen):
 @pytest.mark.parametrize("run", [_evaluate, _benchmark])
 def test_malformed_entry_is_rejected_before_running(tmp_path, seen, run, entry):
     result = run(tmp_path, entry)
-    assert result.exit_code != 0
-    assert entry in result.output
+    assert result.exit_code == 2
+    assert entry in _flat(result.output)
     assert seen == []
 
 
 @pytest.mark.parametrize("run", [_evaluate, _benchmark])
 def test_repeated_option_is_rejected(tmp_path, seen, run):
     result = run(tmp_path, "pmse.n_permutations=5", "pmse.n_permutations=10")
-    assert result.exit_code != 0
-    assert "pmse.n_permutations" in result.output
+    assert result.exit_code == 2
+    assert "pmse.n_permutations" in _flat(result.output)
     assert seen == []
+
+
+@pytest.mark.parametrize(
+    ("entry", "expects"),
+    [
+        ("ci_overlap.use_real_se=False", "true or false"),
+        ("ci_overlap.use_real_se=yes", "true or false"),
+        ("ci_overlap.use_real_se=", "true or false"),
+        ("pmse.n_permutations=ten", "a whole number"),
+    ],
+)
+def test_text_for_a_bool_or_number_option_is_rejected(tmp_path, seen, entry, expects):
+    # Kept as text, "False" or "yes" would be a non-empty string, which a metric
+    # reads as true: the opposite of what was asked.
+    result = _evaluate(tmp_path, entry)
+    assert result.exit_code == 2
+    assert expects in _flat(result.output)
+    assert seen == []
+
+
+def test_quoted_text_is_still_passed_on_as_text(tmp_path, seen):
+    _evaluate(tmp_path, 'ci_overlap.use_real_se="False"')
+    assert seen[0]["metric_options"] == {"ci_overlap": {"use_real_se": "False"}}
+
+
+def test_spaces_around_names_and_value_are_ignored(tmp_path, seen):
+    _evaluate(tmp_path, " ci_overlap . use_real_se = true ")
+    assert seen[0]["metric_options"] == {"ci_overlap": {"use_real_se": True}}

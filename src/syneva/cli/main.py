@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import subprocess
@@ -14,6 +15,7 @@ import syneva
 from syneva.core.errors import SynevaError
 from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.presets import _UNSET
+from syneva.core.registry import registry
 from syneva.core.run_info import MAX_RANDOM_STATE
 from syneva.ui import reload_notice
 
@@ -57,7 +59,8 @@ def _parse_metric_options(entries: list[str] | None) -> dict[str, dict[str, Any]
     options: dict[str, dict[str, Any]] = {}
     for entry in entries:
         key, eq, raw = entry.partition("=")
-        metric, dot, option = key.partition(".")
+        metric, dot, option = (part.strip() for part in key.partition("."))
+        raw = raw.strip()
         if not (eq and dot and metric and option):
             raise typer.BadParameter(
                 f"must be metric.option=value, got '{entry}'", param_hint="--metric-option"
@@ -69,9 +72,33 @@ def _parse_metric_options(entries: list[str] | None) -> dict[str, dict[str, Any]
         try:
             value = json.loads(raw)
         except json.JSONDecodeError:
+            _check_text_fits(metric, option, raw)
             value = raw
         options.setdefault(metric, {})[option] = value
     return options
+
+
+def _check_text_fits(metric: str, option: str, raw: str) -> None:
+    """Reject text for an option whose default is a bool or number.
+
+    Text such as "False" or "yes" would reach the metric as a non-empty string,
+    which reads as true. Unknown metrics and options are left to evaluate()'s own
+    checks, which name the valid choices.
+    """
+    cls = next((c for c in registry.metrics() if c.spec.name == metric), None)
+    param = inspect.signature(cls).parameters.get(option) if cls is not None else None
+    default = param.default if param is not None else None
+    if isinstance(default, bool):
+        expects = "true or false"
+    elif isinstance(default, int):
+        expects = "a whole number"
+    elif isinstance(default, float):
+        expects = "a number"
+    else:
+        return
+    raise typer.BadParameter(
+        f"'{metric}.{option}' expects {expects}, got '{raw}'", param_hint="--metric-option"
+    )
 
 
 @app.callback()
