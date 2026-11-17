@@ -5,6 +5,7 @@ CLI passes on without running any metric. The recorder then raises, which the CL
 reports as a syneva error.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -32,8 +33,11 @@ def seen(monkeypatch):
 
 
 def _flat(output: str) -> str:
-    """The error text without typer's box, so a message wrapped across lines matches."""
-    return " ".join(output.replace("│", " ").split())
+    """The error text without typer's box or colours, so a message wrapped across
+    lines matches. Rich colours its output under GitHub Actions even without a
+    terminal, which puts escape codes inside a wrapped message."""
+    plain = re.sub(r"\[[0-9;]*m", "", output)
+    return " ".join(plain.replace("│", " ").split())
 
 
 def _evaluate(tmp_path, *options):
