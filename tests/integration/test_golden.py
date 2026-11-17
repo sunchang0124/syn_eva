@@ -105,3 +105,13 @@ def test_adult_income_good_matches_golden(real_df, syn_good_df, metadata, update
         f"Golden mismatch at {mismatch}. If intentional, run "
         "`uv run pytest tests/integration/test_golden.py --update-golden`"
     )
+
+
+def test_finite_report_json_is_unchanged_by_strict_serializer(real_df, syn_good_df, metadata):
+    # #109 only touches NaN and infinity; everything else is written exactly as before.
+    from syneva.core.report import dumps_strict_json
+
+    d = syneva.evaluate(
+        real_df, syn_good_df, metadata, tiers=("core",), run_utility=False
+    ).to_dict()
+    assert dumps_strict_json(d) == json.dumps(d, indent=2, default=str)

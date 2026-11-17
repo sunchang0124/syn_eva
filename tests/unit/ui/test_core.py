@@ -263,3 +263,43 @@ def test_edited_column_types_fall_back_to_the_inferred_type():
         "sex": ColumnType.CATEGORICAL,
         "ok": ColumnType.BOOLEAN,
     }
+
+
+def _report_with_nan_secondary_scalar() -> Report:
+    from syneva.core.metric import MetricResult, MetricSpec
+    from syneva.core.run_info import RunInfo
+
+    spec = MetricSpec(
+        name="m",
+        c="congruence",
+        tier="core",
+        data_types=frozenset({"static"}),
+        requires_real=True,
+        scope="table-level",
+    )
+    meta = Metadata(columns={"x": ColumnMetadata(name="x", dtype=ColumnType.NUMERIC)})
+    result = MetricResult(spec=spec, scalars={"score": 0.5, "p": float("nan")})
+    return Report(metadata=meta, results=[result], run_info=RunInfo.capture(random_state=42))
+
+
+def _strict_loads(text: str):
+    """Parse JSON the way strict parsers do: bare NaN / Infinity tokens are errors."""
+
+    def reject(token):
+        raise ValueError(f"invalid JSON token {token}")
+
+    return _json.loads(text, parse_constant=reject)
+
+
+# Issue #109: the JSON downloads used bare NaN tokens, which strict parsers reject.
+def test_report_json_str_is_strict_json_with_null_for_nan():
+    data = _strict_loads(core.report_json_str(_report_with_nan_secondary_scalar()))
+    assert data["results"][0]["scalars"]["p"] is None
+
+
+def test_benchmark_json_str_is_strict_json_with_null_for_nan():
+    from syneva.benchmark.engine import BenchmarkResult
+
+    res = BenchmarkResult(reports={"A": _report_with_nan_secondary_scalar()})
+    data = _strict_loads(core.benchmark_json_str(res))
+    assert data["reports"]["A"]["results"][0]["scalars"]["p"] is None

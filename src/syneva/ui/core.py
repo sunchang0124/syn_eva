@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import json
 import os
 import tempfile
 from pathlib import Path
@@ -14,7 +13,7 @@ from syneva.core.metadata import ColumnMetadata, ColumnType, Metadata
 from syneva.core.metric_info import describe_metric, display_name
 from syneva.core.registry import MetricRegistry
 from syneva.core.registry import registry as _global_registry
-from syneva.core.report import Report
+from syneva.core.report import Report, dumps_strict_json
 from syneva.core.runner import evaluate_with
 from syneva.render.html.renderer import render_html
 from syneva.render.pdf import render_pdf
@@ -193,7 +192,7 @@ def report_html_str(
 
 def report_json_str(report: Report) -> str:
     """Serialize the report to a JSON string (always carries every raw scalar)."""
-    return json.dumps(report.to_dict(), indent=2, default=str)
+    return dumps_strict_json(report.to_dict())
 
 
 def run_benchmark(
@@ -221,7 +220,7 @@ def leaderboard_html_str(result, *, normalization: str = "absolute") -> str:
 
 def benchmark_json_str(result) -> str:
     """Serialize a BenchmarkResult to a JSON string."""
-    return json.dumps(result.to_dict(), indent=2, default=str)
+    return dumps_strict_json(result.to_dict())
 
 
 def report_pdf_bytes(report: Report, *, score_mode: str = "normalized") -> bytes:

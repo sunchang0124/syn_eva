@@ -21,6 +21,12 @@ All notable changes follow [keep-a-changelog](https://keepachangelog.com).
   without it, `k_anonymity` is skipped.
 
 ### Fixed
+- Report and benchmark JSON files, and the JSON downloads in the web UI, are
+  now valid JSON (#109). A NaN or infinite value used to be written as a bare
+  `NaN` or `Infinity` token, which is not valid JSON, so strict JSON parsers
+  rejected the file. Such values are now written as `null` and read back as
+  NaN; infinite values come back as NaN too. Files written by older versions
+  still load.
 - Reports and benchmark results loaded from a file now treat a NaN or infinite
   score as a failed metric, as `evaluate()` has since #76 (#77). Loading used
   to skip that check, so a NaN score was counted as 0 (or as a perfect 1.0 for
